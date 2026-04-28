@@ -1,0 +1,71 @@
++++
+id = "s0001"
+title = "High-Level Architecture"
+tags = ["architecture", "component", "gateway", "logging", "config"]
++++
+
+## Behavior
+
+### Peranto
+
+- Peranto is an opinionated component system for applications that may include web servers, Discord bots, command-line entrypoints, and other external runtime entrypoints.
+
+### Application
+
+- An application coordinates registered components, lifecycle, configuration, logging, and typed component calls.
+
+### Component
+
+- Components have stable public ids.
+- Component ids are used for component identity and component-scoped logging.
+- Components expose typed call APIs.
+- Component call APIs support IPC-like usage without requiring cross-process transport.
+
+### Gateway
+
+- Gateway components adapt external runtime entrypoints to Peranto components.
+- Fastify and Discord gateways are separate publishable packages from the core package.
+- Gateway behavior is unified around binding external triggers to typed component calls.
+- Gateway APIs preserve protocol-specific request and response concepts rather than forcing every gateway into one universal request model.
+
+### Logging
+
+- Logging supports component-scoped identity derived from component ids.
+
+### Validation
+
+- Arktype is a core validation and typing tool for Peranto boundaries.
+
+## Constraints
+
+- The core package must not depend on gateway-specific runtimes.
+- Gateway packages may depend on the core package and their own external runtime ecosystems.
+- Component ids must be stable enough to serve as public identity within an application.
+- The architecture must keep shared concerns in core: lifecycle, configuration, logging, component registration, and typed calls.
+- Protocol-specific concerns must stay with the relevant gateway package.
+- Public design must not assume unprovided details for prompts, configuration, routes, commands, events, or component behavior.
+
+## Anticipated Changes
+
+- Additional gateway packages may be added after the Fastify and Discord packages.
+- Command-line gateway support may be added later, but it is not part of the current package set.
+- Component resource/template support is expected to be defined.
+- Component reloading is expected to be defined.
+- The configuration file format is expected to be chosen separately.
+- Gateway packages are expected to define protocol-native binding helpers.
+
+## Dangers
+
+- Over-unifying gateways can hide important differences between HTTP, Discord interactions, command-line execution, and future runtimes.
+- Adding gateway runtime dependencies to core would make unrelated applications pay for unused integrations.
+- Weak typing at call or gateway boundaries would undermine Peranto's main design goal.
+- Treating component ids as mutable labels would make logging and routing harder to reason about.
+- Centralizing all external routing in gateway components can make applications harder to compose.
+
+## Proposals
+
+- Application APIs may separate reusable application definition from runtime creation.
+- `defineApplication` may return an application definition object with a creation method.
+- `createApplication` may exist as a convenience wrapper over application definition and runtime creation.
+- Reusable component and gateway declarations may use definition-oriented public names.
+- TOML may be a good default authoring format for configuration, with parsed data validated through Arktype.
