@@ -5,6 +5,13 @@ tags = ["examples"]
 paths = ["examples/**"]
 +++
 
+## Related Specs
+
+- s0001: High-Level Architecture
+- s0002: Application
+- s0003: Component
+- s0004: Context
+
 ## Behavior
 
 - The repository contains example project shells.

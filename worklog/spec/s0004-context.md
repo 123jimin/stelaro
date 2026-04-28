@@ -4,6 +4,12 @@ title = "Context"
 tags = ["context", "architecture", "component", "application", "logging", "config"]
 +++
 
+## Related Specs
+
+- s0001: High-Level Architecture
+- s0002: Application
+- s0003: Component
+
 ## Behavior
 
 - UNIMPLEMENTED Context provides runtime capabilities to Peranto behavior.

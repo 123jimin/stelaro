@@ -4,6 +4,14 @@ title = "High-Level Architecture"
 tags = ["architecture", "component", "gateway", "logging", "config"]
 +++
 
+## Related Specs
+
+- s0002: Application
+- s0003: Component
+- s0004: Context
+- s0005: Examples
+- s0006: Hot Module Replacement
+
 ## Design Phase Note
 
 - Peranto is currently in the design phase.

@@ -4,6 +4,13 @@ title = "Component"
 tags = ["component", "architecture", "lifecycle", "config", "logging"]
 +++
 
+## Related Specs
+
+- s0001: High-Level Architecture
+- s0002: Application
+- s0004: Context
+- s0006: Hot Module Replacement
+
 ## Behavior
 
 - UNIMPLEMENTED Components have stable public ids.

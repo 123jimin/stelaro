@@ -4,6 +4,13 @@ title = "Application"
 tags = ["application", "architecture", "lifecycle", "config", "logging"]
 +++
 
+## Related Specs
+
+- s0001: High-Level Architecture
+- s0003: Component
+- s0004: Context
+- s0006: Hot Module Replacement
+
 ## Behavior
 
 - UNIMPLEMENTED An application coordinates registered components.
