@@ -1,0 +1,35 @@
++++
+id = "s0004"
+title = "Context"
+tags = ["context", "architecture", "component", "application", "logging", "config"]
++++
+
+## Behavior
+
+- UNIMPLEMENTED Context provides runtime capabilities to Peranto behavior.
+- UNIMPLEMENTED Component behavior receives context from the application runtime.
+- UNIMPLEMENTED Context includes access to component-scoped logging.
+- UNIMPLEMENTED Context includes access to typed component calls.
+- UNIMPLEMENTED Context includes access to validated configuration relevant to the receiving behavior.
+- UNIMPLEMENTED Context allows behavior to call typed APIs exposed by gateway components.
+
+## Constraints
+
+- Core context is defined by the core package and is available to core component behavior.
+- Core context provides Peranto-level capabilities, not raw gateway runtime objects.
+- Core context preserves the current component id for scoped capabilities such as logging and configuration.
+- Core context exposes validated configuration to behavior.
+- Core context may access gateway capabilities only through typed component call APIs.
+
+## Anticipated Changes
+
+- Gateway-specific contexts may extend core context in gateway packages.
+- Lifecycle-specific context capabilities may be specified separately.
+- Resource and template access through context may be specified separately.
+
+## Dangers
+
+- Putting every runtime concern into context can make behavior dependencies unclear.
+- Exposing gateway-specific protocol objects through core context would couple core behavior to external runtimes.
+- Allowing unvalidated configuration through context would weaken typed component boundaries.
+- Preventing context from calling typed gateway APIs would block cross-gateway workflows.
