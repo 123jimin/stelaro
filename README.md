@@ -1,33 +1,17 @@
-# Node.js TypeScript Template
+# @jiminp/peranto
 
-A minimal starting point for building a Node.js library in TypeScript.
+Opinionated Component System
 
-## Features
+## Finishing the Setup
 
-- Compile with [TypeScript](https://www.typescriptlang.org/).
-- Lint with [ESLint](https://eslint.org/).
-- Test with [Node.js Test Runner](https://nodejs.org/api/test.html).
-- GitHub CI for continuous integration.
-- Manage dependencies with [pnpm](https://pnpm.io/).
-
-## Getting Started
-
-### Using the Bootstrap Script
-
-1. Run `node bootstrap.js`, and follow the prompts.
-2. Check the generated `README.md` for further instructions.
-
-### Manual Setup
-
-1. Choose a license to use, and replace the `LICENSE` file and the `license` field in `package.json`.
-2. Search for all placeholder values in `package.json` (via searching `placeholder`) and replace them.
-3. Install dependencies with `pnpm install` and update them with `pnpm up --latest`.
-    - [Install pnpm](https://pnpm.io/installation) if you haven't.
-4. Replace the contents of this README with a description of your library.
+1. Review `package.json` and `LICENSE` to ensure correctness.
+2. Install dependencies with `pnpm install`.
+    - It is recommended to also run `pnpm up --latest` to update dependencies to their latest versions.
+3. Remove this section.
 
 ## Development
 
-After setting up, you can use the following commands:
+This project uses [pnpm](https://pnpm.io/) for package management.
 
 - `pnpm build` – compile TypeScript from `src/` into `dist/`.
   - `pnpm build:watch` – recompile on every file change.
@@ -38,4 +22,4 @@ After setting up, you can use the following commands:
 
 ## License
 
-This template is [Unlicensed](./LICENSE).
+[MIT](./LICENSE)

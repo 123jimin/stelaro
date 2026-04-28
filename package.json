@@ -1,7 +1,7 @@
 {
-  "name": "placeholder-name",
+  "name": "@jiminp/peranto",
   "version": "0.0.1",
-  "description": "placeholder-description",
+  "description": "Opinionated Component System",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,16 +19,16 @@
     "test": "node --test \"dist/**/*.spec.js\""
   },
   "keywords": [],
-  "author": "placeholder-author",
-  "license": "UNLICENSED",
+  "author": "Jimin Park (github.com/123jimin)",
+  "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.invalid/placeholder/placeholder.git"
+    "url": "git+https://github.com/123jimin/peranto.git"
   },
   "bugs": {
-    "url": "https://github.invalid/placeholder/placeholder/issues"
+    "url": "https://github.com/123jimin/peranto/issues"
   },
-  "homepage": "https://github.invalid/placeholder/placeholder",
+  "homepage": "https://github.com/123jimin/peranto",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@jiminp/eslint-config": "^1.3.4",
