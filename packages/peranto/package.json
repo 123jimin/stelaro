@@ -35,5 +35,8 @@
   "bugs": {
     "url": "https://github.com/123jimin/peranto/issues"
   },
-  "homepage": "https://github.com/123jimin/peranto/tree/main/packages/peranto"
+  "homepage": "https://github.com/123jimin/peranto/tree/main/packages/peranto",
+  "dependencies": {
+    "arktype": "^2.2.0"
+  }
 }
