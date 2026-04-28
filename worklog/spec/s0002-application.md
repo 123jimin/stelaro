@@ -8,6 +8,7 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 
 - UNIMPLEMENTED An application coordinates registered components.
 - UNIMPLEMENTED An application coordinates lifecycle, configuration, logging, and typed component calls.
+- UNIMPLEMENTED Applications are created with `createApplication`.
 
 ## Constraints
 

@@ -13,10 +13,14 @@ paths = ["examples/**"]
 - Empty example project shells do not define runtime behavior.
 - The web server example may contain non-working code for designing the Peranto and Peranto Fastify APIs.
 - The web server example uses non-existent `peranto` and `peranto-fastify` packages while those APIs are being designed.
+- The web server example creates the application with `createApplication`.
 - The web server example includes a counter managed by a counter component.
 - The web server example stores the counter value in memory and does not persist it.
 - The web server example shares one counter value across all users.
 - The web server example increases the shared counter value by one when a user clicks a button.
+- The web server example accepts a POST request that sets the shared counter value to a specific value.
+- The web server example logs whenever the shared counter value is changed.
+- The web server example defines component call inputs and outputs with Arktype schemas.
 
 ## Constraints
 
@@ -24,6 +28,9 @@ paths = ["examples/**"]
 - Example project shells must not assume package metadata, runtime code, prompts, routes, commands, configuration, credentials, or external service behavior unless explicitly specified.
 - Non-working API design examples must not be presented as runnable examples.
 - The web server counter example must keep the counter state in the counter component.
+- The web server route that sets the counter must change the value through the counter component.
+- The web server counter example must log counter changes from the counter component.
+- The web server example must not use non-schema placeholders for component call input and output definitions.
 
 ## Anticipated Changes
 

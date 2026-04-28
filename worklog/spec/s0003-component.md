@@ -9,6 +9,7 @@ tags = ["component", "architecture", "lifecycle", "config", "logging"]
 - UNIMPLEMENTED Components have stable public ids.
 - UNIMPLEMENTED Component ids are used for component identity and component-scoped logging.
 - UNIMPLEMENTED Components expose typed call APIs.
+- UNIMPLEMENTED Component call API inputs and outputs are defined with Arktype schemas.
 - UNIMPLEMENTED Component call APIs support IPC-like usage without requiring cross-process transport.
 - UNIMPLEMENTED Components may use gateway capabilities through typed component call APIs.
 
@@ -17,6 +18,7 @@ tags = ["component", "architecture", "lifecycle", "config", "logging"]
 - Component behavior belongs to the core package.
 - Component ids must be stable enough to serve as public identity within an application.
 - Component call boundaries must remain typed.
+- Component call input and output definitions must be Arktype schemas.
 - Component behavior must not require raw gateway-specific runtime objects.
 - Component behavior may depend on typed call APIs exposed by gateway components.
 

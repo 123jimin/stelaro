@@ -1,5 +1,6 @@
 // API design sketch: these packages and APIs intentionally do not exist yet.
-import {defineApplication, defineComponent} from "peranto";
+import {type as schema} from "arktype";
+import {createApplication, defineComponent} from "peranto";
 import {defineFastifyGateway} from "peranto-fastify";
 
 const counter = defineComponent({
@@ -9,10 +10,10 @@ const counter = defineComponent({
     }),
     calls: {
         current: {
-            input: {},
-            output: {
+            input: schema({}),
+            output: schema({
                 count: "number",
-            },
+            }),
             async handle({state}) {
                 return {
                     count: state.count,
@@ -20,12 +21,33 @@ const counter = defineComponent({
             },
         },
         increment: {
-            input: {},
-            output: {
+            input: schema({}),
+            output: schema({
                 count: "number",
-            },
-            async handle({state}) {
+            }),
+            async handle({logger, state}) {
                 state.count += 1;
+                logger.info("counter.incremented", {
+                    count: state.count,
+                });
+
+                return {
+                    count: state.count,
+                };
+            },
+        },
+        set: {
+            input: schema({
+                count: "number",
+            }),
+            output: schema({
+                count: "number",
+            }),
+            async handle({input, logger, state}) {
+                state.count = input.count;
+                logger.info("counter.set", {
+                    count: state.count,
+                });
 
                 return {
                     count: state.count,
@@ -63,10 +85,22 @@ const http = defineFastifyGateway({
                 return redirect("/");
             },
         },
+        {
+            method: "POST",
+            path: "/counter",
+            body: schema({
+                count: "number",
+            }),
+            async handle({body, call}) {
+                return call("counter.set", {
+                    count: body.count,
+                });
+            },
+        },
     ],
 });
 
-const app = defineApplication({
+const app = createApplication({
     components: [
         counter,
         http,

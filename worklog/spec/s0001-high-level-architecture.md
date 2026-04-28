@@ -20,12 +20,14 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 ### Application
 
 - UNIMPLEMENTED An application coordinates registered components, lifecycle, configuration, logging, and typed component calls.
+- UNIMPLEMENTED Applications are created with `createApplication`.
 
 ### Component
 
 - UNIMPLEMENTED Components have stable public ids.
 - UNIMPLEMENTED Component ids are used for component identity and component-scoped logging.
 - UNIMPLEMENTED Components expose typed call APIs.
+- UNIMPLEMENTED Component call API inputs and outputs are defined with Arktype schemas.
 - UNIMPLEMENTED Component call APIs support IPC-like usage without requiring cross-process transport.
 
 ### Gateway
@@ -50,6 +52,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - The core package must not depend on gateway-specific runtimes.
 - Gateway packages may depend on the core package and their own external runtime ecosystems.
 - Component ids must be stable enough to serve as public identity within an application.
+- Component call input and output definitions must be Arktype schemas.
 - The architecture must keep shared concerns in core: lifecycle, configuration, logging, component registration, and typed calls.
 - Protocol-specific concerns must stay with the relevant gateway package.
 - Non-gateway components must not require raw gateway-specific runtime objects.
@@ -75,8 +78,6 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 ## Proposals
 
-- Application APIs may separate reusable application definition from runtime creation.
-- `defineApplication` may return an application definition object with a creation method.
-- `createApplication` may exist as a convenience wrapper over application definition and runtime creation.
+- Application APIs may later separate reusable application definition from runtime creation.
 - Reusable component and gateway declarations may use definition-oriented public names.
 - TOML may be a good default authoring format for configuration, with parsed data validated through Arktype.
