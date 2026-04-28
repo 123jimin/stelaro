@@ -8,33 +8,35 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 ### Peranto
 
-- Peranto is an opinionated component system for applications that may include web servers, Discord bots, command-line entrypoints, and other external runtime entrypoints.
+- UNIMPLEMENTED Peranto is an opinionated component system for applications that may include web servers, Discord bots, command-line entrypoints, and other external runtime entrypoints.
 
 ### Application
 
-- An application coordinates registered components, lifecycle, configuration, logging, and typed component calls.
+- UNIMPLEMENTED An application coordinates registered components, lifecycle, configuration, logging, and typed component calls.
 
 ### Component
 
-- Components have stable public ids.
-- Component ids are used for component identity and component-scoped logging.
-- Components expose typed call APIs.
-- Component call APIs support IPC-like usage without requiring cross-process transport.
+- UNIMPLEMENTED Components have stable public ids.
+- UNIMPLEMENTED Component ids are used for component identity and component-scoped logging.
+- UNIMPLEMENTED Components expose typed call APIs.
+- UNIMPLEMENTED Component call APIs support IPC-like usage without requiring cross-process transport.
 
 ### Gateway
 
-- Gateway components adapt external runtime entrypoints to Peranto components.
-- Fastify and Discord gateways are separate publishable packages from the core package.
-- Gateway behavior is unified around binding external triggers to typed component calls.
-- Gateway APIs preserve protocol-specific request and response concepts rather than forcing every gateway into one universal request model.
+- UNIMPLEMENTED Gateway components adapt external runtime entrypoints to Peranto components.
+- UNIMPLEMENTED Fastify and Discord gateways are separate publishable packages from the core package.
+- UNIMPLEMENTED Gateway behavior is unified around binding external triggers to typed component calls.
+- UNIMPLEMENTED Gateway APIs preserve protocol-specific request and response concepts rather than forcing every gateway into one universal request model.
+- UNIMPLEMENTED Gateway components may expose typed call APIs for outbound protocol capabilities.
+- UNIMPLEMENTED Non-gateway components may use gateway capabilities through typed component call APIs.
 
 ### Logging
 
-- Logging supports component-scoped identity derived from component ids.
+- UNIMPLEMENTED Logging supports component-scoped identity derived from component ids.
 
 ### Validation
 
-- Arktype is a core validation and typing tool for Peranto boundaries.
+- UNIMPLEMENTED Arktype is a core validation and typing tool for Peranto boundaries.
 
 ## Constraints
 
@@ -43,6 +45,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - Component ids must be stable enough to serve as public identity within an application.
 - The architecture must keep shared concerns in core: lifecycle, configuration, logging, component registration, and typed calls.
 - Protocol-specific concerns must stay with the relevant gateway package.
+- Non-gateway components must not require raw gateway-specific runtime objects.
 - Public design must not assume unprovided details for prompts, configuration, routes, commands, events, or component behavior.
 
 ## Anticipated Changes
@@ -61,6 +64,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - Weak typing at call or gateway boundaries would undermine Peranto's main design goal.
 - Treating component ids as mutable labels would make logging and routing harder to reason about.
 - Centralizing all external routing in gateway components can make applications harder to compose.
+- Blocking typed access to gateway capabilities would make cross-gateway workflows harder to model.
 
 ## Proposals
 
