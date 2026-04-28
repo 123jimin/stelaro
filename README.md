@@ -1,13 +1,10 @@
 # @jiminp/peranto
 
-Opinionated Component System
+**Peranto** is my own flexible component system for various applications:
 
-## Finishing the Setup
-
-1. Review `package.json` and `LICENSE` to ensure correctness.
-2. Install dependencies with `pnpm install`.
-    - It is recommended to also run `pnpm up --latest` to update dependencies to their latest versions.
-3. Remove this section.
+- Web Server
+- CLI Application
+- Discord Bot
 
 ## Development
 
