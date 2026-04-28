@@ -1,35 +1,16 @@
 {
-  "name": "@jiminp/peranto",
-  "version": "0.0.1",
+  "name": "@jiminp/peranto-workspace",
+  "version": "0.0.0",
   "description": "Opinionated Component System",
+  "private": true,
   "type": "module",
-  "sideEffects": false,
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist",
-    "!dist/**/*.spec.*"
-  ],
   "scripts": {
-    "clean": "rimraf dist tsconfig.tsbuildinfo",
-    "prepare": "pnpm build",
-    "build": "tsc",
-    "build:watch": "tsc --watch",
-    "lint": "eslint src/",
-    "pretest": "pnpm build",
-    "test": "node --test \"dist/**/*.spec.js\""
+    "clean": "pnpm -r --if-present clean",
+    "build": "pnpm -r --if-present build",
+    "build:watch": "pnpm --filter @jiminp/peranto build:watch",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test"
   },
-  "keywords": [],
-  "author": "Jimin Park (github.com/123jimin)",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/123jimin/peranto.git"
-  },
-  "bugs": {
-    "url": "https://github.com/123jimin/peranto/issues"
-  },
-  "homepage": "https://github.com/123jimin/peranto",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@jiminp/eslint-config": "^1.3.4",

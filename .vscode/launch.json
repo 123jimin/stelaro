@@ -10,11 +10,11 @@
             ],
             "runtimeArgs": [
                 "--test",
-                "dist/**/*.spec.js"
+                "packages/*/dist/**/*.spec.js"
             ],
             "preLaunchTask": "tsc: build - tsconfig.json",
             "outFiles": [
-                "${workspaceFolder}/dist/**/*.js"
+                "${workspaceFolder}/packages/*/dist/**/*.js"
             ]
         }
     ]

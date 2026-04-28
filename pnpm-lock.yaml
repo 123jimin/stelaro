@@ -36,6 +36,26 @@ importers:
         specifier: 8.58.2
         version: 8.58.2(eslint@10.2.1)(typescript@6.0.3)
 
+  packages/peranto: {}
+
+  packages/peranto-discord:
+    dependencies:
+      '@jiminp/peranto':
+        specifier: workspace:*
+        version: link:../peranto
+
+  packages/peranto-fastify:
+    dependencies:
+      '@jiminp/peranto':
+        specifier: workspace:*
+        version: link:../peranto
+
+  packages/peranto-pino:
+    dependencies:
+      '@jiminp/peranto':
+        specifier: workspace:*
+        version: link:../peranto
+
 packages:
 
   '@eslint-community/eslint-utils@4.9.1':

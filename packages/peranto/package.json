@@ -1,0 +1,39 @@
+{
+  "name": "@jiminp/peranto",
+  "version": "0.0.1",
+  "description": "Opinionated Component System",
+  "type": "module",
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.spec.*"
+  ],
+  "scripts": {
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "lint": "eslint src/",
+    "pretest": "pnpm build",
+    "test": "node --test \"dist/**/*.spec.js\""
+  },
+  "keywords": [],
+  "author": "Jimin Park (github.com/123jimin)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/123jimin/peranto.git",
+    "directory": "packages/peranto"
+  },
+  "bugs": {
+    "url": "https://github.com/123jimin/peranto/issues"
+  },
+  "homepage": "https://github.com/123jimin/peranto/tree/main/packages/peranto"
+}
