@@ -37,6 +37,7 @@
   },
   "homepage": "https://github.com/123jimin/peranto/tree/main/packages/peranto",
   "dependencies": {
-    "arktype": "^2.2.0"
+    "arktype": "^2.2.0",
+    "smol-toml": "^1.6.1"
   }
 }
