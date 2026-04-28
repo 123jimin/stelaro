@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Runtime data
+*.pid
+*.pid.lock
+
+# Logs
+*.log
+.pnpm-debug.log*
+
+# Environment variables
+.env
+.env.*.local
+.env.local
+
+# Coverage
+coverage/
+
+# Pack output
+*.tgz
+
+# Scratch directory
+/local/
+
+# pnpm v8-compile-cache dependency
+# https://github.com/pnpm/pnpm/issues/7330#issuecomment-2708137623
+v8-compile-cache*/
+node-compile-cache/

@@ -1,0 +1,43 @@
+{
+  "name": "placeholder-name",
+  "version": "0.0.1",
+  "description": "placeholder-description",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "!dist/**/*.spec.*"
+  ],
+  "scripts": {
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "prepare": "pnpm build",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "lint": "eslint src/",
+    "pretest": "pnpm build",
+    "test": "node --test \"dist/**/*.spec.js\""
+  },
+  "keywords": [],
+  "author": "placeholder-author",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.invalid/placeholder/placeholder.git"
+  },
+  "bugs": {
+    "url": "https://github.invalid/placeholder/placeholder/issues"
+  },
+  "homepage": "https://github.invalid/placeholder/placeholder",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@jiminp/eslint-config": "^1.3.4",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@types/node": "^25.6.0",
+    "eslint": "^10.2.1",
+    "eslint-plugin-simple-import-sort": "^13.0.0",
+    "rimraf": "^6.1.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "8.58.2"
+  }
+}
