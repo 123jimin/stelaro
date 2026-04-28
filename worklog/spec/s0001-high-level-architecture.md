@@ -4,6 +4,13 @@ title = "High-Level Architecture"
 tags = ["architecture", "component", "gateway", "logging", "config"]
 +++
 
+## Design Phase Note
+
+- Peranto is currently in the design phase.
+- During the design phase, worklog rules about spec absoluteness apply more weakly to exploratory details such as constraints and dangers.
+- Design-phase constraints and dangers should be read skeptically while the architecture is still being refined.
+- Even during the design phase, editing spec behavior or intentionally diverging from a spec requires explicit user confirmation.
+
 ## Behavior
 
 ### Peranto
