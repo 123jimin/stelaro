@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@jiminp/tooltool':
+        specifier: ^0.3.2
+        version: 0.3.2
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -44,6 +48,10 @@ importers:
       smol-toml:
         specifier: ^1.6.1
         version: 1.6.1
+    devDependencies:
+      '@jiminp/tooltool':
+        specifier: ^0.3.2
+        version: 0.3.2
 
   packages/peranto-discord:
     dependencies:
@@ -146,6 +154,9 @@ packages:
         optional: true
       typescript-eslint:
         optional: true
+
+  '@jiminp/tooltool@0.3.2':
+    resolution: {integrity: sha512-5pnygKOvnuHGtHt8GymBGxJjwyS7BWqlIhJFly6i9dHpeKUVvC22OrL5SdkKlEh5diFRWDPlU/npzr12NKTQdA==}
 
   '@stylistic/eslint-plugin@5.10.0':
     resolution: {integrity: sha512-nPK52ZHvot8Ju/0A4ucSX1dcPV2/1clx0kLcH5wDmrE4naKso7TUC/voUyU1O9OTKTrR6MYip6LP0ogEMQ9jPQ==}
@@ -600,6 +611,8 @@ snapshots:
       '@stylistic/eslint-plugin': 5.10.0(eslint@10.2.1)
       eslint-plugin-simple-import-sort: 13.0.0(eslint@10.2.1)
       typescript-eslint: 8.58.2(eslint@10.2.1)(typescript@6.0.3)
+
+  '@jiminp/tooltool@0.3.2': {}
 
   '@stylistic/eslint-plugin@5.10.0(eslint@10.2.1)':
     dependencies:

@@ -39,5 +39,8 @@
   "dependencies": {
     "arktype": "^2.2.0",
     "smol-toml": "^1.6.1"
+  },
+  "devDependencies": {
+    "@jiminp/tooltool": "^0.3.2"
   }
 }
