@@ -1,19 +1,42 @@
 // API design sketch: these packages and APIs intentionally do not exist yet.
 import {type as schema} from "arktype";
-import {createApplication, defineComponent} from "peranto";
+import {createApplication, defineComponent, defineComponentCalls} from "peranto";
 import {defineFastifyGateway} from "peranto-fastify";
 
-const counter = defineComponent({
+const CounterCalls = defineComponentCalls({
     id: "counter",
-    state: () => ({
-        count: 0,
-    }),
     calls: {
         current: {
             input: schema({}),
             output: schema({
                 count: "number",
             }),
+        },
+        increment: {
+            input: schema({}),
+            output: schema({
+                count: "number",
+            }),
+        },
+        set: {
+            input: schema({
+                count: "number",
+            }),
+            output: schema({
+                count: "number",
+            }),
+        },
+    },
+});
+
+const counter = defineComponent({
+    calls: CounterCalls,
+    uses: [],
+    state: () => ({
+        count: 0,
+    }),
+    handlers: {
+        current: {
             async handle({state}) {
                 return {
                     count: state.count,
@@ -21,10 +44,6 @@ const counter = defineComponent({
             },
         },
         increment: {
-            input: schema({}),
-            output: schema({
-                count: "number",
-            }),
             async handle({logger, state}) {
                 state.count += 1;
                 logger.info("counter.incremented", {
@@ -37,13 +56,7 @@ const counter = defineComponent({
             },
         },
         set: {
-            input: schema({
-                count: "number",
-            }),
-            output: schema({
-                count: "number",
-            }),
-            async handle({input, logger, state}) {
+            async handle({logger, state}, input) {
                 state.count = input.count;
                 logger.info("counter.set", {
                     count: state.count,
@@ -59,12 +72,13 @@ const counter = defineComponent({
 
 const http = defineFastifyGateway({
     id: "http",
+    uses: [CounterCalls],
     routes: [
         {
             method: "GET",
             path: "/",
             async handle({call, html}) {
-                const {count: currentCount} = await call("counter.current", {});
+                const {count: currentCount} = await call(CounterCalls.calls.current, {});
 
                 return html`
                     <main>
@@ -80,7 +94,7 @@ const http = defineFastifyGateway({
             method: "POST",
             path: "/counter/increment",
             async handle({call, redirect}) {
-                await call("counter.increment", {});
+                await call(CounterCalls.calls.increment, {});
 
                 return redirect("/");
             },
@@ -92,7 +106,7 @@ const http = defineFastifyGateway({
                 count: "number",
             }),
             async handle({body, call}) {
-                return call("counter.set", {
+                return call(CounterCalls.calls.set, {
                     count: body.count,
                 });
             },

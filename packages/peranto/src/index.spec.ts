@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {PLACEHOLDER} from "./index.ts";
+import * as peranto from "./index.ts";
 
-describe("PLACEHOLDER", () => {
-    it("should be equal to 42", () => {
-        assert.strictEqual(PLACEHOLDER, 42);
+describe("@jiminp/peranto placeholder", () => {
+    it("exposes no runtime API before t0003 implementation", () => {
+        assert.deepStrictEqual(Object.keys(peranto), []);
     });
 });
