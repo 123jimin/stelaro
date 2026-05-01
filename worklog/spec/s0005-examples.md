@@ -20,6 +20,7 @@ paths = ["examples/**"]
 - Empty example project shells do not define runtime behavior.
 - The web server example may contain non-working code for designing the Peranto and Peranto Fastify APIs.
 - The web server example uses non-existent `peranto` and `peranto-fastify` packages while those APIs are being designed.
+- The web server example separates application declaration from runtime creation.
 - The web server example creates the application with `createApplication`.
 - The web server example includes a counter managed by a counter component.
 - The web server example stores the counter value in memory and does not persist it.

@@ -37,10 +37,8 @@
   },
   "homepage": "https://github.com/123jimin/peranto/tree/main/packages/peranto",
   "dependencies": {
+    "@jiminp/tooltool": "^0.3.2",
     "arktype": "^2.2.0",
     "smol-toml": "^1.6.1"
-  },
-  "devDependencies": {
-    "@jiminp/tooltool": "^0.3.2"
   }
 }

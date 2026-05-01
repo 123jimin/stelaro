@@ -13,9 +13,11 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 
 ## Behavior
 
-- UNIMPLEMENTED An application coordinates registered components.
-- UNIMPLEMENTED An application coordinates lifecycle, configuration, logging, and typed component calls.
-- UNIMPLEMENTED Applications are created with `createApplication`.
+- An application coordinates registered components.
+- An application coordinates typed component calls.
+- UNIMPLEMENTED An application coordinates lifecycle, configuration, and logging.
+- Application definitions can be declared separately from creating the application runtime.
+- Applications are created with `createApplication`.
 
 ## Constraints
 
@@ -25,7 +27,6 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 
 ## Anticipated Changes
 
-- Application definition and runtime creation may be specified separately.
 - Gateway registration may be specified separately.
 - Configuration loading may be specified separately.
 

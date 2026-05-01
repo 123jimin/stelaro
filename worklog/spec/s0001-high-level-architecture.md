@@ -27,16 +27,19 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 ### Application
 
-- UNIMPLEMENTED An application coordinates registered components, lifecycle, configuration, logging, and typed component calls.
-- UNIMPLEMENTED Applications are created with `createApplication`.
+- An application coordinates registered components and typed component calls.
+- UNIMPLEMENTED An application coordinates lifecycle, configuration, and logging.
+- Application definitions can be declared separately from creating the application runtime.
+- Applications are created with `createApplication`.
 
 ### Component
 
-- UNIMPLEMENTED Components have stable public ids.
-- UNIMPLEMENTED Component ids are used for component identity and component-scoped logging.
-- UNIMPLEMENTED Components expose typed call APIs.
-- UNIMPLEMENTED Component call API inputs and outputs are defined with Arktype schemas.
-- UNIMPLEMENTED Component call APIs support IPC-like usage without requiring cross-process transport.
+- Components have stable public ids.
+- Component ids are used for component identity.
+- UNIMPLEMENTED Component ids are used for component-scoped logging.
+- Components expose typed call APIs.
+- Component call API inputs and outputs are defined with Arktype schemas.
+- Component call APIs support IPC-like usage without requiring cross-process transport.
 
 ### Gateway
 
@@ -53,7 +56,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 ### Validation
 
-- UNIMPLEMENTED Arktype is a core validation and typing tool for Peranto boundaries.
+- Arktype is a core validation and typing tool for Peranto boundaries.
 
 ## Constraints
 
@@ -86,6 +89,5 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 ## Proposals
 
-- Application APIs may later separate reusable application definition from runtime creation.
 - Reusable component and gateway declarations may use definition-oriented public names.
 - TOML may be a good default authoring format for configuration, with parsed data validated through Arktype.

@@ -1,6 +1,6 @@
 // API design sketch: these packages and APIs intentionally do not exist yet.
 import {type as schema} from "arktype";
-import {createApplication, defineComponent, defineComponentCalls} from "peranto";
+import {createApplication, defineApplication, defineComponent, defineComponentCalls} from "peranto";
 import {defineFastifyGateway} from "peranto-fastify";
 
 const CounterCalls = defineComponentCalls({
@@ -29,7 +29,7 @@ const CounterCalls = defineComponentCalls({
     },
 });
 
-const counter = defineComponent({
+const CounterComponent = defineComponent({
     calls: CounterCalls,
     uses: [],
     state: () => ({
@@ -70,7 +70,7 @@ const counter = defineComponent({
     },
 });
 
-const http = defineFastifyGateway({
+const HttpGateway = defineFastifyGateway({
     id: "http",
     uses: [CounterCalls],
     routes: [
@@ -78,11 +78,11 @@ const http = defineFastifyGateway({
             method: "GET",
             path: "/",
             async handle({call, html}) {
-                const {count: currentCount} = await call(CounterCalls.calls.current, {});
+                const {count: current_count} = await call(CounterCalls.calls.current, {});
 
                 return html`
                     <main>
-                        <p>Count: ${currentCount}</p>
+                        <p>Count: ${current_count}</p>
                         <form method="post" action="/counter/increment">
                             <button type="submit">Increase</button>
                         </form>
@@ -114,12 +114,14 @@ const http = defineFastifyGateway({
     ],
 });
 
-const app = createApplication({
+const WebServerApp = defineApplication({
     components: [
-        counter,
-        http,
+        CounterComponent,
+        HttpGateway,
     ],
 });
+
+const app = createApplication(WebServerApp);
 
 await app.listen({
     gateway: "http",

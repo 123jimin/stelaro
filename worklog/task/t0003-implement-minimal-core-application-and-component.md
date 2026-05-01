@@ -10,6 +10,7 @@ blocked_by = []
 ## Scope
 
 - Implement the minimal approved core behavior for creating applications with `createApplication`.
+- Implement reusable application definition with `defineApplication`.
 - Implement the minimal approved core behavior for defining components with stable public ids.
 - Implement component call surface definitions with `defineComponentCalls`.
 - Implement call reference values so user code calls typed references instead of string keys.
@@ -35,11 +36,14 @@ blocked_by = []
 
 ```ts
 import type {Promisable} from "@jiminp/tooltool";
-import type {BaseType} from "arktype";
 
 type ComponentId = string;
 type ComponentCallName = string;
-type ComponentCallSchema = BaseType<unknown>;
+type ComponentCallSchema = {
+    readonly inferIn: unknown;
+    readonly infer: unknown;
+    assert(input: unknown): unknown;
+};
 type ValueOf<T extends object> = T extends unknown ? T[keyof T] : never;
 
 type ComponentCallReference<
@@ -89,7 +93,7 @@ type AnyComponentCalls = ComponentCalls<ComponentId, ComponentCallDeclarations>;
 type CallFrom<TCalls extends AnyComponentCalls> = ValueOf<TCalls["calls"]>;
 
 type CallInput<TCall extends AnyComponentCallReference> = TCall["input"]["inferIn"];
-type CallOutput<TCall extends AnyComponentCallReference> = TCall["output"]["inferOut"];
+type CallOutput<TCall extends AnyComponentCallReference> = TCall["output"]["infer"];
 
 type ComponentContext<TUses extends readonly AnyComponentCalls[]> = {
     call<TCall extends CallFrom<TUses[number]>>(
@@ -116,6 +120,10 @@ type Component<
 
 type AnyComponent = Component<AnyComponentCalls, readonly AnyComponentCalls[]>;
 
+type ApplicationDefinition<TComponents extends readonly AnyComponent[]> = {
+    components: TComponents;
+};
+
 type Application<TComponents extends readonly AnyComponent[]> = {
     call<TCall extends CallFrom<TComponents[number]["calls"]>>(
         reference: TCall,
@@ -136,11 +144,13 @@ declare function defineComponent<
     const TUses extends readonly AnyComponentCalls[],
 >(definition: Component<TCalls, TUses>): Component<TCalls, TUses>;
 
+declare function defineApplication<
+    const TComponents extends readonly AnyComponent[],
+>(definition: ApplicationDefinition<TComponents>): ApplicationDefinition<TComponents>;
+
 declare function createApplication<
     const TComponents extends readonly AnyComponent[],
->(definition: {
-    components: TComponents;
-}): Application<TComponents>;
+>(definition: ApplicationDefinition<TComponents>): Application<TComponents>;
 ```
 
 ## Type Narrowing Demonstration
@@ -148,26 +158,41 @@ declare function createApplication<
 ```ts
 import {assertEqualType} from "@jiminp/tooltool";
 
-declare const emptySchema: BaseType<{}>;
-declare const setCounterSchema: BaseType<{count: number}>;
-declare const counterOutputSchema: BaseType<{count: number}>;
-declare const htmlInputSchema: BaseType<{}>;
-declare const htmlOutputSchema: BaseType<{html: string}>;
+declare const EmptySchema: ComponentCallSchema & {
+    readonly inferIn: {};
+    readonly infer: {};
+};
+declare const SetCounterSchema: ComponentCallSchema & {
+    readonly inferIn: {count: number};
+    readonly infer: {count: number};
+};
+declare const CounterOutputSchema: ComponentCallSchema & {
+    readonly inferIn: {count: number};
+    readonly infer: {count: number};
+};
+declare const HtmlInputSchema: ComponentCallSchema & {
+    readonly inferIn: {};
+    readonly infer: {};
+};
+declare const HtmlOutputSchema: ComponentCallSchema & {
+    readonly inferIn: {html: string};
+    readonly infer: {html: string};
+};
 
 const CounterCalls = defineComponentCalls({
     id: "counter",
     calls: {
         current: {
-            input: emptySchema,
-            output: counterOutputSchema,
+            input: EmptySchema,
+            output: CounterOutputSchema,
         },
         increment: {
-            input: emptySchema,
-            output: counterOutputSchema,
+            input: EmptySchema,
+            output: CounterOutputSchema,
         },
         set: {
-            input: setCounterSchema,
-            output: counterOutputSchema,
+            input: SetCounterSchema,
+            output: CounterOutputSchema,
         },
     },
 });
@@ -189,7 +214,7 @@ assertEqualType<
     {count: number}
 >();
 
-const counter = defineComponent({
+const CounterComponent = defineComponent({
     calls: CounterCalls,
     uses: [],
     handlers: {
@@ -217,13 +242,13 @@ const PageCalls = defineComponentCalls({
     id: "page",
     calls: {
         render: {
-            input: htmlInputSchema,
-            output: htmlOutputSchema,
+            input: HtmlInputSchema,
+            output: HtmlOutputSchema,
         },
     },
 });
 
-const page = defineComponent({
+const PageComponent = defineComponent({
     calls: PageCalls,
     uses: [CounterCalls],
     handlers: {
@@ -237,12 +262,14 @@ const page = defineComponent({
     },
 });
 
-const app = createApplication({
+const CounterPageApp = defineApplication({
     components: [
-        counter,
-        page,
+        CounterComponent,
+        PageComponent,
     ],
 });
+
+const app = createApplication(CounterPageApp);
 
 await app.call(CounterCalls.calls.current, {});
 await app.call(CounterCalls.calls.increment, {});
@@ -251,19 +278,18 @@ await app.call(CounterCalls.calls.set, {count: 1});
 // @ts-expect-error `counter.set` requires `{count: number}` input.
 await app.call(CounterCalls.calls.set, {});
 
-declare const stringReference: string;
+declare const string_reference: string;
 
 // @ts-expect-error user code calls references, not string keys.
-await app.call(stringReference, {});
+await app.call(string_reference, {});
 ```
 
 ## Potential `@jiminp/tooltool` Utilities
 
-- `Promisable<T>` may be used for component call handlers that can return either synchronous or asynchronous outputs.
+- `Promisable<T>` is exported by `@jiminp/tooltool` and should be used for component call handlers that can return either synchronous or asynchronous outputs.
 - `assertEqualType<T, U>()` may be used in type-focused tests for inferred component call references, inputs, and outputs.
 - `OptionalIfVoid<T>` may be considered later if a component call input schema can represent omitted input, but current approved behavior only requires schema-defined inputs.
 - `JSONValue`, `JSONObject`, `RecursivePartial<T>`, `Nullable<T>`, and `Result<T, E>` are not needed for this minimal task unless approved configuration, patching, nullable, or explicit result-returning behavior is added.
-- If core package source imports `@jiminp/tooltool`, add it to the core package dependencies rather than relying only on the workspace root dependency.
 
 ## Notes
 
@@ -271,6 +297,16 @@ await app.call(stringReference, {});
 - If implementation requires component state, lifecycle, configuration, or logging behavior beyond the approved specs, pause and request explicit spec approval first.
 - The TypeScript-like signatures are a design target for the task. Exact Arktype type names and helper type implementations must be chosen by surveying the installed Arktype package during implementation.
 - The web server example also sketches `state`, `logger`, and Fastify gateway context. Those remain out of t0003 unless their behavior is explicitly approved.
+- Arktype exposes `inferIn` for accepted input and `infer` for validated output; the implementation should use those inference properties for call typing.
 - Component call input/output helper types should stay schema-derived without relying on wildcard schema type parameters.
 - Component behavior should receive `call` typed from declared used call surfaces, avoiding circular dependence on the final application registry.
 - Public call sites should use call reference values such as `CounterCalls.calls.current`, not string keys.
+
+## Implementation Notes
+
+- Core implementation exports `defineComponentCalls`, `defineComponent`, `defineApplication`, and `createApplication`.
+- Component definitions and call-surface helpers live in `packages/peranto/src/component.ts`; the package entrypoint re-exports them.
+- Application definitions and runtime dispatch live in `packages/peranto/src/application.ts`; the package entrypoint re-exports them.
+- Application runtime dispatch validates call inputs and outputs with the declared schemas.
+- Component context calls are limited to the call surfaces declared in `uses`.
+- Verification through `pnpm --filter @jiminp/peranto test` is currently blocked before test execution by a local Node CSPRNG assertion in the Codex command runner.
