@@ -1,7 +1,7 @@
 +++
 id = "t0003"
 title = "Implement minimal core application and component"
-status = "active"
+status = "done"
 tags = ["application", "component", "context"]
 modifies = ["s0001", "s0002", "s0003", "s0004", "s0005"]
 blocked_by = []
