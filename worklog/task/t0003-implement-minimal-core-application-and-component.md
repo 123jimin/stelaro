@@ -39,21 +39,8 @@ import type {BaseType} from "arktype";
 
 type ComponentId = string;
 type ComponentCallName = string;
-
 type ComponentCallSchema = BaseType<unknown>;
-
-type ComponentCallDeclaration<
-    TInputSchema extends ComponentCallSchema,
-    TOutputSchema extends ComponentCallSchema,
-> = {
-    input: TInputSchema;
-    output: TOutputSchema;
-};
-
-type ComponentCallDeclarationMap = Record<
-    ComponentCallName,
-    ComponentCallDeclaration<ComponentCallSchema, ComponentCallSchema>
->;
+type ValueOf<T extends object> = T extends unknown ? T[keyof T] : never;
 
 type ComponentCallReference<
     TId extends ComponentId,
@@ -67,131 +54,93 @@ type ComponentCallReference<
     output: TOutputSchema;
 };
 
-type ComponentCallReferenceMap = Record<
+type AnyComponentCallReference = ComponentCallReference<
+    ComponentId,
     ComponentCallName,
-    ComponentCallReference<ComponentId, ComponentCallName, ComponentCallSchema, ComponentCallSchema>
+    ComponentCallSchema,
+    ComponentCallSchema
 >;
 
-type ComponentCallReferencesFor<
-    TId extends ComponentId,
-    TDeclarations extends ComponentCallDeclarationMap,
-> = {
-    [TCallName in keyof TDeclarations & ComponentCallName]: ComponentCallReference<
-        TId,
-        TCallName,
-        TDeclarations[TCallName]["input"],
-        TDeclarations[TCallName]["output"]
-    >;
-};
+type ComponentCallDeclarations = Record<
+    ComponentCallName,
+    {
+        input: ComponentCallSchema;
+        output: ComponentCallSchema;
+    }
+>;
 
-type ComponentCallsDefinition<
+type ComponentCalls<
     TId extends ComponentId,
-    TCalls extends ComponentCallReferenceMap,
+    TDeclarations extends ComponentCallDeclarations,
 > = {
     id: TId;
-    calls: TCalls;
+    calls: {
+        [TCallName in keyof TDeclarations & ComponentCallName]: ComponentCallReference<
+            TId,
+            TCallName,
+            TDeclarations[TCallName]["input"],
+            TDeclarations[TCallName]["output"]
+        >;
+    };
 };
 
-type AnyComponentCallsDefinition = ComponentCallsDefinition<ComponentId, ComponentCallReferenceMap>;
+type AnyComponentCalls = ComponentCalls<ComponentId, ComponentCallDeclarations>;
 
-type ComponentCallReferenceFor<TCallsDefinition> = TCallsDefinition extends ComponentCallsDefinition<
-    ComponentId,
-    infer TCalls
->
-    ? TCalls[keyof TCalls & ComponentCallName]
-    : never;
+type CallFrom<TCalls extends AnyComponentCalls> = ValueOf<TCalls["calls"]>;
 
-type ComponentCallReferenceInput<TReference> = TReference extends {
-    input: infer TInputSchema extends ComponentCallSchema;
-}
-    ? TInputSchema["inferIn"]
-    : never;
+type CallInput<TCall extends AnyComponentCallReference> = TCall["input"]["inferIn"];
+type CallOutput<TCall extends AnyComponentCallReference> = TCall["output"]["inferOut"];
 
-type ComponentCallReferenceOutput<TReference> = TReference extends {
-    output: infer TOutputSchema extends ComponentCallSchema;
-}
-    ? TOutputSchema["inferOut"]
-    : never;
-
-type ComponentCallContext<TUses extends readonly AnyComponentCallsDefinition[]> = {
-    call<TReference extends ComponentCallReferenceFor<TUses[number]>>(
-        reference: TReference,
-        input: ComponentCallReferenceInput<TReference>,
-    ): Promise<ComponentCallReferenceOutput<TReference>>;
+type ComponentContext<TUses extends readonly AnyComponentCalls[]> = {
+    call<TCall extends CallFrom<TUses[number]>>(
+        reference: TCall,
+        input: CallInput<TCall>,
+    ): Promise<CallOutput<TCall>>;
 };
 
-type ComponentHandlerDefinition<
-    TReference extends ComponentCallReference<ComponentId, ComponentCallName, ComponentCallSchema, ComponentCallSchema>,
-    TUses extends readonly AnyComponentCallsDefinition[],
-> = {
-    handle(
-        context: ComponentCallContext<TUses>,
-        input: ComponentCallReferenceInput<TReference>,
-    ): Promisable<ComponentCallReferenceOutput<TReference>>;
-};
-
-type ComponentHandlerMap<
-    TCalls extends AnyComponentCallsDefinition,
-    TUses extends readonly AnyComponentCallsDefinition[],
-> = {
-    [TCallName in keyof TCalls["calls"] & ComponentCallName]: ComponentHandlerDefinition<
-        TCalls["calls"][TCallName],
-        TUses
-    >;
-};
-
-type ComponentDefinition<
-    TCalls extends AnyComponentCallsDefinition,
-    TUses extends readonly AnyComponentCallsDefinition[],
+type Component<
+    TCalls extends AnyComponentCalls,
+    TUses extends readonly AnyComponentCalls[],
 > = {
     calls: TCalls;
     uses: TUses;
-    handlers: ComponentHandlerMap<TCalls, TUses>;
+    handlers: {
+        [TCallName in keyof TCalls["calls"] & ComponentCallName]: {
+            handle(
+                context: ComponentContext<TUses>,
+                input: CallInput<TCalls["calls"][TCallName]>,
+            ): Promisable<CallOutput<TCalls["calls"][TCallName]>>;
+        };
+    };
 };
 
-type AnyComponentDefinition = ComponentDefinition<
-    AnyComponentCallsDefinition,
-    readonly AnyComponentCallsDefinition[]
->;
+type AnyComponent = Component<AnyComponentCalls, readonly AnyComponentCalls[]>;
 
-type ProvidedComponentCallsFor<TComponent> = TComponent extends ComponentDefinition<
-    infer TCalls,
-    readonly AnyComponentCallsDefinition[]
->
-    ? TCalls
-    : never;
-
-type ApplicationCallReferenceFor<TComponents extends readonly AnyComponentDefinition[]> = ComponentCallReferenceFor<
-    ProvidedComponentCallsFor<TComponents[number]>
->;
-
-type ApplicationDefinition<TComponents extends readonly AnyComponentDefinition[]> = {
-    components: TComponents;
-};
-
-type Application<TComponents extends readonly AnyComponentDefinition[]> = {
-    call<TReference extends ApplicationCallReferenceFor<TComponents>>(
-        reference: TReference,
-        input: ComponentCallReferenceInput<TReference>,
-    ): Promise<ComponentCallReferenceOutput<TReference>>;
+type Application<TComponents extends readonly AnyComponent[]> = {
+    call<TCall extends CallFrom<TComponents[number]["calls"]>>(
+        reference: TCall,
+        input: CallInput<TCall>,
+    ): Promise<CallOutput<TCall>>;
 };
 
 declare function defineComponentCalls<
     const TId extends ComponentId,
-    const TDeclarations extends ComponentCallDeclarationMap,
+    const TDeclarations extends ComponentCallDeclarations,
 >(definition: {
     id: TId;
     calls: TDeclarations;
-}): ComponentCallsDefinition<TId, ComponentCallReferencesFor<TId, TDeclarations>>;
+}): ComponentCalls<TId, TDeclarations>;
 
 declare function defineComponent<
-    const TCalls extends AnyComponentCallsDefinition,
-    const TUses extends readonly AnyComponentCallsDefinition[],
->(definition: ComponentDefinition<TCalls, TUses>): ComponentDefinition<TCalls, TUses>;
+    const TCalls extends AnyComponentCalls,
+    const TUses extends readonly AnyComponentCalls[],
+>(definition: Component<TCalls, TUses>): Component<TCalls, TUses>;
 
 declare function createApplication<
-    const TComponents extends readonly AnyComponentDefinition[],
->(definition: ApplicationDefinition<TComponents>): Application<TComponents>;
+    const TComponents extends readonly AnyComponent[],
+>(definition: {
+    components: TComponents;
+}): Application<TComponents>;
 ```
 
 ## Type Narrowing Demonstration
@@ -212,6 +161,10 @@ const CounterCalls = defineComponentCalls({
             input: emptySchema,
             output: counterOutputSchema,
         },
+        increment: {
+            input: emptySchema,
+            output: counterOutputSchema,
+        },
         set: {
             input: setCounterSchema,
             output: counterOutputSchema,
@@ -220,19 +173,19 @@ const CounterCalls = defineComponentCalls({
 });
 
 assertEqualType<
-    ComponentCallReferenceInput<typeof CounterCalls.calls.current>,
+    CallInput<typeof CounterCalls.calls.current>,
     {}
 >();
 assertEqualType<
-    ComponentCallReferenceInput<typeof CounterCalls.calls.set>,
+    CallInput<typeof CounterCalls.calls.set>,
     {count: number}
 >();
 assertEqualType<
-    ComponentCallReferenceOutput<typeof CounterCalls.calls.current>,
+    CallOutput<typeof CounterCalls.calls.current>,
     {count: number}
 >();
 assertEqualType<
-    ComponentCallReferenceOutput<typeof CounterCalls.calls.set>,
+    CallOutput<typeof CounterCalls.calls.set>,
     {count: number}
 >();
 
@@ -243,6 +196,11 @@ const counter = defineComponent({
         current: {
             handle() {
                 return {count: 0};
+            },
+        },
+        increment: {
+            handle() {
+                return {count: 1};
             },
         },
         set: {
@@ -279,11 +237,15 @@ const page = defineComponent({
     },
 });
 
-type Components = readonly [typeof counter, typeof page];
-
-declare const app: Application<Components>;
+const app = createApplication({
+    components: [
+        counter,
+        page,
+    ],
+});
 
 await app.call(CounterCalls.calls.current, {});
+await app.call(CounterCalls.calls.increment, {});
 await app.call(CounterCalls.calls.set, {count: 1});
 
 // @ts-expect-error `counter.set` requires `{count: number}` input.
@@ -308,6 +270,7 @@ await app.call(stringReference, {});
 - Tests must be written from s0001, s0002, s0003, and s0004 before implementation.
 - If implementation requires component state, lifecycle, configuration, or logging behavior beyond the approved specs, pause and request explicit spec approval first.
 - The TypeScript-like signatures are a design target for the task. Exact Arktype type names and helper type implementations must be chosen by surveying the installed Arktype package during implementation.
+- The web server example also sketches `state`, `logger`, and Fastify gateway context. Those remain out of t0003 unless their behavior is explicitly approved.
 - Component call input/output helper types should stay schema-derived without relying on wildcard schema type parameters.
 - Component behavior should receive `call` typed from declared used call surfaces, avoiding circular dependence on the final application registry.
 - Public call sites should use call reference values such as `CounterCalls.calls.current`, not string keys.
