@@ -42,7 +42,7 @@ type ComponentCallName = string;
 type ComponentCallSchema = {
     readonly inferIn: unknown;
     readonly infer: unknown;
-    assert(input: unknown): unknown;
+    assert(input: unknown): this["infer"];
 };
 type ValueOf<T extends object> = T extends unknown ? T[keyof T] : never;
 

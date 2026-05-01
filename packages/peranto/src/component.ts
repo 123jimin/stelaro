@@ -10,11 +10,11 @@ export type ComponentCallName = string;
  * `inferIn` is the input accepted at a call boundary, `infer` is the
  * validated output, and `assert` performs runtime validation.
  */
-export type ComponentCallSchema = {
+export interface ComponentCallSchema {
     readonly inferIn: unknown;
     readonly infer: unknown;
-    assert(input: unknown): unknown;
-};
+    assert(input: unknown): this["infer"];
+}
 
 type ValueOf<T extends object> = T extends unknown ? T[keyof T] : never;
 

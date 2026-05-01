@@ -35,12 +35,6 @@ type RuntimeHandler = {
     ): Promisable<unknown>;
 };
 
-type RuntimeComponent = {
-    readonly calls: AnyComponentCalls;
-    readonly uses: readonly AnyComponentCalls[];
-    readonly handlers: Record<ComponentCallName, RuntimeHandler>;
-};
-
 /**
  * Defines a reusable application declaration separately from runtime creation.
  *
@@ -65,7 +59,7 @@ export function defineApplication<
 export function createApplication<
     const TComponents extends readonly AnyComponent[],
 >(definition: ApplicationDefinition<TComponents>): Application<TComponents> {
-    const dispatchers = new Map<AnyComponentCallReference, (input: unknown) => Promise<unknown>>();
+    const dispatchers = new Map<AnyComponentCallReference, (input: unknown) => Promisable<unknown>>();
     const provided_call_surfaces = new Set<AnyComponentCalls>();
     const duplicate_call_keys = new Set<ComponentCallName>();
     const registered_call_keys = new Set<ComponentCallName>();
@@ -75,13 +69,11 @@ export function createApplication<
     }
 
     for(const component of definition.components) {
-        const runtime_component = component as RuntimeComponent;
-
-        for(const used_calls of runtime_component.uses) {
+        for(const used_calls of component.uses) {
             if(!provided_call_surfaces.has(used_calls)) {
                 throw new Error(
                     [
-                        `Component "${runtime_component.calls.id}" uses component calls "${used_calls.id}"`,
+                        `Component "${component.calls.id}" uses component calls "${used_calls.id}"`,
                         "that are not registered in the application.",
                     ].join(" "),
                 );
@@ -90,18 +82,18 @@ export function createApplication<
 
         const callable_references = new Set<AnyComponentCallReference>();
 
-        for(const used_calls of runtime_component.uses) {
+        for(const used_calls of component.uses) {
             for(const reference of Object.values(used_calls.calls)) {
                 callable_references.add(reference);
             }
         }
 
         const context: ComponentContext<readonly AnyComponentCalls[]> = {
-            async call(reference, input) {
+            call(reference, input) {
                 if(!callable_references.has(reference)) {
                     throw new Error(
                         [
-                            `Component "${runtime_component.calls.id}" cannot call`,
+                            `Component "${component.calls.id}" cannot call`,
                             `"${reference.componentId}.${reference.name}" because it did not declare`,
                             "that call surface in uses.",
                         ].join(" "),
@@ -112,27 +104,25 @@ export function createApplication<
             },
         };
 
-        for(const [name, reference] of Object.entries(runtime_component.calls.calls)) {
+        for(const [name, reference] of Object.entries(component.calls.calls)) {
             const key = callKey(reference);
             if(registered_call_keys.has(key)) {
                 duplicate_call_keys.add(key);
             }
             registered_call_keys.add(key);
 
-            const handler = runtime_component.handlers[name];
+            const handler: RuntimeHandler | undefined = component.handlers[name];
 
             if(handler == null) {
                 throw new Error(
-                    `Component "${runtime_component.calls.id}" does not define a handler for "${name}".`,
+                    `Component "${component.calls.id}" does not define a handler for "${name}".`,
                 );
             }
 
-            dispatchers.set(reference, async (input) => {
-                const parsed_input = reference.input.assert(input);
-                const output = await handler.handle(context, parsed_input);
-
-                return reference.output.assert(output);
-            });
+            dispatchers.set(
+                reference,
+                (input) => handler.handle(context, reference.input.assert(input)),
+            );
         }
     }
 
@@ -142,7 +132,10 @@ export function createApplication<
         );
     }
 
-    async function dispatch(reference: AnyComponentCallReference, input: unknown): Promise<unknown> {
+    async function dispatch<TCall extends AnyComponentCallReference>(
+        reference: TCall,
+        input: CallInput<TCall>,
+    ): Promise<CallOutput<TCall>> {
         const dispatchCall = dispatchers.get(reference);
 
         if(dispatchCall == null) {
@@ -151,15 +144,15 @@ export function createApplication<
             );
         }
 
-        return dispatchCall(input);
+        return reference.output.assert(await dispatchCall(input));
     }
 
     return {
-        async call<TCall extends CallFrom<TComponents[number]["calls"]>>(
+        call<TCall extends CallFrom<TComponents[number]["calls"]>>(
             reference: TCall,
             input: CallInput<TCall>,
         ): Promise<CallOutput<TCall>> {
-            return dispatch(reference, input) as Promise<CallOutput<TCall>>;
+            return dispatch(reference, input);
         },
     };
 }
