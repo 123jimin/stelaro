@@ -14,11 +14,11 @@ blocked_by = []
 - Specify what gateway-specific request and response concepts belong in the Fastify package instead of the core package.
 - Decide how a Fastify gateway declaration participates in an application definition.
 - Decide which parts of the current web server API sketch remain non-working design examples.
+- Implement the approved minimal Fastify gateway API surface in the gateway package.
 - Update affected specs with approved behavior, leaving `UNIMPLEMENTED` markers where behavior is specified but not implemented.
 
 ## Out of Scope
 
-- Implementing Fastify runtime behavior unless explicitly approved when this task becomes active.
 - Discord, command-line, or other gateway behavior.
 - A universal gateway abstraction beyond the minimal shared behavior already approved in existing specs.
 - Component state, logging, lifecycle, or configuration behavior except where needed to describe Fastify gateway boundaries.
