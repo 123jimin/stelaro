@@ -18,12 +18,14 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 - UNIMPLEMENTED An application coordinates lifecycle, configuration, and logging.
 - Application definitions can be declared separately from creating the application runtime.
 - Applications are created with `createApplication`.
+- `createApplication` initializes state for each registered component that declares a state factory.
 
 ## Constraints
 
 - Application behavior belongs to the core package.
 - Application behavior must not depend on gateway-specific runtimes.
 - Shared concerns stay with the application: lifecycle, configuration, logging, component registration, and typed calls.
+- Application runtime state initialization must happen during `createApplication`, before any calls are dispatched.
 
 ## Anticipated Changes
 

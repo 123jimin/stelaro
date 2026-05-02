@@ -4,11 +4,11 @@ import type {
     AnyComponent,
     AnyComponentCallReference,
     AnyComponentCalls,
+    AnyComponentContext,
     CallFrom,
     CallInput,
     CallOutput,
     ComponentCallName,
-    ComponentContext,
 } from "./component.ts";
 
 /**
@@ -30,7 +30,7 @@ export type Application<TComponents extends readonly AnyComponent[]> = {
 
 type RuntimeHandler = {
     handle(
-        context: ComponentContext<readonly AnyComponentCalls[]>,
+        context: AnyComponentContext,
         input: unknown,
     ): Promisable<unknown>;
 };
@@ -88,7 +88,7 @@ export function createApplication<
             }
         }
 
-        const context: ComponentContext<readonly AnyComponentCalls[]> = {
+        const call_context: AnyComponentContext = {
             call(reference, input) {
                 if(!callable_references.has(reference)) {
                     throw new Error(
@@ -103,6 +103,10 @@ export function createApplication<
                 return dispatch(reference, input);
             },
         };
+
+        const context: AnyComponentContext = component.state != null
+            ? {...call_context, state: component.state()}
+            : call_context;
 
         for(const [name, reference] of Object.entries(component.calls.calls)) {
             const key = callKey(reference);

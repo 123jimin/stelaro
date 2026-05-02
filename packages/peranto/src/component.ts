@@ -77,12 +77,9 @@ export type CallInput<TCall extends AnyComponentCallReference> = TCall["input"][
 
 export type CallOutput<TCall extends AnyComponentCallReference> = TCall["output"]["infer"];
 
-/**
- * Runtime capabilities available to component handlers.
- *
- * The `call` method is typed from the component's declared `uses` surfaces.
- */
-export type ComponentContext<TUses extends readonly AnyComponentCalls[]> = {
+export type StateFactory<TState> = () => TState;
+
+type BaseComponentContext<TUses extends readonly AnyComponentCalls[]> = {
     call<TCall extends CallFrom<TUses[number]>>(
         reference: TCall,
         input: CallInput<TCall>,
@@ -90,26 +87,57 @@ export type ComponentContext<TUses extends readonly AnyComponentCalls[]> = {
 };
 
 /**
+ * Runtime capabilities available to component handlers.
+ *
+ * The `call` method is typed from the component's declared `uses` surfaces.
+ * Stateful components also receive their `state` object.
+ */
+export type ComponentContext<
+    TUses extends readonly AnyComponentCalls[],
+    TState = undefined,
+> = [TState] extends [undefined]
+    ? BaseComponentContext<TUses>
+    : BaseComponentContext<TUses> & {readonly state: TState};
+
+/**
  * Component definition with a public call surface, declared dependencies, and
- * one handler per exposed call.
+ * one handler per exposed call. Stateful components include a state factory.
  */
 export type Component<
     TCalls extends AnyComponentCalls,
     TUses extends readonly AnyComponentCalls[],
+    TState = undefined,
 > = {
     readonly calls: TCalls;
     readonly uses: TUses;
     readonly handlers: {
         readonly [TCallName in keyof TCalls["calls"] & ComponentCallName]: {
             handle(
-                context: ComponentContext<TUses>,
+                context: ComponentContext<TUses, TState>,
                 input: CallInput<TCalls["calls"][TCallName]>,
             ): Promisable<CallOutput<TCalls["calls"][TCallName]>>;
         };
     };
+} & ([TState] extends [undefined] ? unknown : {readonly state: StateFactory<TState>});
+
+export type AnyComponentContext = {
+    call(reference: AnyComponentCallReference, input: unknown): Promise<unknown>;
+    readonly state?: unknown;
 };
 
-export type AnyComponent = Component<AnyComponentCalls, readonly AnyComponentCalls[]>;
+export interface AnyComponent {
+    readonly calls: AnyComponentCalls;
+    readonly uses: readonly AnyComponentCalls[];
+    readonly state?: StateFactory<unknown>;
+    readonly handlers: {
+        readonly [name: ComponentCallName]: {
+            handle(
+                context: AnyComponentContext,
+                input: unknown,
+            ): Promisable<unknown>;
+        };
+    };
+}
 
 /**
  * Defines the typed call references exposed by a component.
@@ -143,7 +171,7 @@ export function defineComponentCalls<
 
 /**
  * Defines a component from a call surface, declared used call surfaces, and
- * handlers for each exposed call.
+ * handlers for each exposed call. Optionally includes a state factory.
  *
  * @param definition - Complete component definition.
  * @returns The same definition with preserved generic inference.
@@ -151,6 +179,7 @@ export function defineComponentCalls<
 export function defineComponent<
     const TCalls extends AnyComponentCalls,
     const TUses extends readonly AnyComponentCalls[],
->(definition: Component<TCalls, TUses>): Component<TCalls, TUses> {
+    TState = undefined,
+>(definition: Component<TCalls, TUses, TState>): Component<TCalls, TUses, TState> {
     return definition;
 }

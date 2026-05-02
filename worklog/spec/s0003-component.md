@@ -20,6 +20,9 @@ tags = ["component", "architecture", "lifecycle", "config", "logging"]
 - Component call API inputs and outputs are defined with Arktype schemas.
 - Component call APIs support IPC-like usage without requiring cross-process transport.
 - UNIMPLEMENTED Components may use gateway capabilities through typed component call APIs.
+- Components may declare an optional state factory that returns the component's initial state.
+- Components that declare a state factory receive their state object through handler context.
+- Components that do not declare a state factory have no state and do not receive state in context.
 
 ## Constraints
 
@@ -29,6 +32,9 @@ tags = ["component", "architecture", "lifecycle", "config", "logging"]
 - Component call input and output definitions must be Arktype schemas.
 - Component behavior must not require raw gateway-specific runtime objects.
 - Component behavior may depend on typed call APIs exposed by gateway components.
+- Component state must be scoped to a single application runtime. A component definition reused across multiple application runtimes must have independent state per runtime.
+- Component state must not be shared between different components within the same application runtime.
+- Component state is ephemeral to the application runtime. There is no persistent state model.
 
 ## Anticipated Changes
 
@@ -36,6 +42,8 @@ tags = ["component", "architecture", "lifecycle", "config", "logging"]
 - Component configuration may be specified separately.
 - Component resources and templates may be specified separately.
 - Component reloading may be specified separately.
+- State preservation across Hot Module Replacement may be specified separately.
+- State concurrency helpers may be specified separately.
 
 ## Dangers
 

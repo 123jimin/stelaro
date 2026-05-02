@@ -40,6 +40,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - Components expose typed call APIs.
 - Component call API inputs and outputs are defined with Arktype schemas.
 - Component call APIs support IPC-like usage without requiring cross-process transport.
+- Components may declare local state that is created per application runtime and accessible through handler context.
 
 ### Gateway
 

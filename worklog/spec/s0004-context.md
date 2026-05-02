@@ -18,6 +18,7 @@ tags = ["context", "architecture", "component", "application", "logging", "confi
 - Context includes access to typed component calls.
 - UNIMPLEMENTED Context includes access to validated configuration relevant to the receiving behavior.
 - UNIMPLEMENTED Context allows behavior to call typed APIs exposed by gateway components.
+- Context includes access to component state for components that declare a state factory.
 
 ## Constraints
 
@@ -26,12 +27,15 @@ tags = ["context", "architecture", "component", "application", "logging", "confi
 - Core context preserves the current component id for scoped capabilities such as logging and configuration.
 - Core context exposes validated configuration to behavior.
 - Core context may access gateway capabilities only through typed component call APIs.
+- Context must provide the same state object reference to all handler invocations of a given component within one application runtime.
+- Context must not provide state to components that did not declare a state factory.
 
 ## Anticipated Changes
 
 - Gateway-specific contexts may extend core context in gateway packages.
 - Lifecycle-specific context capabilities may be specified separately.
 - Resource and template access through context may be specified separately.
+- Per-request and per-session state may be represented through context capabilities.
 
 ## Dangers
 

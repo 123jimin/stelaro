@@ -29,6 +29,8 @@ paths = ["examples/**"]
 - The web server example accepts a POST request that sets the shared counter value to a specific value.
 - The web server example logs whenever the shared counter value is changed.
 - The web server example defines component call inputs and outputs with Arktype schemas.
+- The web server counter example declares component state with a state factory on the counter component.
+- The web server counter example accesses state through handler context.
 
 ## Constraints
 

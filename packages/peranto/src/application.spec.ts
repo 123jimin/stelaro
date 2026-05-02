@@ -61,7 +61,7 @@ describe("@jiminp/peranto application core", () => {
         assert.deepStrictEqual(typeof app.call, "function");
     });
 
-    it("dispatches typed component calls within one application", async() => {
+    it("dispatches typed component calls within one application", async () => {
         let count = 0;
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -131,7 +131,7 @@ describe("@jiminp/peranto application core", () => {
         });
     });
 
-    it("provides component behavior with context for declared typed calls", async() => {
+    it("provides component behavior with context for declared typed calls", async () => {
         const CounterCalls = defineComponentCalls({
             id: "counter",
             calls: {
@@ -196,7 +196,222 @@ describe("@jiminp/peranto application core", () => {
         });
     });
 
-    it("validates call inputs and outputs with the declared schemas", async() => {
+    it("initializes component state from the state factory during createApplication", async () => {
+        const CounterCalls = defineComponentCalls({
+            id: "counter",
+            calls: {
+                current: {
+                    input: EmptyInput,
+                    output: CounterOutput,
+                },
+                increment: {
+                    input: EmptyInput,
+                    output: CounterOutput,
+                },
+            },
+        });
+        const CounterComponent = defineComponent({
+            calls: CounterCalls,
+            uses: [],
+            state: () => ({
+                count: 0,
+            }),
+            handlers: {
+                current: {
+                    handle({state}) {
+                        return {
+                            count: state.count,
+                        };
+                    },
+                },
+                increment: {
+                    handle({state}) {
+                        state.count += 1;
+
+                        return {
+                            count: state.count,
+                        };
+                    },
+                },
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [CounterComponent],
+        }));
+
+        assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {
+            count: 0,
+        });
+        assert.deepStrictEqual(await app.call(CounterCalls.calls.increment, {}), {
+            count: 1,
+        });
+        assert.deepStrictEqual(await app.call(CounterCalls.calls.increment, {}), {
+            count: 2,
+        });
+        assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {
+            count: 2,
+        });
+    });
+
+    it("provides independent state per application runtime for the same component definition", async () => {
+        const CounterCalls = defineComponentCalls({
+            id: "counter",
+            calls: {
+                current: {
+                    input: EmptyInput,
+                    output: CounterOutput,
+                },
+                increment: {
+                    input: EmptyInput,
+                    output: CounterOutput,
+                },
+            },
+        });
+        const CounterComponent = defineComponent({
+            calls: CounterCalls,
+            uses: [],
+            state: () => ({
+                count: 0,
+            }),
+            handlers: {
+                current: {
+                    handle({state}) {
+                        return {
+                            count: state.count,
+                        };
+                    },
+                },
+                increment: {
+                    handle({state}) {
+                        state.count += 1;
+
+                        return {
+                            count: state.count,
+                        };
+                    },
+                },
+            },
+        });
+        const definition = defineApplication({
+            components: [CounterComponent],
+        });
+        const app1 = createApplication(definition);
+        const app2 = createApplication(definition);
+
+        await app1.call(CounterCalls.calls.increment, {});
+        await app1.call(CounterCalls.calls.increment, {});
+
+        assert.deepStrictEqual(await app1.call(CounterCalls.calls.current, {}), {
+            count: 2,
+        });
+        assert.deepStrictEqual(await app2.call(CounterCalls.calls.current, {}), {
+            count: 0,
+        });
+    });
+
+    it("does not provide state to stateless components", async () => {
+        const CounterCalls = defineComponentCalls({
+            id: "counter",
+            calls: {
+                current: {
+                    input: EmptyInput,
+                    output: CounterOutput,
+                },
+            },
+        });
+        let received_context: Record<string, unknown> = {};
+        const CounterComponent = defineComponent({
+            calls: CounterCalls,
+            uses: [],
+            handlers: {
+                current: {
+                    handle(context) {
+                        received_context = context as unknown as Record<string, unknown>;
+
+                        return {
+                            count: 0,
+                        };
+                    },
+                },
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [CounterComponent],
+        }));
+
+        await app.call(CounterCalls.calls.current, {});
+        assert.deepStrictEqual("state" in received_context, false);
+    });
+
+    it("does not share state between different components", async () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {
+                get: {
+                    input: EmptyInput,
+                    output: CounterOutput,
+                },
+                increment: {
+                    input: EmptyInput,
+                    output: CounterOutput,
+                },
+            },
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {
+                get: {
+                    input: EmptyInput,
+                    output: CounterOutput,
+                },
+            },
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            state: () => ({count: 0}),
+            handlers: {
+                get: {
+                    handle({state}) {
+                        return {count: state.count};
+                    },
+                },
+                increment: {
+                    handle({state}) {
+                        state.count += 1;
+
+                        return {count: state.count};
+                    },
+                },
+            },
+        });
+        const BComponent = defineComponent({
+            calls: BCalls,
+            uses: [],
+            state: () => ({count: 100}),
+            handlers: {
+                get: {
+                    handle({state}) {
+                        return {count: state.count};
+                    },
+                },
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent, BComponent],
+        }));
+
+        await app.call(ACalls.calls.increment, {});
+
+        assert.deepStrictEqual(await app.call(ACalls.calls.get, {}), {
+            count: 1,
+        });
+        assert.deepStrictEqual(await app.call(BCalls.calls.get, {}), {
+            count: 100,
+        });
+    });
+
+    it("validates call inputs and outputs with the declared schemas", async () => {
         const CounterCalls = defineComponentCalls({
             id: "counter",
             calls: {
