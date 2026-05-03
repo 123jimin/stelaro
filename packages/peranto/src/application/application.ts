@@ -9,7 +9,8 @@ import type {
     CallInput,
     CallOutput,
     ComponentCallName,
-} from "./component.ts";
+} from "../component/component.ts";
+import {TopologicalCycleError, topologicalSort} from "../util/topological-sort.ts";
 import {
     CircularDependencyError,
     DuplicateCallError,
@@ -20,7 +21,6 @@ import {
 } from "./error.ts";
 import type {LifecycleState} from "./lifecycle.ts";
 import {LifecycleStateError} from "./lifecycle.ts";
-import {TopologicalCycleError, topologicalSort} from "./util/topological-sort.ts";
 
 /**
  * Reusable application declaration.

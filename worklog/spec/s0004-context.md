@@ -19,6 +19,7 @@ tags = ["context", "architecture", "component", "application", "logging", "confi
 - UNIMPLEMENTED Context includes access to validated configuration relevant to the receiving behavior.
 - UNIMPLEMENTED Context allows behavior to call typed APIs exposed by gateway components.
 - Context includes access to component state for components that declare a state factory.
+- Lifecycle hooks (`start`, `stop`) receive the same context as handlers.
 
 ## Constraints
 
@@ -33,7 +34,7 @@ tags = ["context", "architecture", "component", "application", "logging", "confi
 ## Anticipated Changes
 
 - Gateway-specific contexts may extend core context in gateway packages.
-- Lifecycle-specific context capabilities may be specified separately.
+- Lifecycle-specific context extensions may be specified separately.
 - Resource and template access through context may be specified separately.
 - Per-request and per-session state may be represented through context capabilities.
 

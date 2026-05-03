@@ -1,4 +1,4 @@
-import {PerantoError} from "./error.ts";
+import {PerantoError} from "../error.ts";
 
 export type LifecycleState = "idle" | "starting" | "stopping" | "active" | "failed";
 

@@ -4,22 +4,22 @@ import {describe, it} from "node:test";
 import {type as schema} from "arktype";
 
 import {
-    createApplication,
-    defineApplication,
-} from "./application.ts";
-import {
     type AnyComponentContext,
     type CallInput,
     type CallOutput,
     defineComponent,
     defineComponentCalls,
-} from "./component.ts";
+} from "../component/component.ts";
+import {PerantoError} from "../error.ts";
+import {
+    createApplication,
+    defineApplication,
+} from "./application.ts";
 import {
     CircularDependencyError,
     DuplicateCallError,
     MissingDependencyError,
     MissingHandlerError,
-    PerantoError,
     UndeclaredCallError,
     UnregisteredCallError,
 } from "./error.ts";

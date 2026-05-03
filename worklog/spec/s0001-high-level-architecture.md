@@ -28,7 +28,8 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 ### Application
 
 - An application coordinates registered components and typed component calls.
-- UNIMPLEMENTED An application coordinates lifecycle, configuration, and logging.
+- An application coordinates lifecycle (start/stop).
+- UNIMPLEMENTED An application coordinates configuration and logging.
 - Application definitions can be declared separately from creating the application runtime.
 - Applications are created with `createApplication`.
 

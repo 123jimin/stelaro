@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 
+import {PerantoError} from "../error.ts";
 import {
     CircularDependencyError,
     DuplicateCallError,
     MissingDependencyError,
     MissingHandlerError,
-    PerantoError,
     UndeclaredCallError,
     UnregisteredCallError,
 } from "./error.ts";
