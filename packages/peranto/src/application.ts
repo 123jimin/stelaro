@@ -10,6 +10,13 @@ import type {
     CallOutput,
     ComponentCallName,
 } from "./component.ts";
+import {
+    DuplicateCallError,
+    MissingDependencyError,
+    MissingHandlerError,
+    UndeclaredCallError,
+    UnregisteredCallError,
+} from "./error.ts";
 
 /**
  * Reusable application declaration.
@@ -71,12 +78,7 @@ export function createApplication<
     for(const component of definition.components) {
         for(const used_calls of component.uses) {
             if(!provided_call_surfaces.has(used_calls)) {
-                throw new Error(
-                    [
-                        `Component "${component.calls.id}" uses component calls "${used_calls.id}"`,
-                        "that are not registered in the application.",
-                    ].join(" "),
-                );
+                throw new MissingDependencyError(component.calls.id, used_calls.id);
             }
         }
 
@@ -91,12 +93,10 @@ export function createApplication<
         const call_context: AnyComponentContext = {
             call(reference, input) {
                 if(!callable_references.has(reference)) {
-                    throw new Error(
-                        [
-                            `Component "${component.calls.id}" cannot call`,
-                            `"${reference.componentId}.${reference.name}" because it did not declare`,
-                            "that call surface in uses.",
-                        ].join(" "),
+                    throw new UndeclaredCallError(
+                        component.calls.id,
+                        reference.component_id,
+                        reference.name,
                     );
                 }
 
@@ -118,9 +118,7 @@ export function createApplication<
             const handler: RuntimeHandler | undefined = component.handlers[name];
 
             if(handler == null) {
-                throw new Error(
-                    `Component "${component.calls.id}" does not define a handler for "${name}".`,
-                );
+                throw new MissingHandlerError(component.calls.id, name);
             }
 
             dispatchers.set(
@@ -131,9 +129,7 @@ export function createApplication<
     }
 
     if(duplicate_call_keys.size > 0) {
-        throw new Error(
-            `Application contains duplicate component call ids: ${[...duplicate_call_keys].join(", ")}.`,
-        );
+        throw new DuplicateCallError([...duplicate_call_keys]);
     }
 
     async function dispatch<TCall extends AnyComponentCallReference>(
@@ -143,9 +139,7 @@ export function createApplication<
         const dispatchCall = dispatchers.get(reference);
 
         if(dispatchCall == null) {
-            throw new Error(
-                `Component call "${reference.componentId}.${reference.name}" is not registered in the application.`,
-            );
+            throw new UnregisteredCallError(reference.component_id, reference.name);
         }
 
         return reference.output.assert(await dispatchCall(input));
@@ -162,5 +156,5 @@ export function createApplication<
 }
 
 function callKey(reference: AnyComponentCallReference): ComponentCallName {
-    return `${reference.componentId}.${reference.name}`;
+    return `${reference.component_id}.${reference.name}`;
 }

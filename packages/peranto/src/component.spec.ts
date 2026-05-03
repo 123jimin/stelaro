@@ -37,7 +37,7 @@ describe("@jiminp/peranto component core", () => {
             },
         });
 
-        assert.deepStrictEqual(CounterCalls.calls.current.componentId, "counter");
+        assert.deepStrictEqual(CounterCalls.calls.current.component_id, "counter");
         assert.deepStrictEqual(CounterCalls.calls.current.name, "current");
         assert.deepStrictEqual(CounterCalls.calls.current.input, EmptyInput);
         assert.deepStrictEqual(CounterCalls.calls.current.output, CounterOutput);

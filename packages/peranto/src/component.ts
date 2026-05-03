@@ -30,7 +30,7 @@ export type ComponentCallReference<
     TInputSchema extends ComponentCallSchema,
     TOutputSchema extends ComponentCallSchema,
 > = {
-    readonly componentId: TId;
+    readonly component_id: TId;
     readonly name: TCallName;
     readonly input: TInputSchema;
     readonly output: TOutputSchema;
@@ -156,7 +156,7 @@ export function defineComponentCalls<
 
     for(const [name, declaration] of Object.entries(definition.calls)) {
         calls[name] = {
-            componentId: definition.id,
+            component_id: definition.id,
             name,
             input: declaration.input,
             output: declaration.output,

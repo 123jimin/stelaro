@@ -8,11 +8,20 @@ import {
     defineApplication,
 } from "./application.ts";
 import {
+    type AnyComponentContext,
     type CallInput,
     type CallOutput,
     defineComponent,
     defineComponentCalls,
 } from "./component.ts";
+import {
+    DuplicateCallError,
+    MissingDependencyError,
+    MissingHandlerError,
+    PerantoError,
+    UndeclaredCallError,
+    UnregisteredCallError,
+} from "./error.ts";
 
 const EmptyInput = schema({});
 const CounterOutput = schema({
@@ -456,6 +465,227 @@ describe("@jiminp/peranto application core", () => {
             }),
             /count/,
         );
+    });
+
+    it("throws MissingDependencyError when a component uses unregistered calls", () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {
+                run: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {
+                get: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [BCalls],
+            handlers: {
+                run: {
+                    handle() {
+                        return {count: 0};
+                    },
+                },
+            },
+        });
+
+        assert.throws(
+            () => createApplication(defineApplication({
+                components: [AComponent],
+            })),
+            MissingDependencyError,
+        );
+    });
+
+    it("throws MissingHandlerError when a component is missing a handler", () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {
+                run: {input: EmptyInput, output: CounterOutput},
+                missing: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const partial_handlers = {
+            run: {
+                handle() {
+                    return {count: 0};
+                },
+            },
+        };
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            handlers: partial_handlers as typeof partial_handlers & {
+                missing: {handle(): {count: number}};
+            },
+        });
+
+        assert.throws(
+            () => createApplication(defineApplication({
+                components: [AComponent],
+            })),
+            MissingHandlerError,
+        );
+    });
+
+    it("throws DuplicateCallError when components register duplicate call ids", () => {
+        const Calls = defineComponentCalls({
+            id: "shared",
+            calls: {
+                get: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const A = defineComponent({
+            calls: Calls,
+            uses: [],
+            handlers: {
+                get: {
+                    handle() {
+                        return {count: 0};
+                    },
+                },
+            },
+        });
+        const B = defineComponent({
+            calls: Calls,
+            uses: [],
+            handlers: {
+                get: {
+                    handle() {
+                        return {count: 1};
+                    },
+                },
+            },
+        });
+
+        assert.throws(
+            () => createApplication(defineApplication({
+                components: [A, B],
+            })),
+            DuplicateCallError,
+        );
+    });
+
+    it("throws UndeclaredCallError when a handler calls an undeclared reference", async () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {
+                run: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {
+                get: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            handlers: {
+                run: {
+                    async handle(context) {
+                        await (context as unknown as AnyComponentContext)
+                            .call(BCalls.calls.get, {});
+
+                        return {count: 0};
+                    },
+                },
+            },
+        });
+        const BComponent = defineComponent({
+            calls: BCalls,
+            uses: [],
+            handlers: {
+                get: {
+                    handle() {
+                        return {count: 0};
+                    },
+                },
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent, BComponent],
+        }));
+
+        await assert.rejects(
+            () => app.call(ACalls.calls.run, {}),
+            UndeclaredCallError,
+        );
+    });
+
+    it("throws UnregisteredCallError when dispatching an unregistered call", async () => {
+        const RegisteredCalls = defineComponentCalls({
+            id: "registered",
+            calls: {
+                get: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const UnregisteredCalls = defineComponentCalls({
+            id: "unregistered",
+            calls: {
+                get: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const RegisteredComponent = defineComponent({
+            calls: RegisteredCalls,
+            uses: [],
+            handlers: {
+                get: {
+                    handle() {
+                        return {count: 0};
+                    },
+                },
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [RegisteredComponent],
+        }));
+
+        await assert.rejects(
+            () => (app as unknown as {call(ref: unknown, input: unknown): Promise<unknown>})
+                .call(UnregisteredCalls.calls.get, {}),
+            UnregisteredCallError,
+        );
+    });
+
+    it("throws errors that are instanceof PerantoError", () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {
+                run: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {
+                get: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [BCalls],
+            handlers: {
+                run: {
+                    handle() {
+                        return {count: 0};
+                    },
+                },
+            },
+        });
+
+        try {
+            createApplication(defineApplication({
+                components: [AComponent],
+            }));
+            assert.fail("Expected PerantoError");
+        } catch (error) {
+            assert.ok(error instanceof PerantoError);
+            assert.ok(error instanceof Error);
+        }
     });
 });
 
