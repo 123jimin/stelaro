@@ -72,6 +72,13 @@ export class UndeclaredCallError extends PerantoError {
     }
 }
 
-export class CircularDependencyError extends PerantoError {}
+export class CircularDependencyError extends PerantoError {
+    readonly component_ids: readonly string[];
 
-export class LifecycleStateError extends PerantoError {}
+    constructor(componentIds: readonly string[]) {
+        super(
+            `Circular dependency detected among components: ${componentIds.join(", ")}.`,
+        );
+        this.component_ids = componentIds;
+    }
+}

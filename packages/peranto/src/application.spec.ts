@@ -15,6 +15,7 @@ import {
     defineComponentCalls,
 } from "./component.ts";
 import {
+    CircularDependencyError,
     DuplicateCallError,
     MissingDependencyError,
     MissingHandlerError,
@@ -22,6 +23,7 @@ import {
     UndeclaredCallError,
     UnregisteredCallError,
 } from "./error.ts";
+import {LifecycleStateError} from "./lifecycle.ts";
 
 const EmptyInput = schema({});
 const CounterOutput = schema({
@@ -126,6 +128,7 @@ describe("@jiminp/peranto application core", () => {
             ],
         });
         const app = createApplication(CounterApp);
+        await app.start();
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {
             count: 0,
@@ -199,6 +202,7 @@ describe("@jiminp/peranto application core", () => {
             ],
         });
         const app = createApplication(CounterPageApp);
+        await app.start();
 
         assert.deepStrictEqual(await app.call(PageCalls.calls.render, {}), {
             html: "7",
@@ -247,6 +251,7 @@ describe("@jiminp/peranto application core", () => {
         const app = createApplication(defineApplication({
             components: [CounterComponent],
         }));
+        await app.start();
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {
             count: 0,
@@ -306,6 +311,8 @@ describe("@jiminp/peranto application core", () => {
         });
         const app1 = createApplication(definition);
         const app2 = createApplication(definition);
+        await app1.start();
+        await app2.start();
 
         await app1.call(CounterCalls.calls.increment, {});
         await app1.call(CounterCalls.calls.increment, {});
@@ -347,6 +354,7 @@ describe("@jiminp/peranto application core", () => {
         const app = createApplication(defineApplication({
             components: [CounterComponent],
         }));
+        await app.start();
 
         await app.call(CounterCalls.calls.current, {});
         assert.deepStrictEqual("state" in received_context, false);
@@ -409,6 +417,7 @@ describe("@jiminp/peranto application core", () => {
         const app = createApplication(defineApplication({
             components: [AComponent, BComponent],
         }));
+        await app.start();
 
         await app.call(ACalls.calls.increment, {});
 
@@ -451,6 +460,7 @@ describe("@jiminp/peranto application core", () => {
             ],
         });
         const app = createApplication(CounterApp);
+        await app.start();
 
         await assert.rejects(
             () => app.call(
@@ -610,6 +620,7 @@ describe("@jiminp/peranto application core", () => {
         const app = createApplication(defineApplication({
             components: [AComponent, BComponent],
         }));
+        await app.start();
 
         await assert.rejects(
             () => app.call(ACalls.calls.run, {}),
@@ -644,12 +655,461 @@ describe("@jiminp/peranto application core", () => {
         const app = createApplication(defineApplication({
             components: [RegisteredComponent],
         }));
+        await app.start();
 
         await assert.rejects(
             () => (app as unknown as {call(ref: unknown, input: unknown): Promise<unknown>})
                 .call(UnregisteredCalls.calls.get, {}),
             UnregisteredCallError,
         );
+    });
+
+    it("starts components in topological dependency order", async () => {
+        const start_order: string[] = [];
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [BCalls],
+            start() {
+                start_order.push("a");
+            },
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const BComponent = defineComponent({
+            calls: BCalls,
+            uses: [],
+            start() {
+                start_order.push("b");
+            },
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent, BComponent],
+        }));
+
+        await app.start();
+
+        assert.deepStrictEqual(start_order, ["b", "a"]);
+    });
+
+    it("stops components in reverse topological order", async () => {
+        const stop_order: string[] = [];
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [BCalls],
+            stop() {
+                stop_order.push("a");
+            },
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const BComponent = defineComponent({
+            calls: BCalls,
+            uses: [],
+            stop() {
+                stop_order.push("b");
+            },
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent, BComponent],
+        }));
+        await app.start();
+
+        await app.stop();
+
+        assert.deepStrictEqual(stop_order, ["a", "b"]);
+    });
+
+    it("throws CircularDependencyError when the uses graph has a cycle", () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [BCalls],
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const BComponent = defineComponent({
+            calls: BCalls,
+            uses: [ACalls],
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+
+        assert.throws(
+            () => createApplication(defineApplication({
+                components: [AComponent, BComponent],
+            })),
+            (error: unknown) => {
+                assert.ok(error instanceof CircularDependencyError);
+                assert.ok(error.component_ids.includes("a"));
+                assert.ok(error.component_ids.includes("b"));
+                return true;
+            },
+        );
+    });
+
+    it("throws LifecycleStateError when calling before start", async () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent],
+        }));
+
+        await assert.rejects(
+            () => app.call(ACalls.calls.get, {}),
+            (error: unknown) => {
+                assert.ok(error instanceof LifecycleStateError);
+                assert.deepStrictEqual(error.current_state, "idle");
+                assert.deepStrictEqual(error.operation, "call");
+                return true;
+            },
+        );
+    });
+
+    it("throws LifecycleStateError when calling after stop", async () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent],
+        }));
+        await app.start();
+        await app.stop();
+
+        await assert.rejects(
+            () => app.call(ACalls.calls.get, {}),
+            (error: unknown) => {
+                assert.ok(error instanceof LifecycleStateError);
+                assert.deepStrictEqual(error.current_state, "idle");
+                return true;
+            },
+        );
+    });
+
+    it("throws LifecycleStateError when starting a non-idle application", async () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent],
+        }));
+        await app.start();
+
+        await assert.rejects(
+            () => app.start(),
+            (error: unknown) => {
+                assert.ok(error instanceof LifecycleStateError);
+                assert.deepStrictEqual(error.current_state, "active");
+                assert.deepStrictEqual(error.operation, "start");
+                return true;
+            },
+        );
+    });
+
+    it("throws LifecycleStateError when stopping an idle application", async () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent],
+        }));
+
+        await assert.rejects(
+            () => app.stop(),
+            (error: unknown) => {
+                assert.ok(error instanceof LifecycleStateError);
+                assert.deepStrictEqual(error.current_state, "idle");
+                assert.deepStrictEqual(error.operation, "stop");
+                return true;
+            },
+        );
+    });
+
+    it("provides lifecycle hooks with the same context as handlers", async () => {
+        let start_state: {count: number} | null = null;
+        let stop_state: {count: number} | null = null;
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            state: () => ({count: 42}),
+            start({state}) {
+                start_state = state;
+            },
+            stop({state}) {
+                stop_state = state;
+            },
+            handlers: {
+                get: {handle({state}) { return {count: state.count}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent],
+        }));
+
+        await app.start();
+        assert.deepStrictEqual(start_state, {count: 42});
+
+        await app.stop();
+        assert.deepStrictEqual(stop_state, {count: 42});
+    });
+
+    it("skips components without lifecycle hooks", async () => {
+        const start_order: string[] = [];
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            start() {
+                start_order.push("a");
+            },
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const BComponent = defineComponent({
+            calls: BCalls,
+            uses: [],
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent, BComponent],
+        }));
+
+        await app.start();
+
+        assert.deepStrictEqual(start_order, ["a"]);
+    });
+
+    it("transitions to failed on start hook error without rolling back", async () => {
+        const stop_calls: string[] = [];
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            start() {
+                // succeeds
+            },
+            stop() {
+                stop_calls.push("a");
+            },
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const BComponent = defineComponent({
+            calls: BCalls,
+            uses: [],
+            start() {
+                throw new Error("b failed to start");
+            },
+            stop() {
+                stop_calls.push("b");
+            },
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent, BComponent],
+        }));
+
+        await assert.rejects(
+            () => app.start(),
+            {message: "b failed to start"},
+        );
+        assert.deepStrictEqual(stop_calls, []);
+
+        await assert.rejects(
+            () => app.call(ACalls.calls.get, {}),
+            LifecycleStateError,
+        );
+
+        await app.stop();
+        assert.deepStrictEqual(stop_calls, ["b", "a"]);
+    });
+
+    it("rejects stop with AggregateError when stop hooks throw", async () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            stop() {
+                throw new Error("a stop failed");
+            },
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const BComponent = defineComponent({
+            calls: BCalls,
+            uses: [],
+            stop() {
+                throw new Error("b stop failed");
+            },
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent, BComponent],
+        }));
+        await app.start();
+
+        await assert.rejects(
+            () => app.stop(),
+            (error: unknown) => {
+                assert.ok(error instanceof AggregateError);
+                assert.deepStrictEqual(error.errors.length, 2);
+                return true;
+            },
+        );
+    });
+
+    it("transitions to idle after stop even when stop hooks throw", async () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            stop() {
+                throw new Error("stop failed");
+            },
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent],
+        }));
+        await app.start();
+
+        await assert.rejects(() => app.stop(), AggregateError);
+
+        await app.start();
+        assert.deepStrictEqual(await app.call(ACalls.calls.get, {}), {count: 0});
+    });
+
+    it("allows stop from failed state to clean up", async () => {
+        const stop_calls: string[] = [];
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            start() {
+                throw new Error("start failed");
+            },
+            stop() {
+                stop_calls.push("a");
+            },
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [AComponent],
+        }));
+
+        await assert.rejects(() => app.start());
+
+        await app.stop();
+        assert.deepStrictEqual(stop_calls, ["a"]);
     });
 
     it("throws errors that are instanceof PerantoError", () => {

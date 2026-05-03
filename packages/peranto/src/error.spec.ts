@@ -4,13 +4,13 @@ import {describe, it} from "node:test";
 import {
     CircularDependencyError,
     DuplicateCallError,
-    LifecycleStateError,
     MissingDependencyError,
     MissingHandlerError,
     PerantoError,
     UndeclaredCallError,
     UnregisteredCallError,
 } from "./error.ts";
+import {LifecycleStateError} from "./lifecycle.ts";
 
 describe("@jiminp/peranto errors", () => {
     it("MissingDependencyError extends PerantoError with structured properties", () => {
@@ -67,19 +67,26 @@ describe("@jiminp/peranto errors", () => {
         assert.deepStrictEqual(error.target_call_name, "current");
     });
 
-    it("CircularDependencyError extends PerantoError", () => {
-        const error = new CircularDependencyError("cycle detected");
+    it("CircularDependencyError extends PerantoError with structured properties", () => {
+        const error = new CircularDependencyError(["a", "b"]);
 
         assert.ok(error instanceof PerantoError);
         assert.ok(error instanceof Error);
         assert.deepStrictEqual(error.name, "CircularDependencyError");
+        assert.deepStrictEqual(error.component_ids, ["a", "b"]);
+        assert.ok(error.message.includes("a"));
+        assert.ok(error.message.includes("b"));
     });
 
-    it("LifecycleStateError extends PerantoError", () => {
-        const error = new LifecycleStateError("not started");
+    it("LifecycleStateError extends PerantoError with structured properties", () => {
+        const error = new LifecycleStateError("idle", "call");
 
         assert.ok(error instanceof PerantoError);
         assert.ok(error instanceof Error);
         assert.deepStrictEqual(error.name, "LifecycleStateError");
+        assert.deepStrictEqual(error.current_state, "idle");
+        assert.deepStrictEqual(error.operation, "call");
+        assert.ok(error.message.includes("idle"));
+        assert.ok(error.message.includes("call"));
     });
 });

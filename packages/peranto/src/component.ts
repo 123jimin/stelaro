@@ -110,6 +110,8 @@ export type Component<
 > = {
     readonly calls: TCalls;
     readonly uses: TUses;
+    readonly start?: (context: ComponentContext<TUses, TState>) => Promisable<void>;
+    readonly stop?: (context: ComponentContext<TUses, TState>) => Promisable<void>;
     readonly handlers: {
         readonly [TCallName in keyof TCalls["calls"] & ComponentCallName]: {
             handle(
@@ -129,6 +131,8 @@ export interface AnyComponent {
     readonly calls: AnyComponentCalls;
     readonly uses: readonly AnyComponentCalls[];
     readonly state?: StateFactory<unknown>;
+    start?(context: AnyComponentContext): Promisable<void>;
+    stop?(context: AnyComponentContext): Promisable<void>;
     readonly handlers: {
         readonly [name: ComponentCallName]: {
             handle(
