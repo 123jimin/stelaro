@@ -16,18 +16,19 @@ blocked_by = []
 - `app.stop()` calls each registered component's `stop` hook (if present), in reverse dependency order (see Q3).
 - Lifecycle hooks receive the component's context (same context as call handlers — `call`, and `state` if stateful).
 - `app.start()` and `app.stop()` are async and return a promise that resolves when all hooks complete.
-- Start/stop error semantics are pending approval (see Q4).
+- Start failure: no rollback. Application transitions to `"failed"`, user calls `stop()` to clean up.
+- Stop failure: best-effort, rejects with `AggregateError` if any hooks threw.
 - Components without lifecycle hooks are silently skipped during start/stop.
-- `app.call()` requires the application to be in the `started` state (see Q5).
+- `app.call()` requires the application to be in the `"active"` state (see Q5).
 - Update s0001, s0002, s0003, s0004 with approved lifecycle behavior.
 
 ## Design Questions
 
 These must be answered (by explicit user approval) before spec updates begin.
 
-### Q1: Lifecycle hook shape
+### Q1: Lifecycle hook shape — APPROVED
 
-**Proposed:** Optional `start` and `stop` functions on the component definition.
+Optional `start` and `stop` functions on the component definition.
 
 ```ts
 defineComponent({
@@ -46,9 +47,9 @@ defineComponent({
 
 Hooks are top-level on the definition, not nested in a `lifecycle` object. They receive the same context type as handlers.
 
-### Q2: Application start/stop API
+### Q2: Application start/stop API — APPROVED
 
-**Proposed:** `app.start()` and `app.stop()` are async methods on the `Application` runtime.
+`app.start()` and `app.stop()` are async methods on the `Application` runtime.
 
 ```ts
 const app = createApplication(definition);
@@ -57,9 +58,9 @@ await app.start();
 await app.stop();
 ```
 
-### Q3: Ordering
+### Q3: Ordering — APPROVED
 
-**Proposed:** Lifecycle order is derived from the `uses` dependency graph.
+Lifecycle order is derived from the `uses` dependency graph.
 
 - **Start**: topological sort of the `uses` graph — dependencies start before dependents. Registration order as tiebreaker for unrelated components.
 - **Stop**: reverse of start order — dependents stop before their dependencies.
@@ -69,35 +70,84 @@ Example: if `PageComponent` uses `CounterCalls` and `CounterComponent` provides 
 
 This ensures a component's dependencies are running before its `start` hook is called, and a component has stopped before its dependencies begin shutting down.
 
-### Q4: Error semantics
+### Q4: Error semantics — APPROVED
 
-Needs decision on two axes: start failure behavior and stop failure behavior.
+- **Start failure: no rollback.** `start()` rejects with the thrown error. Already-started components remain in their started state. The application transitions to `"failed"`. User is responsible for calling `stop()` to clean up.
+- **Stop failure: AggregateError.** `stop()` runs all hooks (best-effort). If any throw, `stop()` rejects with an `AggregateError` containing all errors.
 
-**Start failure — what happens when a component's `start` hook throws?**
+### Q5: Lifecycle state machine — APPROVED (revised)
 
-All options fail fast (don't call remaining hooks). The question is what to do about components that already started successfully.
+States: `"idle"`, `"starting"`, `"stopping"`, `"active"`, `"failed"`.
 
-- **A. No rollback.** `start()` rejects. Already-started components remain in their started state. User must call `stop()` to clean up. Simple, explicit, no surprises.
-- **B. Automatic rollback.** `start()` calls `stop()` on already-started components (in reverse order) before rejecting. Convenient, but adds implicit behavior — if a rollback stop hook also throws, there are now two error sources.
-- **C. Automatic rollback with AggregateError.** Same as B, but if rollback stop hooks also throw, `start()` rejects with an `AggregateError` containing the original start error and all rollback errors.
+Transitions:
+- `idle` → `starting` (on `app.start()`)
+- `starting` → `active` (all hooks succeeded)
+- `starting` → `failed` (a hook threw)
+- `active` → `stopping` (on `app.stop()`)
+- `failed` → `stopping` (on `app.stop()`, to clean up)
+- `stopping` → `idle` (stop complete, regardless of errors)
 
-**Stop failure — what happens when a component's `stop` hook throws?**
+Guards:
+- `app.call()` only valid in `active`. All other states throw `LifecycleStateError`.
+- `app.start()` only valid in `idle`. All other states throw `LifecycleStateError`.
+- `app.stop()` only valid in `active` or `failed`. All other states throw `LifecycleStateError`.
 
-All options run all hooks (best-effort cleanup). The question is how to report errors.
+## Implementation Summary
 
-- **A. First error wins.** `stop()` rejects with the first error thrown. Other errors are silently lost.
-- **B. AggregateError.** `stop()` rejects with an `AggregateError` containing all errors. Nothing is lost, caller can inspect all failures.
+### Type changes (`component.ts`)
 
-### Q5: Calls require lifecycle — APPROVED (revised)
+- Add optional `start` and `stop` to `Component<TCalls, TUses, TState>` — both are `(context: ComponentContext<TUses, TState>) => Promisable<void>`.
+- Mirror on `AnyComponent`: `start?(context: AnyComponentContext): Promisable<void>` and same for `stop`.
 
-`app.call()` throws if the application has not been started. The application tracks its lifecycle state:
+### Type changes (`application.ts`)
 
-- `created` → `app.start()` → `started` → `app.stop()` → `stopped`
-- `app.call()` only works in the `started` state.
-- `app.call()` before `start()` throws (application not started).
-- `app.call()` after `stop()` throws (application stopped).
-- `app.start()` when already started throws (already running).
-- `app.stop()` when not started throws (not running).
+- Extend the `Application<TComponents>` type with `start(): Promise<void>` and `stop(): Promise<void>`.
+- Add a `LifecycleState` string union: `"idle" | "starting" | "stopping" | "active" | "failed"`.
+
+### Runtime changes (`application.ts` — `createApplication`)
+
+- Track `lifecycle_state: LifecycleState`, initially `"idle"`.
+- Build a topological order of `definition.components` from their `uses` graph:
+  - Map each component to the set of call surface ids it depends on.
+  - Kahn's algorithm (BFS) over the dependency edges.
+  - If the sort does not consume all components, throw `CircularDependencyError`.
+- `app.start()`:
+  - Guard: throw `LifecycleStateError` if not `"idle"`.
+  - Set state to `"starting"`.
+  - Walk the topological order. For each component that has a `start` hook, call `component.start(context)`.
+  - On success: set state to `"active"`.
+  - On failure: set state to `"failed"`, reject with the thrown error. No rollback.
+- `app.stop()`:
+  - Guard: throw `LifecycleStateError` if not `"active"` or `"failed"`.
+  - Set state to `"stopping"`.
+  - Walk the reverse topological order. For each component that has a `stop` hook, call it (best-effort — continue on error).
+  - Set state to `"idle"`.
+  - If any hooks threw, reject with `AggregateError` containing all errors.
+- `app.call()`:
+  - Guard: throw `LifecycleStateError` if state is not `"active"`.
+
+### Error classes (`error.ts`)
+
+- `CircularDependencyError` — already stubbed, flesh out with the cycle path.
+- `LifecycleStateError` — already stubbed, flesh out with current state and attempted operation.
+
+### Spec updates
+
+- s0001: add lifecycle to the high-level architecture overview.
+- s0002: document `start`/`stop` on `Application`, lifecycle state machine, call guard.
+- s0003: document optional `start`/`stop` hooks on component definitions.
+- s0004: note that state is available in lifecycle hooks (same context).
+
+### Tests
+
+- Topological ordering: components start in dependency order, stop in reverse.
+- Circular dependency detection at `createApplication` time.
+- Lifecycle guards: `call` before `start`, `call` after `stop`, double `start`, `stop` before `start`.
+- Start/stop hooks receive correct context (including `state` for stateful components).
+- Components without lifecycle hooks are silently skipped.
+- Start failure: no rollback, state transitions to `"failed"`, `stop()` still callable.
+- Stop failure: all hooks run, rejects with `AggregateError`.
+- Lifecycle state transitions: `idle` → `starting` → `active`/`failed`, `active`/`failed` → `stopping` → `idle`.
 
 ## Out of Scope
 

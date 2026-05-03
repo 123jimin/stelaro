@@ -11,7 +11,14 @@ tags = ["component", "architecture", "lifecycle", "config", "logging"]
 - s0004: Context
 - s0006: Hot Module Replacement
 
+## High-Level API
+
+- `defineComponentCalls({ id, calls })` — declares a component's typed call surface (id + per-call input/output schemas). Returns a `ComponentCalls` object containing typed `ComponentCallReference` values.
+- `defineComponent({ calls, uses, handlers, state?, start?, stop? })` — defines a component from a call surface, dependency list, handlers, and optional state/lifecycle hooks. Returns a `Component` definition.
+
 ## Behavior
+
+### Identity and calls
 
 - Components have stable public ids.
 - Component ids are used for component identity.
@@ -20,9 +27,19 @@ tags = ["component", "architecture", "lifecycle", "config", "logging"]
 - Component call API inputs and outputs are defined with Arktype schemas.
 - Component call APIs support IPC-like usage without requiring cross-process transport.
 - UNIMPLEMENTED Components may use gateway capabilities through typed component call APIs.
+
+### State
+
 - Components may declare an optional state factory that returns the component's initial state.
 - Components that declare a state factory receive their state object through handler context.
 - Components that do not declare a state factory have no state and do not receive state in context.
+
+### Lifecycle
+
+- Components may declare optional `start` and `stop` hooks as top-level functions on the component definition.
+- Lifecycle hooks receive the same context as handlers (`call`, and `state` if stateful).
+- Components without lifecycle hooks are silently skipped during application start/stop.
+- The application calls `start` hooks in topological dependency order and `stop` hooks in reverse order (see s0002).
 
 ## Constraints
 
@@ -38,7 +55,6 @@ tags = ["component", "architecture", "lifecycle", "config", "logging"]
 
 ## Anticipated Changes
 
-- Component lifecycle may be specified separately.
 - Component configuration may be specified separately.
 - Component resources and templates may be specified separately.
 - Component reloading may be specified separately.
