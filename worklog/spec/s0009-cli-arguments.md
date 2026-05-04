@@ -1,0 +1,38 @@
++++
+id = "s0009"
+title = "CLI Arguments"
+tags = ["cli", "application"]
+paths = ["packages/peranto/src/cli/**"]
++++
+
+## Related Specs
+
+- s0002: Application
+- s0008: Configuration
+
+## Behavior
+
+- UNIMPLEMENTED Peranto defines a fixed set of CLI arguments.
+- UNIMPLEMENTED CLI arguments are parsed and validated during application creation.
+- UNIMPLEMENTED CLI argument parsing occurs before config file loading.
+- UNIMPLEMENTED Parsed CLI arguments are available on the application runtime.
+- UNIMPLEMENTED CLI arguments are immutable after application creation.
+- UNIMPLEMENTED CLI arguments are not affected by config reload.
+
+## Constraints
+
+- CLI arguments are defined by the core package; applications do not declare custom CLI argument schemas.
+- CLI argument behavior belongs to the core package.
+- CLI argument parsing must not depend on gateway-specific runtimes.
+- CLI argument validation must complete before config loading begins.
+
+## Anticipated Changes
+
+- Additional core CLI arguments may be added as new core features are specified.
+- Help text generation may be specified later.
+- Environment variable fallbacks for CLI arguments may be specified later.
+
+## Dangers
+
+- Coupling CLI parsing to a specific third-party library would make the core harder to maintain.
+- Adding too many core CLI arguments may crowd out gateway-specific argument needs.

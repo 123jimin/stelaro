@@ -3,8 +3,7 @@ id = "t0008"
 title = "Implement validated configuration"
 status = "pending"
 tags = ["config", "application", "component", "context"]
-modifies = ["s0001", "s0002", "s0003", "s0004"]
-blocked_by = ["t0006"]
+modifies = ["s0001", "s0002", "s0003", "s0004", "s0008"]
 +++
 
 ## Scope
@@ -21,7 +20,6 @@ blocked_by = ["t0006"]
 - Secrets management beyond typed configuration boundaries.
 - Remote configuration providers.
 - Gateway-specific configuration formats unless needed by approved core behavior.
-- Hot Module Replacement of configuration.
 
 ## Dependencies
 
