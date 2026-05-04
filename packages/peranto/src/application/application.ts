@@ -12,7 +12,6 @@ import type {
     CallFrom,
     CallInput,
     CallOutput,
-    ComponentCallName,
     ComponentId,
 } from "../component/types.ts";
 import {ConfigValidationError} from "../config/error.ts";
@@ -237,9 +236,9 @@ export function createApplication<
 
             for(let i = ordered_runtimes.length - 1; i >= 0; i--) {
                 const runtime = ordered_runtimes[i]!;
-                if(runtime.component.stop != null) {
+                if(runtime.context_slot.value != null && runtime.component.stop != null) {
                     try {
-                        await runtime.component.stop(runtime.context_slot.value!);
+                        await runtime.component.stop(runtime.context_slot.value);
                     } catch (error) {
                         errors.push(error);
                     }
@@ -345,7 +344,7 @@ export function createApplication<
 
             try {
                 if(runtime.component.onConfigReload != null) {
-                    await runtime.component.onConfigReload(runtime.context_slot.value!);
+                    await runtime.component.onConfigReload(new_context);
                 }
             } catch (error) {
                 lifecycle.enter("failed");
@@ -373,8 +372,8 @@ type ComponentGraph = {
 function validateAndSortComponents(components: readonly AnyComponent[]): ComponentGraph {
     const provided_call_surfaces = new Set<AnyComponentCalls>();
     const calls_to_component = new Map<AnyComponentCalls, AnyComponent>();
-    const duplicate_call_keys = new Set<ComponentCallName>();
-    const registered_call_keys = new Set<ComponentCallName>();
+    const duplicate_call_keys = new Set<QualifiedCallKey>();
+    const registered_call_keys = new Set<QualifiedCallKey>();
 
     for(const component of components) {
         provided_call_surfaces.add(component.calls);
@@ -434,6 +433,8 @@ function loadComponentConfigFile(
     return loadTomlConfig(file_path, config_schema, component.calls.id);
 }
 
-function callKey(reference: AnyComponentCallReference): ComponentCallName {
+type QualifiedCallKey = `${ComponentId}.${string}`;
+
+function callKey(reference: AnyComponentCallReference): QualifiedCallKey {
     return `${reference.component_id}.${reference.name}`;
 }

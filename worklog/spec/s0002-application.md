@@ -44,7 +44,7 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 - If a `start` hook throws, the application transitions to `failed`. Already-started components are not rolled back. The user must call `stop()` to clean up.
 - `app.stop()` transitions from `active` or `failed` → `stopping` → `idle`. Calls each component's `stop` hook (if present) in reverse topological order (best-effort).
 - If any `stop` hooks throw, `stop()` rejects with an `AggregateError` containing all errors. The application still transitions to `idle`.
-- `app.call()` only works in the `active` state. All other states throw `LifecycleStateError`.
+- `app.call()` only works in the `active` or `reloading` states. All other states throw `LifecycleStateError`.
 - `app.start()` only works in `idle`. All other states throw `LifecycleStateError`.
 - `app.stop()` only works in `active` or `failed`. All other states throw `LifecycleStateError`.
 - Components without lifecycle hooks are silently skipped during start/stop.
