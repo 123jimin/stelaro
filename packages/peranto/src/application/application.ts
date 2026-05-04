@@ -72,11 +72,13 @@ export type Application<
     ? unknown
     : {readonly config: NonNullable<TAppConfig>["infer"]});
 
-type RuntimeHandler = {
-    handle(
-        context: AnyComponentContext,
-        input: unknown,
-    ): Promisable<unknown>;
+type ComponentRuntime = {
+    readonly component: AnyComponent;
+    readonly log: ReturnType<LoggerFactory>;
+    readonly callable_references: ReadonlySet<AnyComponentCallReference>;
+    readonly call: (reference: AnyComponentCallReference, input: unknown) => Promise<unknown>;
+    readonly state: unknown;
+    readonly context_slot: {value: AnyComponentContext | null};
 };
 
 /**
@@ -107,31 +109,15 @@ export function createApplication<
 >(definition: ApplicationDefinition<TComponents, TAppConfig>, options?: ApplicationOptions): Application<TComponents, TAppConfig> {
     const args = parseArgs(options?.argv);
     const config_dir = options?.config_dir ?? args.config_dir ?? resolve("config");
+    const {ordered_components} = validateAndSortComponents(definition.components);
     const dispatchers = new Map<AnyComponentCallReference, (input: unknown) => Promisable<unknown>>();
-    const provided_call_surfaces = new Set<AnyComponentCalls>();
-    const calls_to_component = new Map<AnyComponentCalls, AnyComponent>();
-    const id_to_component = new Map<ComponentId, AnyComponent>();
-    const duplicate_call_keys = new Set<ComponentCallName>();
-    const registered_call_keys = new Set<ComponentCallName>();
-    const contexts = new Map<AnyComponent, AnyComponentContext>();
-    const config_slots = new Map<AnyComponent, {value: unknown}>();
     const logger_factory = definition.logger ?? consoleLoggerFactory;
+    const lifecycle = createLifecycleMachine();
 
-    const app_config_slot: {value: unknown} = {value: void 0};
+    const ordered_runtimes: ComponentRuntime[] = [];
+    const id_to_runtime = new Map<ComponentId, ComponentRuntime>();
 
-    for(const component of definition.components) {
-        provided_call_surfaces.add(component.calls);
-        calls_to_component.set(component.calls, component);
-        id_to_component.set(component.calls.id, component);
-    }
-
-    for(const component of definition.components) {
-        for(const used_calls of component.uses) {
-            if(!provided_call_surfaces.has(used_calls)) {
-                throw new MissingDependencyError(component.calls.id, used_calls.id);
-            }
-        }
-
+    for(const component of ordered_components) {
         const callable_references = new Set<AnyComponentCallReference>();
 
         for(const used_calls of component.uses) {
@@ -140,12 +126,11 @@ export function createApplication<
             }
         }
 
-        const slot = {value: void 0 as unknown};
-        config_slots.set(component, slot);
-
-        const base_context: AnyComponentContext = {
+        const runtime: ComponentRuntime = {
+            component,
             log: logger_factory(component.calls.id),
-            call(reference, input) {
+            callable_references,
+            call(reference: AnyComponentCallReference, input: unknown) {
                 if(!callable_references.has(reference)) {
                     throw new UndeclaredCallError(
                         component.calls.id,
@@ -153,85 +138,55 @@ export function createApplication<
                         reference.name,
                     );
                 }
-
                 return dispatch(reference, input);
             },
+            state: component.state != null ? component.state() : null,
+            context_slot: {value: null},
         };
 
-        const context_obj: Record<string, unknown> = {};
-
-        for(const [key, value] of Object.entries(base_context)) {
-            context_obj[key] = value;
-        }
-
-        if(component.state != null) {
-            context_obj["state"] = component.state();
-        }
-
-        if(component.config != null) {
-            Object.defineProperty(context_obj, "config", {
-                get() { return slot.value; },
-                enumerable: true,
-            });
-        }
-
-        const context = context_obj as AnyComponentContext;
-        contexts.set(component, context);
+        ordered_runtimes.push(runtime);
+        id_to_runtime.set(component.calls.id, runtime);
 
         for(const [name, reference] of Object.entries(component.calls.calls)) {
-            const key = callKey(reference);
-            if(registered_call_keys.has(key)) {
-                duplicate_call_keys.add(key);
-            }
-            registered_call_keys.add(key);
-
-            const handler: RuntimeHandler | undefined = component.handlers[name];
-
-            if(handler == null) {
-                throw new MissingHandlerError(component.calls.id, name);
-            }
-
+            const handler = component.handlers[name]!;
             dispatchers.set(
                 reference,
-                (input) => handler.handle(context, reference.input.assert(input)),
+                (input) => handler.handle(runtime.context_slot.value!, reference.input.assert(input)),
             );
         }
     }
 
-    if(duplicate_call_keys.size > 0) {
-        throw new DuplicateCallError([...duplicate_call_keys]);
-    }
+    let app_config: unknown = null;
 
-    let ordered_components: readonly AnyComponent[];
-    try {
-        ordered_components = topologicalSort(
-            [...definition.components],
-            (component) => component.uses
-                .map((used_calls) => calls_to_component.get(used_calls))
-                .filter((dep): dep is AnyComponent => dep != null),
-        );
-    } catch (error) {
-        if(error instanceof TopologicalCycleError) {
-            const ids = (error.remaining as AnyComponent[])
-                .map((c) => c.calls.id);
-            throw new CircularDependencyError(ids);
+    function buildContext(runtime: ComponentRuntime, config: unknown): AnyComponentContext {
+        const context: Record<string, unknown> = {
+            log: runtime.log,
+            call: runtime.call,
+        };
+
+        if(runtime.component.state != null) {
+            context["state"] = runtime.state;
         }
-        throw error;
-    }
 
-    const lifecycle = createLifecycleMachine();
+        if(runtime.component.config != null) {
+            context["config"] = config;
+        }
+
+        return context as AnyComponentContext;
+    }
 
     async function loadAllConfig(): Promise<void> {
         if(definition.config != null) {
             const file_path = join(config_dir, "application.toml");
-            app_config_slot.value = await loadTomlConfig(file_path, definition.config);
+            app_config = await loadTomlConfig(file_path, definition.config);
         }
 
-        for(const component of ordered_components) {
-            if(component.config != null) {
-                const file_path = join(config_dir, `${component.calls.id}.toml`);
-                const slot = config_slots.get(component)!;
-                slot.value = await loadTomlConfig(file_path, component.config, component.calls.id);
+        for(const runtime of ordered_runtimes) {
+            if(runtime.component.config != null) {
+                const config = await loadComponentConfigFile(config_dir, runtime.component, runtime.component.config);
+                runtime.context_slot.value = buildContext(runtime, config);
+            } else {
+                runtime.context_slot.value = buildContext(runtime, null);
             }
         }
     }
@@ -261,9 +216,9 @@ export function createApplication<
             try {
                 await loadAllConfig();
 
-                for(const component of ordered_components) {
-                    if(component.start != null) {
-                        await component.start(contexts.get(component)!);
+                for(const runtime of ordered_runtimes) {
+                    if(runtime.component.start != null) {
+                        await runtime.component.start(runtime.context_slot.value!);
                     }
                 }
             } catch (error) {
@@ -280,11 +235,11 @@ export function createApplication<
 
             const errors: unknown[] = [];
 
-            for(let i = ordered_components.length - 1; i >= 0; i--) {
-                const component = ordered_components[i]!;
-                if(component.stop != null) {
+            for(let i = ordered_runtimes.length - 1; i >= 0; i--) {
+                const runtime = ordered_runtimes[i]!;
+                if(runtime.component.stop != null) {
                     try {
-                        await component.stop(contexts.get(component)!);
+                        await runtime.component.stop(runtime.context_slot.value!);
                     } catch (error) {
                         errors.push(error);
                     }
@@ -309,21 +264,18 @@ export function createApplication<
             lifecycle.require("active", "reloadConfig");
             lifecycle.enter("reloading");
 
-            let new_app_config: unknown;
-            const new_component_configs = new Map<AnyComponent, unknown>();
+            let new_app_config: unknown = null;
+            const new_contexts = new Map<ComponentRuntime, AnyComponentContext>();
 
             try {
-                new_app_config = definition.config != null
-                    ? await loadTomlConfig(join(config_dir, "application.toml"), definition.config)
-                    : void 0;
+                if(definition.config != null) {
+                    new_app_config = await loadTomlConfig(join(config_dir, "application.toml"), definition.config);
+                }
 
-                for(const component of ordered_components) {
-                    if(component.config != null) {
-                        const file_path = join(config_dir, `${component.calls.id}.toml`);
-                        new_component_configs.set(
-                            component,
-                            await loadTomlConfig(file_path, component.config, component.calls.id),
-                        );
+                for(const runtime of ordered_runtimes) {
+                    if(runtime.component.config != null) {
+                        const config = await loadComponentConfigFile(config_dir, runtime.component, runtime.component.config);
+                        new_contexts.set(runtime, buildContext(runtime, config));
                     }
                 }
             } catch (error) {
@@ -331,17 +283,17 @@ export function createApplication<
                 throw error;
             }
 
-            if(new_app_config !== void 0) {
-                app_config_slot.value = new_app_config;
+            if(definition.config != null) {
+                app_config = new_app_config;
             }
-            for(const [component, value] of new_component_configs) {
-                config_slots.get(component)!.value = value;
+            for(const [runtime, context] of new_contexts) {
+                runtime.context_slot.value = context;
             }
 
             try {
-                for(const component of ordered_components) {
-                    if(component.onConfigReload != null) {
-                        await component.onConfigReload(contexts.get(component)!);
+                for(const runtime of ordered_runtimes) {
+                    if(runtime.component.onConfigReload != null) {
+                        await runtime.component.onConfigReload(runtime.context_slot.value!);
                     }
                 }
 
@@ -361,8 +313,8 @@ export function createApplication<
         ): Promise<void> {
             lifecycle.require("active", "reloadComponentConfig");
 
-            const component = id_to_component.get(component_id);
-            if(component == null) {
+            const runtime = id_to_runtime.get(component_id);
+            if(runtime == null) {
                 throw new ConfigValidationError(
                     join(config_dir, `${component_id}.toml`),
                     component_id,
@@ -370,7 +322,7 @@ export function createApplication<
                 );
             }
 
-            if(component.config == null) {
+            if(runtime.component.config == null) {
                 throw new ConfigValidationError(
                     join(config_dir, `${component_id}.toml`),
                     component_id,
@@ -380,23 +332,20 @@ export function createApplication<
 
             lifecycle.enter("reloading");
 
-            let new_config: unknown;
+            let new_context: AnyComponentContext;
             try {
-                new_config = await loadTomlConfig(
-                    join(config_dir, `${component_id}.toml`),
-                    component.config,
-                    component_id,
-                );
+                const config = await loadComponentConfigFile(config_dir, runtime.component, runtime.component.config);
+                new_context = buildContext(runtime, config);
             } catch (error) {
                 lifecycle.enter("active");
                 throw error;
             }
 
-            config_slots.get(component)!.value = new_config;
+            runtime.context_slot.value = new_context;
 
             try {
-                if(component.onConfigReload != null) {
-                    await component.onConfigReload(contexts.get(component)!);
+                if(runtime.component.onConfigReload != null) {
+                    await runtime.component.onConfigReload(runtime.context_slot.value!);
                 }
             } catch (error) {
                 lifecycle.enter("failed");
@@ -409,12 +358,80 @@ export function createApplication<
 
     if(definition.config != null) {
         Object.defineProperty(app, "config", {
-            get() { return app_config_slot.value; },
+            get() { return app_config; },
             enumerable: true,
         });
     }
 
     return app as Application<TComponents, TAppConfig>;
+}
+
+type ComponentGraph = {
+    readonly ordered_components: readonly AnyComponent[];
+};
+
+function validateAndSortComponents(components: readonly AnyComponent[]): ComponentGraph {
+    const provided_call_surfaces = new Set<AnyComponentCalls>();
+    const calls_to_component = new Map<AnyComponentCalls, AnyComponent>();
+    const duplicate_call_keys = new Set<ComponentCallName>();
+    const registered_call_keys = new Set<ComponentCallName>();
+
+    for(const component of components) {
+        provided_call_surfaces.add(component.calls);
+        calls_to_component.set(component.calls, component);
+    }
+
+    for(const component of components) {
+        for(const used_calls of component.uses) {
+            if(!provided_call_surfaces.has(used_calls)) {
+                throw new MissingDependencyError(component.calls.id, used_calls.id);
+            }
+        }
+
+        for(const [, reference] of Object.entries(component.calls.calls)) {
+            const key = callKey(reference);
+            if(registered_call_keys.has(key)) {
+                duplicate_call_keys.add(key);
+            }
+            registered_call_keys.add(key);
+
+            if(component.handlers[reference.name] == null) {
+                throw new MissingHandlerError(component.calls.id, reference.name);
+            }
+        }
+    }
+
+    if(duplicate_call_keys.size > 0) {
+        throw new DuplicateCallError([...duplicate_call_keys]);
+    }
+
+    let ordered_components: readonly AnyComponent[];
+    try {
+        ordered_components = topologicalSort(
+            [...components],
+            (component) => component.uses
+                .map((used_calls) => calls_to_component.get(used_calls))
+                .filter((dep): dep is AnyComponent => dep != null),
+        );
+    } catch (error) {
+        if(error instanceof TopologicalCycleError) {
+            const ids = (error.remaining as AnyComponent[])
+                .map((c) => c.calls.id);
+            throw new CircularDependencyError(ids);
+        }
+        throw error;
+    }
+
+    return {ordered_components};
+}
+
+function loadComponentConfigFile(
+    config_dir: string,
+    component: AnyComponent,
+    config_schema: ConfigSchema,
+): Promise<unknown> {
+    const file_path = join(config_dir, `${component.calls.id}.toml`);
+    return loadTomlConfig(file_path, config_schema, component.calls.id);
 }
 
 function callKey(reference: AnyComponentCallReference): ComponentCallName {
