@@ -29,7 +29,8 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 - An application coordinates registered components and typed component calls.
 - An application coordinates lifecycle (start/stop).
-- UNIMPLEMENTED An application coordinates configuration and logging.
+- UNIMPLEMENTED An application coordinates configuration.
+- UNIMPLEMENTED An application coordinates logging.
 - Application definitions can be declared separately from creating the application runtime.
 - Applications are created with `createApplication`.
 
@@ -38,6 +39,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - Components have stable public ids.
 - Component ids are used for component identity.
 - UNIMPLEMENTED Component ids are used for component-scoped logging.
+- UNIMPLEMENTED Component behavior receives logging scoped to the component id.
 - Components expose typed call APIs.
 - Component call API inputs and outputs are defined with Arktype schemas.
 - Component call APIs support IPC-like usage without requiring cross-process transport.
@@ -55,6 +57,10 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 ### Logging
 
 - UNIMPLEMENTED Logging supports component-scoped identity derived from component ids.
+- UNIMPLEMENTED Loggers support debug, info, warn, and error messages with optional structured data.
+- UNIMPLEMENTED Application definitions may provide a logger factory for component-scoped loggers.
+- UNIMPLEMENTED When no logger factory is provided, core uses a default console logger.
+- UNIMPLEMENTED The default console logger prefixes output with the component id and maps debug, info, warn, and error messages to the matching console methods.
 
 ### Validation
 

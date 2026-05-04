@@ -25,12 +25,16 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 
 - An application coordinates registered components.
 - An application coordinates typed component calls.
-- UNIMPLEMENTED An application coordinates configuration and logging.
+- UNIMPLEMENTED An application coordinates configuration.
+- UNIMPLEMENTED An application coordinates logging.
 - Application definitions can be declared separately from creating the application runtime.
 - Applications are created with `createApplication`.
 - `createApplication` initializes state for each registered component that declares a state factory.
 - `createApplication` computes a topological ordering of components from the `uses` dependency graph.
 - `createApplication` throws `CircularDependencyError` if the dependency graph contains a cycle.
+- UNIMPLEMENTED Application definitions may provide a logger factory used to create component-scoped loggers.
+- UNIMPLEMENTED When no logger factory is provided, application creation uses the default console logger factory.
+- UNIMPLEMENTED The application creates one logger per component and provides that logger through the component's context.
 
 ### Lifecycle
 

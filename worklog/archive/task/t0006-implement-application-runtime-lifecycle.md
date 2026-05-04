@@ -1,7 +1,7 @@
 +++
 id = "t0006"
 title = "Implement application runtime lifecycle"
-status = "archived"
+status = "done"
 tags = ["application", "lifecycle"]
 modifies = ["s0001", "s0002", "s0003", "s0004"]
 blocked_by = []

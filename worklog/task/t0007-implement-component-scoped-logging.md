@@ -16,7 +16,8 @@ blocked_by = []
 - `createApplication` calls the factory per component to produce scoped loggers, then wires them into each component's context.
 - Core ships a default `console`-based logger factory (`consoleLoggerFactory`) that prefixes output with the component id.
 - When no `logger` factory is provided, the default console logger is used.
-- Update affected specs (s0001, s0002, s0003, s0004) to remove `UNIMPLEMENTED` logging markers.
+- Export logger types and the default logger factory through the component package and core package root.
+- Update affected specs (s0001, s0002, s0003, s0004) to remove only implemented logging `UNIMPLEMENTED` markers. Leave configuration markers intact.
 
 ## Design Decisions
 
@@ -73,6 +74,11 @@ Prefixes each log line with `[componentId]`. Maps `debug` → `console.debug`, `
 - `LoggerFactory` type.
 - `consoleLoggerFactory` function.
 
+### Exports
+
+- Export logger types and `consoleLoggerFactory` from `src/component/index.ts`.
+- Ensure the logger exports are reachable from the core package root.
+
 ### Type changes (`component/component.ts`)
 
 - Add `readonly log: Logger` to `BaseComponentContext`.
@@ -88,6 +94,7 @@ Prefixes each log line with `[componentId]`. Maps `debug` → `console.debug`, `
 - Default logger: handlers and lifecycle hooks receive a `log` property with all four methods.
 - Custom logger factory: the factory is called with each component's id, and handlers receive the returned logger.
 - Logger is pre-scoped: verify the factory receives the correct component id.
+- Default console logger behavior: temporarily replace `console.debug`, `console.info`, `console.warn`, and `console.error` with spies, call each matching `context.log` method from component behavior, then restore the console methods in a `finally` block. Assert that each console method is called through the matching log method, that the first string argument starts with `[componentId]`, and that the message and structured data are present in the call arguments.
 
 ## Out of Scope
 

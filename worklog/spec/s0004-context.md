@@ -15,6 +15,7 @@ tags = ["context", "architecture", "component", "application", "logging", "confi
 - Context provides runtime capabilities to Peranto behavior.
 - Component behavior receives context from the application runtime.
 - UNIMPLEMENTED Context includes access to component-scoped logging.
+- UNIMPLEMENTED Component-scoped logging is available to handlers and lifecycle hooks through the same context object.
 - Context includes access to typed component calls.
 - UNIMPLEMENTED Context includes access to validated configuration relevant to the receiving behavior.
 - UNIMPLEMENTED Context allows behavior to call typed APIs exposed by gateway components.

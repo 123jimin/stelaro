@@ -23,6 +23,8 @@ tags = ["component", "architecture", "lifecycle", "config", "logging"]
 - Components have stable public ids.
 - Component ids are used for component identity.
 - UNIMPLEMENTED Component ids are used for component-scoped logging.
+- UNIMPLEMENTED Component behavior receives a logger scoped to the component's public id.
+- UNIMPLEMENTED Component loggers support debug, info, warn, and error messages with optional structured data.
 - Components expose typed call APIs.
 - Component call API inputs and outputs are defined with Arktype schemas.
 - Component call APIs support IPC-like usage without requiring cross-process transport.

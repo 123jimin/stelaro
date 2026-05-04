@@ -1,7 +1,7 @@
 +++
 id = "t0015"
 title = "Implement topological sorter for component dependency graph"
-status = "archived"
+status = "done"
 tags = ["application", "lifecycle"]
 modifies = ["s0002"]
 blocked_by = []
