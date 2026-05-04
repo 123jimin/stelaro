@@ -1,4 +1,4 @@
-import type {ComponentId} from "./component.ts";
+import type {ComponentId} from "./types.ts";
 
 export type Logger = {
     debug(...args: unknown[]): void;

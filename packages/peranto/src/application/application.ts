@@ -1,16 +1,16 @@
 import type {Promisable} from "@jiminp/tooltool";
 
+import type {AnyComponentContext} from "../component/context.ts";
+import {consoleLoggerFactory, type LoggerFactory} from "../component/logger.ts";
 import type {
     AnyComponent,
     AnyComponentCallReference,
     AnyComponentCalls,
-    AnyComponentContext,
     CallFrom,
     CallInput,
     CallOutput,
     ComponentCallName,
-} from "../component/component.ts";
-import {consoleLoggerFactory, type LoggerFactory} from "../component/logger.ts";
+} from "../component/types.ts";
 import {TopologicalCycleError, topologicalSort} from "../util/topological-sort.ts";
 import {
     CircularDependencyError,
