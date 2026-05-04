@@ -12,12 +12,18 @@ paths = ["packages/peranto/src/cli/**"]
 
 ## Behavior
 
-- UNIMPLEMENTED Peranto defines a fixed set of CLI arguments.
-- UNIMPLEMENTED CLI arguments are parsed and validated during application creation.
-- UNIMPLEMENTED CLI argument parsing occurs before config file loading.
-- UNIMPLEMENTED Parsed CLI arguments are available on the application runtime.
-- UNIMPLEMENTED CLI arguments are immutable after application creation.
+- Peranto defines a fixed set of CLI arguments.
+- CLI arguments are parsed and validated during application creation.
+- CLI argument parsing occurs before config file loading.
+- Parsed CLI arguments are available on the application runtime.
+- CLI arguments are immutable after application creation.
 - UNIMPLEMENTED CLI arguments are not affected by config reload.
+
+### Fixed Arguments
+
+| Argument | Type | Default | Purpose |
+|----------|------|---------|---------|
+| `--config-dir` | string | `undefined` | Override config directory path |
 
 ## Constraints
 
@@ -28,6 +34,7 @@ paths = ["packages/peranto/src/cli/**"]
 
 ## Anticipated Changes
 
+- The underlying CLI parsing implementation may be replaced with a third-party library later.
 - Additional core CLI arguments may be added as new core features are specified.
 - Help text generation may be specified later.
 - Environment variable fallbacks for CLI arguments may be specified later.

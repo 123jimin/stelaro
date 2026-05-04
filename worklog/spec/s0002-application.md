@@ -10,11 +10,12 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 - s0003: Component
 - s0004: Context
 - s0006: Hot Module Replacement
+- s0009: CLI Arguments
 
 ## High-Level API
 
 - `defineApplication({ components })` — declares a reusable application definition separately from runtime creation.
-- `createApplication(definition)` — creates a runtime application from a definition. Validates components, initializes state, and computes lifecycle ordering.
+- `createApplication(definition, options?)` — creates a runtime application from a definition. Validates components, initializes state, computes lifecycle ordering, and parses CLI arguments.
 - `app.start()` — starts the application (calls component `start` hooks in dependency order).
 - `app.stop()` — stops the application (calls component `stop` hooks in reverse dependency order).
 - `app.call(reference, input)` — dispatches a typed component call. Only valid when the application is `active`.

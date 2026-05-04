@@ -1,5 +1,6 @@
 import type {Promisable} from "@jiminp/tooltool";
 
+import {parseArgs, type ParsedArgs} from "../cli/args.ts";
 import type {AnyComponentContext} from "../component/context.ts";
 import {consoleLoggerFactory, type LoggerFactory} from "../component/logger.ts";
 import type {
@@ -32,9 +33,17 @@ export type ApplicationDefinition<TComponents extends readonly AnyComponent[]> =
 };
 
 /**
+ * Options for application runtime creation.
+ */
+export type ApplicationOptions = {
+    readonly argv?: string[];
+};
+
+/**
  * Runtime application capable of dispatching calls exposed by its components.
  */
 export type Application<TComponents extends readonly AnyComponent[]> = {
+    readonly args: ParsedArgs;
     start(): Promise<void>;
     stop(): Promise<void>;
     call<TCall extends CallFrom<TComponents[number]["calls"]>>(
@@ -73,7 +82,8 @@ export function defineApplication<
  */
 export function createApplication<
     const TComponents extends readonly AnyComponent[],
->(definition: ApplicationDefinition<TComponents>): Application<TComponents> {
+>(definition: ApplicationDefinition<TComponents>, options?: ApplicationOptions): Application<TComponents> {
+    const args = parseArgs(options?.argv);
     const dispatchers = new Map<AnyComponentCallReference, (input: unknown) => Promisable<unknown>>();
     const provided_call_surfaces = new Set<AnyComponentCalls>();
     const calls_to_component = new Map<AnyComponentCalls, AnyComponent>();
@@ -184,6 +194,8 @@ export function createApplication<
     }
 
     return {
+        args,
+
         async start(): Promise<void> {
             if(lifecycle_state !== "idle") {
                 throw new LifecycleStateError(lifecycle_state, "start");

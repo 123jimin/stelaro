@@ -1324,6 +1324,50 @@ describe("@jiminp/peranto application core", () => {
         assert.deepStrictEqual(stop_calls, ["a"]);
     });
 
+    it("exposes parsed CLI arguments on the application runtime", () => {
+        const CounterCalls = defineComponentCalls({
+            id: "counter",
+            calls: {
+                current: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const CounterComponent = defineComponent({
+            calls: CounterCalls,
+            uses: [],
+            handlers: {
+                current: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(
+            defineApplication({components: [CounterComponent]}),
+            {argv: ["--config-dir", "./custom"]},
+        );
+
+        assert.ok(app.args.config_dir!.endsWith("custom"));
+    });
+
+    it("exposes undefined args when no CLI arguments are provided", () => {
+        const CounterCalls = defineComponentCalls({
+            id: "counter",
+            calls: {
+                current: {input: EmptyInput, output: CounterOutput},
+            },
+        });
+        const CounterComponent = defineComponent({
+            calls: CounterCalls,
+            uses: [],
+            handlers: {
+                current: {handle() { return {count: 0}; }},
+            },
+        });
+        const app = createApplication(
+            defineApplication({components: [CounterComponent]}),
+            {argv: []},
+        );
+
+        assert.strictEqual(app.args.config_dir, void 0);
+    });
+
     it("throws errors that are instanceof PerantoError", () => {
         const ACalls = defineComponentCalls({
             id: "a",
