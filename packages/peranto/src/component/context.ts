@@ -1,6 +1,5 @@
 import type {Logger} from "./logger.ts";
 import type {
-    AnyComponentCallReference,
     AnyComponentCalls,
     CallFrom,
     CallInput,
@@ -28,8 +27,6 @@ export type ComponentContext<
     ? BaseComponentContext<TUses>
     : BaseComponentContext<TUses> & {readonly state: TState};
 
-export type AnyComponentContext = {
-    readonly log: Logger;
-    call(reference: AnyComponentCallReference, input: unknown): Promise<unknown>;
+export type AnyComponentContext = ComponentContext<readonly AnyComponentCalls[]> & {
     readonly state?: unknown;
 };
