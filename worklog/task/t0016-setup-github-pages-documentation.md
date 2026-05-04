@@ -38,3 +38,29 @@ Options:
 - Full API reference content (separate task after initial setup).
 - Auto-generated API docs from TypeScript source (may be a follow-up task).
 - Versioned documentation.
+
+## Reference Documentation Setup
+
+Observed documentation setup:
+
+- Uses TypeDoc, configured in `typedoc.json`.
+- `package.json` includes `build-docs` and `build-docs:watch` scripts that run TypeDoc.
+- `typedoc.json` uses the default theme and resolves entry points from `src/*/index.ts`.
+- Generated HTML is written under `docs/`, with TypeDoc's `.nojekyll` file present for GitHub Pages.
+- README links to published GitHub Pages documentation.
+- No `CNAME` file is present, so no custom domain setup is visible in the repository.
+- GitHub Actions has a reusable `build-docs.yaml` workflow that:
+  - checks out the repository,
+  - installs with `pnpm/action-setup`,
+  - runs `actions/configure-pages`,
+  - runs `pnpm build-docs`,
+  - uploads `./docs` with `actions/upload-pages-artifact`,
+  - deploys with `actions/deploy-pages`.
+- `ci.yaml` calls the docs workflow after `build-test`, only on `refs/heads/main`.
+- `ci.yaml` ignores pushes that only touch `docs/**`, so generated documentation-only changes do not retrigger CI.
+
+Implications for Peranto:
+
+- The closest matching setup would be TypeDoc plus GitHub Pages artifact deployment.
+- Peranto should decide whether docs are generated output in `docs/`, or source-authored docs with generated API references as a later step.
+- If using TypeDoc for API docs, Peranto needs entry points chosen from its package structure rather than copying the observed `src/*/index.ts` pattern blindly.
