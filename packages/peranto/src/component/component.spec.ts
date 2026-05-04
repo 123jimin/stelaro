@@ -5,6 +5,10 @@ import {assertEqualType} from "@jiminp/tooltool";
 import {type as schema} from "arktype";
 
 import {
+    consoleLoggerFactory,
+    type Logger,
+} from "../index.ts";
+import {
     type AnyComponent,
     type AnyComponentContext,
     type CallInput,
@@ -128,6 +132,15 @@ describe("@jiminp/peranto component core", () => {
         });
 
         assert.deepStrictEqual("state" in CounterComponent, false);
+    });
+
+    it("exports a default console logger factory from the core package root", () => {
+        const log = consoleLoggerFactory("counter");
+
+        assert.deepStrictEqual(typeof log.debug, "function");
+        assert.deepStrictEqual(typeof log.info, "function");
+        assert.deepStrictEqual(typeof log.warn, "function");
+        assert.deepStrictEqual(typeof log.error, "function");
     });
 });
 
@@ -269,6 +282,12 @@ function assertTypeBehavior() {
         void _state;
     });
 
+    // AnyComponentContext includes component-scoped logging.
+    void ((_ctx: AnyComponentContext) => {
+        const _log: Logger = _ctx.log;
+        void _log;
+    });
+
     // Stateful ComponentContext is assignable to AnyComponentContext.
     void ((_ctx: ComponentContext<[], {count: number}>) => {
         const _erased: AnyComponentContext = _ctx;
@@ -279,6 +298,13 @@ function assertTypeBehavior() {
     void ((_ctx: ComponentContext<[]>) => {
         const _erased: AnyComponentContext = _ctx;
         void _erased;
+    });
+
+    // ComponentContext includes component-scoped logging for component behavior.
+    void ((_ctx: ComponentContext<[]>) => {
+        const _log: Logger = _ctx.log;
+        _ctx.log.info("message", {count: 1}, ["extra"], 2);
+        void _log;
     });
 
     // Stateful component state is narrowed to the factory return type, not unknown.

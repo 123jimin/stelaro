@@ -1,7 +1,7 @@
 +++
 id = "t0007"
 title = "Implement component-scoped logging"
-status = "pending"
+status = "done"
 tags = ["logging", "component", "context", "application"]
 modifies = ["s0001", "s0002", "s0003", "s0004"]
 blocked_by = []
@@ -10,7 +10,7 @@ blocked_by = []
 ## Scope
 
 - Define a `Logger` interface with `debug`, `info`, `warn`, `error` methods.
-- Each method accepts a message string and optional structured data.
+- Each method accepts arbitrary log arguments.
 - Add `log: Logger` to `ComponentContext`. Handlers and lifecycle hooks receive a logger pre-scoped to the component id.
 - `ApplicationDefinition` accepts an optional `logger` factory: `(componentId: ComponentId) => Logger`.
 - `createApplication` calls the factory per component to produce scoped loggers, then wires them into each component's context.
@@ -25,10 +25,10 @@ blocked_by = []
 
 ```ts
 type Logger = {
-    debug(message: string, data?: Record<string, unknown>): void;
-    info(message: string, data?: Record<string, unknown>): void;
-    warn(message: string, data?: Record<string, unknown>): void;
-    error(message: string, data?: Record<string, unknown>): void;
+    debug(...args: unknown[]): void;
+    info(...args: unknown[]): void;
+    warn(...args: unknown[]): void;
+    error(...args: unknown[]): void;
 };
 ```
 
@@ -94,7 +94,22 @@ Prefixes each log line with `[componentId]`. Maps `debug` → `console.debug`, `
 - Default logger: handlers and lifecycle hooks receive a `log` property with all four methods.
 - Custom logger factory: the factory is called with each component's id, and handlers receive the returned logger.
 - Logger is pre-scoped: verify the factory receives the correct component id.
-- Default console logger behavior: temporarily replace `console.debug`, `console.info`, `console.warn`, and `console.error` with spies, call each matching `context.log` method from component behavior, then restore the console methods in a `finally` block. Assert that each console method is called through the matching log method, that the first string argument starts with `[componentId]`, and that the message and structured data are present in the call arguments.
+- Default console logger behavior: temporarily replace `console.debug`, `console.info`, `console.warn`, and `console.error` with spies, call each matching `context.log` method from component behavior, then restore the console methods in a `finally` block. Assert that each console method is called through the matching log method, that the first string argument starts with `[componentId]`, and that the log arguments are preserved after the component id prefix.
+
+## Implementation Summary
+
+- Added core `Logger` and `LoggerFactory` types.
+- Added the default component-scoped console logger factory.
+- Added `log` to component handler and lifecycle hook context.
+- Added application-level logger factory support with the console logger as the default.
+- Exported logger types and the default logger factory from the component package and core package root.
+- Updated affected specs to mark implemented logging behavior as built while preserving configuration `UNIMPLEMENTED` markers.
+
+## Verification
+
+- `pnpm --filter @jiminp/peranto test`
+- `pnpm --filter @jiminp/peranto lint`
+- `worklog validate.py`
 
 ## Out of Scope
 

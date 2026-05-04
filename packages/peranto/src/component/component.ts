@@ -1,5 +1,7 @@
 import type {Promisable} from "@jiminp/tooltool";
 
+import type {Logger} from "./logger.ts";
+
 export type ComponentId = string;
 
 export type ComponentCallName = string;
@@ -80,6 +82,7 @@ export type CallOutput<TCall extends AnyComponentCallReference> = TCall["output"
 export type StateFactory<TState> = () => TState;
 
 type BaseComponentContext<TUses extends readonly AnyComponentCalls[]> = {
+    readonly log: Logger;
     call<TCall extends CallFrom<TUses[number]>>(
         reference: TCall,
         input: CallInput<TCall>,
@@ -123,6 +126,7 @@ export type Component<
 } & ([TState] extends [undefined] ? unknown : {readonly state: StateFactory<TState>});
 
 export type AnyComponentContext = {
+    readonly log: Logger;
     call(reference: AnyComponentCallReference, input: unknown): Promise<unknown>;
     readonly state?: unknown;
 };

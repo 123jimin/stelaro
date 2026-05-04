@@ -10,6 +10,7 @@ import {
     defineComponent,
     defineComponentCalls,
 } from "../component/component.ts";
+import type {Logger} from "../component/logger.ts";
 import {PerantoError} from "../error.ts";
 import {
     createApplication,
@@ -35,6 +36,10 @@ const SetCounterInput = schema({
 const RenderOutput = schema({
     html: "string",
 });
+
+type LoggerMethodName = "debug" | "info" | "warn" | "error";
+
+const logger_method_names = ["debug", "info", "warn", "error"] as const satisfies readonly LoggerMethodName[];
 
 describe("@jiminp/peranto application core", () => {
     it("declares an application separately from creating the application runtime", () => {
@@ -207,6 +212,213 @@ describe("@jiminp/peranto application core", () => {
         assert.deepStrictEqual(await app.call(PageCalls.calls.render, {}), {
             html: "7",
         });
+    });
+
+    it("provides component-scoped logging to handlers and lifecycle hooks", async () => {
+        const observed_log_methods: LoggerMethodName[][] = [];
+        const CounterCalls = defineComponentCalls({
+            id: "counter",
+            calls: {
+                current: {
+                    input: EmptyInput,
+                    output: CounterOutput,
+                },
+            },
+        });
+        const CounterComponent = defineComponent({
+            calls: CounterCalls,
+            uses: [],
+            start({log}) {
+                observed_log_methods.push(loggerMethodNames(log));
+            },
+            stop({log}) {
+                observed_log_methods.push(loggerMethodNames(log));
+            },
+            handlers: {
+                current: {
+                    handle({log}) {
+                        observed_log_methods.push(loggerMethodNames(log));
+
+                        return {
+                            count: 0,
+                        };
+                    },
+                },
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [CounterComponent],
+        }));
+
+        await app.start();
+        await app.call(CounterCalls.calls.current, {});
+        await app.stop();
+
+        assert.deepStrictEqual(observed_log_methods, [
+            ["debug", "info", "warn", "error"],
+            ["debug", "info", "warn", "error"],
+            ["debug", "info", "warn", "error"],
+        ]);
+    });
+
+    it("creates component-scoped loggers with the configured logger factory", async () => {
+        const factory_component_ids: string[] = [];
+        const logger_by_component_id = new Map<string, Logger>();
+        const received_logger_by_component_id = new Map<string, Logger>();
+        const CounterCalls = defineComponentCalls({
+            id: "counter",
+            calls: {
+                current: {
+                    input: EmptyInput,
+                    output: CounterOutput,
+                },
+            },
+        });
+        const PageCalls = defineComponentCalls({
+            id: "page",
+            calls: {
+                render: {
+                    input: EmptyInput,
+                    output: RenderOutput,
+                },
+            },
+        });
+        const CounterComponent = defineComponent({
+            calls: CounterCalls,
+            uses: [],
+            handlers: {
+                current: {
+                    handle({log}) {
+                        received_logger_by_component_id.set("counter", log);
+
+                        return {
+                            count: 3,
+                        };
+                    },
+                },
+            },
+        });
+        const PageComponent = defineComponent({
+            calls: PageCalls,
+            uses: [],
+            handlers: {
+                render: {
+                    handle({log}) {
+                        received_logger_by_component_id.set("page", log);
+
+                        return {
+                            html: "ok",
+                        };
+                    },
+                },
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [CounterComponent, PageComponent],
+            logger(component_id) {
+                factory_component_ids.push(component_id);
+
+                const logger = createRecordingLogger();
+                logger_by_component_id.set(component_id, logger);
+
+                return logger;
+            },
+        }));
+        await app.start();
+
+        await app.call(CounterCalls.calls.current, {});
+        await app.call(PageCalls.calls.render, {});
+
+        assert.deepStrictEqual(new Set(factory_component_ids), new Set(["counter", "page"]));
+        assert.deepStrictEqual(factory_component_ids.length, 2);
+        assert.deepStrictEqual(
+            received_logger_by_component_id.get("counter"),
+            logger_by_component_id.get("counter"),
+        );
+        assert.deepStrictEqual(
+            received_logger_by_component_id.get("page"),
+            logger_by_component_id.get("page"),
+        );
+    });
+
+    it("uses a component-scoped default console logger when no logger factory is provided", async () => {
+        const console_calls: Record<LoggerMethodName, unknown[][]> = {
+            debug: [],
+            info: [],
+            warn: [],
+            error: [],
+        };
+        const original_console_methods: Record<LoggerMethodName, typeof console.debug> = {
+            debug: console.debug,
+            info: console.info,
+            warn: console.warn,
+            error: console.error,
+        };
+        const structured_data = {
+            count: 1,
+        };
+        const extra_data = ["extra"];
+        const CounterCalls = defineComponentCalls({
+            id: "counter",
+            calls: {
+                current: {
+                    input: EmptyInput,
+                    output: CounterOutput,
+                },
+            },
+        });
+        const CounterComponent = defineComponent({
+            calls: CounterCalls,
+            uses: [],
+            handlers: {
+                current: {
+                    handle({log}) {
+                        log.debug("debug message", structured_data, extra_data);
+                        log.info("info message", structured_data, extra_data);
+                        log.warn("warn message", structured_data, extra_data);
+                        log.error("error message", structured_data, extra_data);
+
+                        return {
+                            count: 1,
+                        };
+                    },
+                },
+            },
+        });
+
+        try {
+            for(const method of logger_method_names) {
+                setConsoleMethod(method, (...args: unknown[]) => {
+                    console_calls[method].push(args);
+                });
+            }
+
+            const app = createApplication(defineApplication({
+                components: [CounterComponent],
+            }));
+            await app.start();
+            await app.call(CounterCalls.calls.current, {});
+        } finally {
+            for(const method of logger_method_names) {
+                setConsoleMethod(method, original_console_methods[method]);
+            }
+        }
+
+        for(const method of logger_method_names) {
+            const method_calls = console_calls[method];
+
+            assert.deepStrictEqual(method_calls.length, 1);
+
+            const [message, data] = method_calls[0]!;
+
+            assert.deepStrictEqual(typeof message, "string");
+            const message_text = message as string;
+
+            assert.match(message_text, /^\[counter\]/);
+            assert.deepStrictEqual(data, `${method} message`);
+            assert.deepStrictEqual(method_calls[0]![2], structured_data);
+            assert.deepStrictEqual(method_calls[0]![3], extra_data);
+        }
     });
 
     it("initializes component state from the state factory during createApplication", async () => {
@@ -1222,3 +1434,41 @@ function assertTypeBehavior() {
 }
 
 void assertTypeBehavior;
+
+function loggerMethodNames(log: Logger): LoggerMethodName[] {
+    return logger_method_names.filter((method) => typeof log[method] === "function");
+}
+
+function createRecordingLogger(): Logger {
+    return {
+        debug() {
+            // Test logger intentionally records nothing.
+        },
+        info() {
+            // Test logger intentionally records nothing.
+        },
+        warn() {
+            // Test logger intentionally records nothing.
+        },
+        error() {
+            // Test logger intentionally records nothing.
+        },
+    };
+}
+
+function setConsoleMethod(method: LoggerMethodName, value: typeof console.debug): void {
+    switch(method) {
+        case "debug":
+            console.debug = value;
+            return;
+        case "info":
+            console.info = value;
+            return;
+        case "warn":
+            console.warn = value;
+            return;
+        case "error":
+            console.error = value;
+            return;
+    }
+}

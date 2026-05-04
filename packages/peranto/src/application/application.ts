@@ -10,6 +10,7 @@ import type {
     CallOutput,
     ComponentCallName,
 } from "../component/component.ts";
+import {consoleLoggerFactory, type LoggerFactory} from "../component/logger.ts";
 import {TopologicalCycleError, topologicalSort} from "../util/topological-sort.ts";
 import {
     CircularDependencyError,
@@ -27,6 +28,7 @@ import {LifecycleStateError} from "./lifecycle.ts";
  */
 export type ApplicationDefinition<TComponents extends readonly AnyComponent[]> = {
     readonly components: TComponents;
+    readonly logger?: LoggerFactory;
 };
 
 /**
@@ -78,6 +80,7 @@ export function createApplication<
     const duplicate_call_keys = new Set<ComponentCallName>();
     const registered_call_keys = new Set<ComponentCallName>();
     const contexts = new Map<AnyComponent, AnyComponentContext>();
+    const logger_factory = definition.logger ?? consoleLoggerFactory;
 
     for(const component of definition.components) {
         provided_call_surfaces.add(component.calls);
@@ -100,6 +103,7 @@ export function createApplication<
         }
 
         const call_context: AnyComponentContext = {
+            log: logger_factory(component.calls.id),
             call(reference, input) {
                 if(!callable_references.has(reference)) {
                     throw new UndeclaredCallError(
