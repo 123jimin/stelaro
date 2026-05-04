@@ -29,9 +29,9 @@ paths = ["packages/peranto/src/config/**"]
 
 ### Loading and Validation
 
-- UNIMPLEMENTED Configuration is loaded and validated during application creation.
+- UNIMPLEMENTED Configuration is loaded and validated during application start, before component start hooks run.
 - UNIMPLEMENTED Config files are parsed as TOML and validated against declared schemas.
-- UNIMPLEMENTED If any config validation fails, application creation throws a configuration error.
+- UNIMPLEMENTED If any config validation fails, application start fails and the application transitions to `failed`.
 - UNIMPLEMENTED Components without config schemas do not require a config file and are skipped during config loading.
 - UNIMPLEMENTED Applications without a config schema do not require an application config file.
 
@@ -45,13 +45,20 @@ paths = ["packages/peranto/src/config/**"]
 
 - UNIMPLEMENTED `reloadConfig` re-reads all config files from the config directory.
 - UNIMPLEMENTED `reloadConfig` validates all files against declared schemas before applying changes.
-- UNIMPLEMENTED If any validation fails during reload, the reload is rejected, old config persists, and a configuration error is thrown.
-- UNIMPLEMENTED On successful validation, all config references are swapped.
+- UNIMPLEMENTED If any validation fails during full reload, the reload is rejected, old config persists, and a configuration error is thrown.
+- UNIMPLEMENTED On successful full validation, all config references are swapped.
 - UNIMPLEMENTED Components declaring an `onConfigReload` hook are called in topological order after config is swapped.
 - UNIMPLEMENTED Applications may declare an `onConfigReload` hook, called after all component reload hooks.
 - UNIMPLEMENTED If any reload hook throws, the application transitions to `failed`.
 - UNIMPLEMENTED `reloadConfig` returns void.
 - UNIMPLEMENTED `reloadConfig` is only valid in the `active` lifecycle state.
+- UNIMPLEMENTED `reloadComponentConfig` re-reads and validates a single component's config file.
+- UNIMPLEMENTED `reloadComponentConfig` accepts a component id narrowed to registered components.
+- UNIMPLEMENTED If validation fails during single-component reload, the reload is rejected, old config persists, and a configuration error is thrown.
+- UNIMPLEMENTED On successful single-component validation, only that component's config reference is swapped.
+- UNIMPLEMENTED `reloadComponentConfig` calls only the target component's `onConfigReload` hook if declared.
+- UNIMPLEMENTED `reloadComponentConfig` returns void.
+- UNIMPLEMENTED `reloadComponentConfig` is only valid in the `active` lifecycle state.
 
 ## Constraints
 
