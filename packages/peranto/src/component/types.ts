@@ -1,5 +1,6 @@
 import type {Promisable} from "@jiminp/tooltool";
 
+import type {ConfigSchema} from "../config/types.ts";
 import type {
     AnyComponentContext,
     ComponentContext,
@@ -84,23 +85,29 @@ export type CallOutput<TCall extends AnyComponentCallReference> = TCall["output"
 
 export type StateFactory<TState> = () => TState;
 
+type ConfigOf<T> = T extends ConfigSchema ? T["infer"] : undefined;
+
 /**
  * Component definition with a public call surface, declared dependencies, and
  * one handler per exposed call. Stateful components include a state factory.
+ * Components with a config schema receive validated config through context.
  */
 export type Component<
     TCalls extends AnyComponentCalls,
     TUses extends readonly AnyComponentCalls[],
     TState = undefined,
+    TConfigSchema extends ConfigSchema | undefined = undefined,
 > = {
     readonly calls: TCalls;
     readonly uses: TUses;
-    readonly start?: (context: ComponentContext<TUses, TState>) => Promisable<void>;
-    readonly stop?: (context: ComponentContext<TUses, TState>) => Promisable<void>;
+    readonly config?: TConfigSchema;
+    readonly start?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>>) => Promisable<void>;
+    readonly stop?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>>) => Promisable<void>;
+    readonly onConfigReload?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>>) => Promisable<void>;
     readonly handlers: {
         readonly [TCallName in keyof TCalls["calls"] & ComponentCallName]: {
             handle(
-                context: ComponentContext<TUses, TState>,
+                context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>>,
                 input: CallInput<TCalls["calls"][TCallName]>,
             ): Promisable<CallOutput<TCalls["calls"][TCallName]>>;
         };
@@ -110,9 +117,11 @@ export type Component<
 export interface AnyComponent {
     readonly calls: AnyComponentCalls;
     readonly uses: readonly AnyComponentCalls[];
-    readonly state?: StateFactory<unknown>;
+    readonly state?: StateFactory<unknown> | undefined;
+    readonly config?: ConfigSchema | undefined;
     start?(context: AnyComponentContext): Promisable<void>;
     stop?(context: AnyComponentContext): Promisable<void>;
+    onConfigReload?(context: AnyComponentContext): Promisable<void>;
     readonly handlers: {
         readonly [name: ComponentCallName]: {
             handle(

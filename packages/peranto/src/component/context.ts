@@ -19,14 +19,17 @@ type BaseComponentContext<TUses extends readonly AnyComponentCalls[]> = {
  *
  * The `call` method is typed from the component's declared `uses` surfaces.
  * Stateful components also receive their `state` object.
+ * Components with a config schema receive their validated `config` object.
  */
 export type ComponentContext<
     TUses extends readonly AnyComponentCalls[],
     TState = undefined,
-> = [TState] extends [undefined]
-    ? BaseComponentContext<TUses>
-    : BaseComponentContext<TUses> & {readonly state: TState};
+    TConfig = undefined,
+> = BaseComponentContext<TUses>
+    & ([TState] extends [undefined] ? unknown : {readonly state: TState})
+    & ([TConfig] extends [undefined] ? unknown : {readonly config: TConfig});
 
 export type AnyComponentContext = ComponentContext<readonly AnyComponentCalls[]> & {
     readonly state?: unknown;
+    readonly config?: unknown;
 };

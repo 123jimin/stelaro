@@ -26,7 +26,7 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 
 - An application coordinates registered components.
 - An application coordinates typed component calls.
-- UNIMPLEMENTED An application coordinates configuration.
+- An application coordinates configuration.
 - An application coordinates logging.
 - Application definitions can be declared separately from creating the application runtime.
 - Applications are created with `createApplication`.

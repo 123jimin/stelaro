@@ -1,3 +1,5 @@
+import {join, resolve} from "node:path";
+
 import type {Promisable} from "@jiminp/tooltool";
 
 import {parseArgs, type ParsedArgs} from "../cli/args.ts";
@@ -11,7 +13,11 @@ import type {
     CallInput,
     CallOutput,
     ComponentCallName,
+    ComponentId,
 } from "../component/types.ts";
+import {ConfigValidationError} from "../config/error.ts";
+import {loadTomlConfig} from "../config/loader.ts";
+import type {ConfigSchema} from "../config/types.ts";
 import {TopologicalCycleError, topologicalSort} from "../util/topological-sort.ts";
 import {
     CircularDependencyError,
@@ -21,15 +27,19 @@ import {
     UndeclaredCallError,
     UnregisteredCallError,
 } from "./error.ts";
-import type {LifecycleState} from "./lifecycle.ts";
-import {LifecycleStateError} from "./lifecycle.ts";
+import {createLifecycleMachine} from "./lifecycle.ts";
 
 /**
  * Reusable application declaration.
  */
-export type ApplicationDefinition<TComponents extends readonly AnyComponent[]> = {
+export type ApplicationDefinition<
+    TComponents extends readonly AnyComponent[],
+    TAppConfig extends ConfigSchema | undefined = undefined,
+> = {
     readonly components: TComponents;
     readonly logger?: LoggerFactory;
+    readonly config?: TAppConfig;
+    readonly onConfigReload?: () => Promisable<void>;
 };
 
 /**
@@ -37,12 +47,16 @@ export type ApplicationDefinition<TComponents extends readonly AnyComponent[]> =
  */
 export type ApplicationOptions = {
     readonly argv?: string[];
+    readonly config_dir?: string;
 };
 
 /**
  * Runtime application capable of dispatching calls exposed by its components.
  */
-export type Application<TComponents extends readonly AnyComponent[]> = {
+export type Application<
+    TComponents extends readonly AnyComponent[],
+    TAppConfig extends ConfigSchema | undefined = undefined,
+> = {
     readonly args: ParsedArgs;
     start(): Promise<void>;
     stop(): Promise<void>;
@@ -50,7 +64,13 @@ export type Application<TComponents extends readonly AnyComponent[]> = {
         reference: TCall,
         input: CallInput<TCall>,
     ): Promise<CallOutput<TCall>>;
-};
+    reloadConfig(): Promise<void>;
+    reloadComponentConfig(
+        component_id: TComponents[number]["calls"]["id"],
+    ): Promise<void>;
+} & ([TAppConfig] extends [undefined]
+    ? unknown
+    : {readonly config: NonNullable<TAppConfig>["infer"]});
 
 type RuntimeHandler = {
     handle(
@@ -67,7 +87,8 @@ type RuntimeHandler = {
  */
 export function defineApplication<
     const TComponents extends readonly AnyComponent[],
->(definition: ApplicationDefinition<TComponents>): ApplicationDefinition<TComponents> {
+    const TAppConfig extends ConfigSchema | undefined = undefined,
+>(definition: ApplicationDefinition<TComponents, TAppConfig>): ApplicationDefinition<TComponents, TAppConfig> {
     return definition;
 }
 
@@ -82,19 +103,26 @@ export function defineApplication<
  */
 export function createApplication<
     const TComponents extends readonly AnyComponent[],
->(definition: ApplicationDefinition<TComponents>, options?: ApplicationOptions): Application<TComponents> {
+    const TAppConfig extends ConfigSchema | undefined = undefined,
+>(definition: ApplicationDefinition<TComponents, TAppConfig>, options?: ApplicationOptions): Application<TComponents, TAppConfig> {
     const args = parseArgs(options?.argv);
+    const config_dir = options?.config_dir ?? args.config_dir ?? resolve("config");
     const dispatchers = new Map<AnyComponentCallReference, (input: unknown) => Promisable<unknown>>();
     const provided_call_surfaces = new Set<AnyComponentCalls>();
     const calls_to_component = new Map<AnyComponentCalls, AnyComponent>();
+    const id_to_component = new Map<ComponentId, AnyComponent>();
     const duplicate_call_keys = new Set<ComponentCallName>();
     const registered_call_keys = new Set<ComponentCallName>();
     const contexts = new Map<AnyComponent, AnyComponentContext>();
+    const config_slots = new Map<AnyComponent, {value: unknown}>();
     const logger_factory = definition.logger ?? consoleLoggerFactory;
+
+    const app_config_slot: {value: unknown} = {value: void 0};
 
     for(const component of definition.components) {
         provided_call_surfaces.add(component.calls);
         calls_to_component.set(component.calls, component);
+        id_to_component.set(component.calls.id, component);
     }
 
     for(const component of definition.components) {
@@ -112,7 +140,10 @@ export function createApplication<
             }
         }
 
-        const call_context: AnyComponentContext = {
+        const slot = {value: void 0 as unknown};
+        config_slots.set(component, slot);
+
+        const base_context: AnyComponentContext = {
             log: logger_factory(component.calls.id),
             call(reference, input) {
                 if(!callable_references.has(reference)) {
@@ -127,10 +158,24 @@ export function createApplication<
             },
         };
 
-        const context: AnyComponentContext = component.state != null
-            ? {...call_context, state: component.state()}
-            : call_context;
+        const context_obj: Record<string, unknown> = {};
 
+        for(const [key, value] of Object.entries(base_context)) {
+            context_obj[key] = value;
+        }
+
+        if(component.state != null) {
+            context_obj["state"] = component.state();
+        }
+
+        if(component.config != null) {
+            Object.defineProperty(context_obj, "config", {
+                get() { return slot.value; },
+                enumerable: true,
+            });
+        }
+
+        const context = context_obj as AnyComponentContext;
         contexts.set(component, context);
 
         for(const [name, reference] of Object.entries(component.calls.calls)) {
@@ -174,15 +219,28 @@ export function createApplication<
         throw error;
     }
 
-    let lifecycle_state: LifecycleState = "idle";
+    const lifecycle = createLifecycleMachine();
+
+    async function loadAllConfig(): Promise<void> {
+        if(definition.config != null) {
+            const file_path = join(config_dir, "application.toml");
+            app_config_slot.value = await loadTomlConfig(file_path, definition.config);
+        }
+
+        for(const component of ordered_components) {
+            if(component.config != null) {
+                const file_path = join(config_dir, `${component.calls.id}.toml`);
+                const slot = config_slots.get(component)!;
+                slot.value = await loadTomlConfig(file_path, component.config, component.calls.id);
+            }
+        }
+    }
 
     async function dispatch<TCall extends AnyComponentCallReference>(
         reference: TCall,
         input: CallInput<TCall>,
     ): Promise<CallOutput<TCall>> {
-        if(lifecycle_state !== "active") {
-            throw new LifecycleStateError(lifecycle_state, "call");
-        }
+        lifecycle.require(["active", "reloading"], "call");
 
         const dispatchCall = dispatchers.get(reference);
 
@@ -193,36 +251,32 @@ export function createApplication<
         return reference.output.assert(await dispatchCall(input));
     }
 
-    return {
+    const app = {
         args,
 
         async start(): Promise<void> {
-            if(lifecycle_state !== "idle") {
-                throw new LifecycleStateError(lifecycle_state, "start");
-            }
-
-            lifecycle_state = "starting";
+            lifecycle.require("idle", "start");
+            lifecycle.enter("starting");
 
             try {
+                await loadAllConfig();
+
                 for(const component of ordered_components) {
                     if(component.start != null) {
                         await component.start(contexts.get(component)!);
                     }
                 }
             } catch (error) {
-                lifecycle_state = "failed";
+                lifecycle.enter("failed");
                 throw error;
             }
 
-            lifecycle_state = "active";
+            lifecycle.enter("active");
         },
 
         async stop(): Promise<void> {
-            if(lifecycle_state !== "active" && lifecycle_state !== "failed") {
-                throw new LifecycleStateError(lifecycle_state, "stop");
-            }
-
-            lifecycle_state = "stopping";
+            lifecycle.require(["active", "failed"], "stop");
+            lifecycle.enter("stopping");
 
             const errors: unknown[] = [];
 
@@ -237,7 +291,7 @@ export function createApplication<
                 }
             }
 
-            lifecycle_state = "idle";
+            lifecycle.enter("idle");
 
             if(errors.length > 0) {
                 throw new AggregateError(errors, "One or more component stop hooks failed.");
@@ -250,7 +304,117 @@ export function createApplication<
         ): Promise<CallOutput<TCall>> {
             return dispatch(reference, input);
         },
+
+        async reloadConfig(): Promise<void> {
+            lifecycle.require("active", "reloadConfig");
+            lifecycle.enter("reloading");
+
+            let new_app_config: unknown;
+            const new_component_configs = new Map<AnyComponent, unknown>();
+
+            try {
+                new_app_config = definition.config != null
+                    ? await loadTomlConfig(join(config_dir, "application.toml"), definition.config)
+                    : void 0;
+
+                for(const component of ordered_components) {
+                    if(component.config != null) {
+                        const file_path = join(config_dir, `${component.calls.id}.toml`);
+                        new_component_configs.set(
+                            component,
+                            await loadTomlConfig(file_path, component.config, component.calls.id),
+                        );
+                    }
+                }
+            } catch (error) {
+                lifecycle.enter("active");
+                throw error;
+            }
+
+            if(new_app_config !== void 0) {
+                app_config_slot.value = new_app_config;
+            }
+            for(const [component, value] of new_component_configs) {
+                config_slots.get(component)!.value = value;
+            }
+
+            try {
+                for(const component of ordered_components) {
+                    if(component.onConfigReload != null) {
+                        await component.onConfigReload(contexts.get(component)!);
+                    }
+                }
+
+                if(definition.onConfigReload != null) {
+                    await definition.onConfigReload();
+                }
+            } catch (error) {
+                lifecycle.enter("failed");
+                throw error;
+            }
+
+            lifecycle.enter("active");
+        },
+
+        async reloadComponentConfig(
+            component_id: TComponents[number]["calls"]["id"],
+        ): Promise<void> {
+            lifecycle.require("active", "reloadComponentConfig");
+
+            const component = id_to_component.get(component_id);
+            if(component == null) {
+                throw new ConfigValidationError(
+                    join(config_dir, `${component_id}.toml`),
+                    component_id,
+                    new Error(`Component "${component_id}" is not registered in the application.`),
+                );
+            }
+
+            if(component.config == null) {
+                throw new ConfigValidationError(
+                    join(config_dir, `${component_id}.toml`),
+                    component_id,
+                    new Error("Component does not declare a config schema."),
+                );
+            }
+
+            lifecycle.enter("reloading");
+
+            let new_config: unknown;
+            try {
+                new_config = await loadTomlConfig(
+                    join(config_dir, `${component_id}.toml`),
+                    component.config,
+                    component_id,
+                );
+            } catch (error) {
+                lifecycle.enter("active");
+                throw error;
+            }
+
+            config_slots.get(component)!.value = new_config;
+
+            try {
+                if(component.onConfigReload != null) {
+                    await component.onConfigReload(contexts.get(component)!);
+                }
+            } catch (error) {
+                lifecycle.enter("failed");
+                throw error;
+            }
+
+            lifecycle.enter("active");
+        },
     };
+
+    if(definition.config != null) {
+        Object.defineProperty(app, "config", {
+            get() { return app_config_slot.value; },
+            enumerable: true,
+        });
+    }
+
+    return app as Application<TComponents, TAppConfig>;
 }
 
 function callKey(reference: AnyComponentCallReference): ComponentCallName {

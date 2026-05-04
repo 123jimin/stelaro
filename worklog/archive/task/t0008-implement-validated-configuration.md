@@ -1,7 +1,7 @@
 +++
 id = "t0008"
 title = "Implement validated configuration"
-status = "active"
+status = "done"
 tags = ["config", "application", "component", "context"]
 modifies = ["s0001", "s0002", "s0003", "s0004", "s0008"]
 +++

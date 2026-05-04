@@ -1,3 +1,4 @@
+import type {ConfigSchema} from "../config/types.ts";
 import type {
     AnyComponentCallReference,
     AnyComponentCalls,
@@ -52,6 +53,7 @@ export function defineComponent<
     const TCalls extends AnyComponentCalls,
     const TUses extends readonly AnyComponentCalls[],
     TState = undefined,
->(definition: Component<TCalls, TUses, TState>): Component<TCalls, TUses, TState> {
+    TConfigSchema extends ConfigSchema | undefined = undefined,
+>(definition: Component<TCalls, TUses, TState, TConfigSchema>): Component<TCalls, TUses, TState, TConfigSchema> {
     return definition;
 }

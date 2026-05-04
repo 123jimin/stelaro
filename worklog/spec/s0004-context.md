@@ -17,7 +17,7 @@ tags = ["context", "architecture", "component", "application", "logging", "confi
 - Context includes access to component-scoped logging.
 - Component-scoped logging is available to handlers and lifecycle hooks through the same context object.
 - Context includes access to typed component calls.
-- UNIMPLEMENTED Context includes access to validated configuration relevant to the receiving behavior.
+- Context includes access to validated configuration relevant to the receiving behavior.
 - UNIMPLEMENTED Context allows behavior to call typed APIs exposed by gateway components.
 - Context includes access to component state for components that declare a state factory.
 - Lifecycle hooks (`start`, `stop`) receive the same context as handlers.
