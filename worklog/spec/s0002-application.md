@@ -12,39 +12,51 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 - s0006: Hot Module Replacement
 - s0009: CLI Arguments
 
-## High-Level API
+## Types
 
-- `defineApplication({ components })` — declares a reusable application definition separately from runtime creation.
-- `createApplication(definition, options?)` — creates a runtime application from a definition. Validates components, initializes state, computes lifecycle ordering, and parses CLI arguments.
-- `app.start()` — starts the application (calls component `start` hooks in dependency order).
-- `app.stop()` — stops the application (calls component `stop` hooks in reverse dependency order).
-- `app.call(reference, input)` — dispatches a typed component call. Only valid when the application is `active`.
+Types are shown erased to their widest form for readability. Implementations must be as narrow as possible — e.g. `call` accepts only references from registered components' call surfaces, with input/output types inferred from the reference.
+
+```typescript
+type LifecycleState = "idle" | "starting" | "active" | "failed" | "stopping";
+
+type ApplicationDefinition = {
+    readonly components: readonly AnyComponent[];
+    readonly logger?: LoggerFactory;        // default: consoleLoggerFactory
+};
+
+type ApplicationOptions = {
+    readonly argv?: string[];
+    readonly config_dir?: string;
+};
+
+type Application = {
+    readonly args: ParsedArgs;
+    start(): Promise<void>;
+    stop(): Promise<void>;
+    call(reference: AnyComponentCallReference, input: unknown): Promise<unknown>;
+};
+
+function defineApplication(definition: ApplicationDefinition): ApplicationDefinition;
+function createApplication(definition: ApplicationDefinition, options?: ApplicationOptions): Application;
+```
 
 ## Behavior
 
 ### Core
 
-- An application coordinates registered components.
-- An application coordinates typed component calls.
-- An application coordinates configuration.
-- An application coordinates logging.
-- Application definitions can be declared separately from creating the application runtime.
-- Applications are created with `createApplication`.
+- An application coordinates registered components, typed component calls, configuration, and logging.
 - `createApplication` initializes state for each registered component that declares a state factory.
 - `createApplication` computes a topological ordering of components from the `uses` dependency graph.
 - `createApplication` throws `CircularDependencyError` if the dependency graph contains a cycle.
-- Application definitions may provide a logger factory used to create component-scoped loggers.
-- When no logger factory is provided, application creation uses the default console logger factory.
 - The application creates one logger per component and provides that logger through the component's context.
 
 ### Lifecycle
 
-- The application tracks a lifecycle state: `idle`, `starting`, `active`, `failed`, `stopping`.
-- `app.start()` transitions from `idle` → `starting` → `active`. Calls each component's `start` hook (if present) in topological dependency order.
+- `app.start()` transitions `idle` → `starting` → `active`. Calls each component's `start` hook (if present) in topological dependency order.
 - If a `start` hook throws, the application transitions to `failed`. Already-started components are not rolled back. The user must call `stop()` to clean up.
-- `app.stop()` transitions from `active` or `failed` → `stopping` → `idle`. Calls each component's `stop` hook (if present) in reverse topological order (best-effort).
+- `app.stop()` transitions `active | failed` → `stopping` → `idle`. Calls each component's `stop` hook (if present) in reverse topological order (best-effort).
 - If any `stop` hooks throw, `stop()` rejects with an `AggregateError` containing all errors. The application still transitions to `idle`.
-- `app.call()` only works in the `active` or `reloading` states. All other states throw `LifecycleStateError`.
+- `app.call()` only works in `active` or `reloading` states. All other states throw `LifecycleStateError`.
 - `app.start()` only works in `idle`. All other states throw `LifecycleStateError`.
 - `app.stop()` only works in `active` or `failed`. All other states throw `LifecycleStateError`.
 - Components without lifecycle hooks are silently skipped during start/stop.

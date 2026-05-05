@@ -10,16 +10,33 @@ tags = ["context", "architecture", "component", "application", "logging", "confi
 - s0002: Application
 - s0003: Component
 
+## Types
+
+Types are shown erased to their widest form for readability. Implementations must be as narrow as possible — e.g. `call` accepts only references from the component's `uses` declarations, with input/output types inferred from the reference.
+
+```typescript
+type Logger = {
+    debug(...args: unknown[]): void;
+    info(...args: unknown[]): void;
+    warn(...args: unknown[]): void;
+    error(...args: unknown[]): void;
+};
+
+type LoggerFactory = (component_id: ComponentId) => Logger;
+
+type ComponentContext = {
+    readonly log: Logger;
+    call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
+    readonly state?: unknown;       // present iff component declares a state factory
+    readonly config?: unknown;      // present iff component declares a config schema
+};
+```
+
 ## Behavior
 
-- Context provides runtime capabilities to Peranto behavior.
 - Component behavior receives context from the application runtime.
-- Context includes access to component-scoped logging.
 - Component-scoped logging is available to handlers and lifecycle hooks through the same context object.
-- Context includes access to typed component calls.
-- Context includes access to validated configuration relevant to the receiving behavior.
 - UNIMPLEMENTED Context allows behavior to call typed APIs exposed by gateway components.
-- Context includes access to component state for components that declare a state factory.
 - Lifecycle hooks (`start`, `stop`) receive the same context as handlers.
 
 ## Constraints

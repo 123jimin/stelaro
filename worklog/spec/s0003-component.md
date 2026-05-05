@@ -11,35 +11,69 @@ tags = ["component", "architecture", "lifecycle", "config", "logging"]
 - s0004: Context
 - s0006: Hot Module Replacement
 
-## High-Level API
+## Types
 
-- `defineComponentCalls({ id, calls })` — declares a component's typed call surface (id + per-call input/output schemas). Returns a `ComponentCalls` object containing typed `ComponentCallReference` values.
-- `defineComponent({ calls, uses, handlers, state?, start?, stop? })` — defines a component from a call surface, dependency list, handlers, and optional state/lifecycle hooks. Returns a `Component` definition.
+Types are shown erased to their widest form for readability. Implementations must be as narrow as possible — e.g. `handlers` entries should infer input/output types from the component's call declarations, and `uses` should constrain which references `call` accepts.
+
+```typescript
+interface ComponentCallSchema {
+    readonly inferIn: unknown;
+    readonly infer: unknown;
+    assert(input: unknown): this["infer"];
+}
+
+type ComponentCallReference = {
+    readonly component_id: ComponentId;
+    readonly name: ComponentCallName;
+    readonly input: ComponentCallSchema;
+    readonly output: ComponentCallSchema;
+};
+
+type ComponentCallDeclarations = Record<ComponentCallName, {
+    readonly input: ComponentCallSchema;
+    readonly output: ComponentCallSchema;
+}>;
+
+type ComponentCalls = {
+    readonly id: ComponentId;
+    readonly calls: Record<ComponentCallName, ComponentCallReference>;
+};
+
+type StateFactory<TState> = () => TState;
+
+type Component = {
+    readonly calls: ComponentCalls;
+    readonly uses: readonly ComponentCalls[];
+    readonly config?: ConfigSchema;
+    readonly state?: StateFactory<unknown>;
+    readonly start?: (context: ComponentContext) => Promisable<void>;
+    readonly stop?: (context: ComponentContext) => Promisable<void>;
+    readonly handlers: Record<ComponentCallName, {
+        handle(context: ComponentContext, input: unknown): Promisable<unknown>;
+    }>;
+};
+
+function defineComponentCalls(definition: { id: ComponentId; calls: ComponentCallDeclarations }): ComponentCalls;
+function defineComponent(definition: Component): Component;
+```
 
 ## Behavior
 
 ### Identity and calls
 
-- Components have stable public ids.
-- Component ids are used for component identity.
-- Component ids are used for component-scoped logging.
-- Component behavior receives a logger scoped to the component's public id.
-- Component loggers support debug, info, warn, and error calls with arbitrary log arguments.
-- Components expose typed call APIs.
-- Component call API inputs and outputs are defined with Arktype schemas.
+- Component ids are stable public identifiers used for component identity and component-scoped logging.
+- Component call API inputs and outputs are defined with Arktype schemas (implementing `ComponentCallSchema`).
 - Component call APIs support IPC-like usage without requiring cross-process transport.
 - UNIMPLEMENTED Components may use gateway capabilities through typed component call APIs.
 
 ### State
 
-- Components may declare an optional state factory that returns the component's initial state.
 - Components that declare a state factory receive their state object through handler context.
-- Components that do not declare a state factory have no state and do not receive state in context.
+- Components that do not declare a state factory do not receive state in context.
 
 ### Lifecycle
 
-- Components may declare optional `start` and `stop` hooks as top-level functions on the component definition.
-- Lifecycle hooks receive the same context as handlers (`call`, and `state` if stateful).
+- Lifecycle hooks receive the same context as handlers.
 - Components without lifecycle hooks are silently skipped during application start/stop.
 - The application calls `start` hooks in topological dependency order and `stop` hooks in reverse order (see s0002).
 
