@@ -30,7 +30,7 @@ type ApplicationOptions = {
 };
 
 type Application = {
-    readonly config?: unknown;              // present iff definition declares a config schema
+    readonly config: unknown;               // null when definition has no config schema
     start(): Promise<void>;
     stop(): Promise<void>;
     call(reference: AnyComponentCallReference, input: unknown): Promise<unknown>;
