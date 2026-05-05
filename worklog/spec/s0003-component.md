@@ -48,6 +48,7 @@ type Component = {
     readonly state?: StateFactory<unknown>;
     readonly start?: (context: ComponentContext) => Promisable<void>;
     readonly stop?: (context: ComponentContext) => Promisable<void>;
+    readonly onConfigReload?: (context: ComponentContext) => Promisable<void>;
     readonly handlers: Record<ComponentCallName, {
         handle(context: ComponentContext, input: unknown): Promisable<unknown>;
     }>;
@@ -87,11 +88,10 @@ function defineComponent(definition: Component): Component;
 - Component behavior may depend on typed call APIs exposed by gateway components.
 - Component state must be scoped to a single application runtime. A component definition reused across multiple application runtimes must have independent state per runtime.
 - Component state must not be shared between different components within the same application runtime.
-- Component state is ephemeral to the application runtime. There is no persistent state model.
+- Component state is ephemeral to the application runtime (the object returned by `createApplication`). State persists across stop/start cycles within one runtime. There is no persistent state model.
 
 ## Anticipated Changes
 
-- Component configuration may be specified separately.
 - Component resources and templates may be specified separately.
 - Component reloading may be specified separately.
 - State preservation across Hot Module Replacement may be specified separately.

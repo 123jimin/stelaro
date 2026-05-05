@@ -17,11 +17,13 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 Types are shown erased to their widest form for readability. Implementations must be as narrow as possible — e.g. `call` accepts only references from registered components' call surfaces, with input/output types inferred from the reference.
 
 ```typescript
-type LifecycleState = "idle" | "starting" | "active" | "failed" | "stopping";
+type LifecycleState = "idle" | "starting" | "active" | "reloading" | "failed" | "stopping";
 
 type ApplicationDefinition = {
     readonly components: readonly AnyComponent[];
     readonly logger?: LoggerFactory;        // default: consoleLoggerFactory
+    readonly config?: ConfigSchema;
+    readonly onConfigReload?: () => Promisable<void>;
 };
 
 type ApplicationOptions = {
@@ -31,9 +33,12 @@ type ApplicationOptions = {
 
 type Application = {
     readonly args: ParsedArgs;
+    readonly config?: unknown;              // present iff definition declares a config schema
     start(): Promise<void>;
     stop(): Promise<void>;
     call(reference: AnyComponentCallReference, input: unknown): Promise<unknown>;
+    reloadConfig(): Promise<void>;
+    reloadComponentConfig(component_id: ComponentId): Promise<void>;
 };
 
 function defineApplication(definition: ApplicationDefinition): ApplicationDefinition;
@@ -45,6 +50,7 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
 ### Core
 
 - An application coordinates registered components, typed component calls, configuration, and logging.
+- `createApplication` validates that all component ids are unique. Duplicate ids throw `DuplicateComponentIdError`.
 - `createApplication` initializes state for each registered component that declares a state factory.
 - `createApplication` computes a topological ordering of components from the `uses` dependency graph.
 - `createApplication` throws `CircularDependencyError` if the dependency graph contains a cycle.
@@ -53,8 +59,9 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
 ### Lifecycle
 
 - `app.start()` transitions `idle` → `starting` → `active`. Calls each component's `start` hook (if present) in topological dependency order.
+- A component becomes active during start if it has no `start` hook (skipped), or if its `start` hook completes successfully.
 - If a `start` hook throws, the application transitions to `failed`. Already-started components are not rolled back. The user must call `stop()` to clean up.
-- `app.stop()` transitions `active | failed` → `stopping` → `idle`. Calls each component's `stop` hook (if present) in reverse topological order (best-effort).
+- `app.stop()` transitions `active | failed` → `stopping` → `idle`. Calls each active component's `stop` hook (if present) in reverse topological order (best-effort). Components that were never reached or whose `start` hook threw are not stopped.
 - If any `stop` hooks throw, `stop()` rejects with an `AggregateError` containing all errors. The application still transitions to `idle`.
 - `app.call()` only works in `active` or `reloading` states. All other states throw `LifecycleStateError`.
 - `app.start()` only works in `idle`. All other states throw `LifecycleStateError`.
