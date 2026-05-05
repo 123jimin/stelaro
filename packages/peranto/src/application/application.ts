@@ -1,3 +1,5 @@
+import {join} from "node:path";
+
 import type {Promisable} from "@jiminp/tooltool";
 
 import type {AnyComponentContext} from "../component/context.ts";
@@ -11,6 +13,7 @@ import type {
     CallOutput,
     ComponentId,
 } from "../component/types.ts";
+import {loadTomlConfig} from "../config/loader.ts";
 import type {ConfigSchema} from "../config/types.ts";
 import {TopologicalCycleError, topologicalSort} from "../util/topological-sort.ts";
 import {
@@ -84,7 +87,7 @@ export function createApplication<
     const TAppConfig extends ConfigSchema | undefined = undefined,
 >(definition: ApplicationDefinition<TComponents, TAppConfig>, options?: ApplicationOptions): Application<TComponents, TAppConfig> {
     const lifecycle = createLifecycleMachine();
-    const _config_dir = options?.config_dir ?? "config";
+    const config_dir = options?.config_dir ?? "config";
     const loggerFactory = definition.logger ?? consoleLoggerFactory;
 
     const ordered_components = validateAndSort(definition.components);
@@ -104,14 +107,31 @@ export function createApplication<
         return reference.output.assert(result);
     };
 
+    let app_config: unknown = null;
+
     const app: Application<TComponents, TAppConfig> = {
-        config: null as Application<TComponents, TAppConfig>["config"],
+        get config() { return app_config as Application<TComponents, TAppConfig>["config"]; },
         async start(): Promise<void> {
             lifecycle.require("idle", "start");
             lifecycle.enter("starting");
 
             try {
-                // TODO: load config from _config_dir (s0008)
+                const config_loads: Promise<void>[] = [];
+                if(definition.config != null) {
+                    config_loads.push(
+                        loadTomlConfig(join(config_dir, "application.toml"), definition.config)
+                            .then((config) => { app_config = config; }),
+                    );
+                }
+                for(const runtime of runtimes) {
+                    if(runtime.component.config != null) {
+                        config_loads.push(
+                            loadTomlConfig(join(config_dir, `${runtime.id}.toml`), runtime.component.config, runtime.id)
+                                .then((config) => { runtime.config = config; }),
+                        );
+                    }
+                }
+                await Promise.all(config_loads);
 
                 for(const runtime of runtimes) {
                     runtime.lifecycle.enter("starting");
