@@ -8,10 +8,23 @@ paths = ["examples/**"]
 ## Behavior
 
 - The repository contains example projects under `examples/`.
-- The Discord chatbot example is an empty shell. `UNIMPLEMENTED`
-- The web server example is a non-working API design sketch using non-existent `peranto` and `peranto-fastify` packages.
-- The Fastify web server example demonstrates a working Fastify-based application built from public Peranto APIs. `UNIMPLEMENTED`
 - Examples that are implemented demonstrate typed component calls, component state, gateway integration, logging, and validated configuration through natural use.
+
+### Web Server (API design sketch)
+
+- A non-working API design sketch using non-existent `peranto` and `peranto-fastify` packages.
+
+### Fastify Web Server (BBS)
+
+- A BBS (bulletin board system) server built from public Peranto APIs. `UNIMPLEMENTED`
+- Users may create threads and leave comments. `UNIMPLEMENTED`
+- Persistence uses JSON or JSONL files instead of a database. `UNIMPLEMENTED`
+- Authentication uses `@fastify/passport` with Google and Discord strategies. `UNIMPLEMENTED`
+- Authentication credentials are mock values. `UNIMPLEMENTED`
+
+### Discord Chatbot
+
+- An empty shell. `UNIMPLEMENTED`
 
 ## Constraints
 
