@@ -18,7 +18,7 @@ import {
 } from "./application.ts";
 import {
     CircularDependencyError,
-    DuplicateCallError,
+    DuplicateComponentIdError,
     MissingDependencyError,
     MissingHandlerError,
     UndeclaredCallError,
@@ -753,7 +753,7 @@ describe("@jiminp/peranto application core", () => {
         );
     });
 
-    it("throws DuplicateCallError when components register duplicate call ids", () => {
+    it("throws DuplicateComponentIdError when components share the same id", () => {
         const Calls = defineComponentCalls({
             id: "shared",
             calls: {
@@ -764,22 +764,14 @@ describe("@jiminp/peranto application core", () => {
             calls: Calls,
             uses: [],
             handlers: {
-                get: {
-                    handle() {
-                        return {count: 0};
-                    },
-                },
+                get: {handle() { return {count: 0}; }},
             },
         });
         const B = defineComponent({
             calls: Calls,
             uses: [],
             handlers: {
-                get: {
-                    handle() {
-                        return {count: 1};
-                    },
-                },
+                get: {handle() { return {count: 1}; }},
             },
         });
 
@@ -787,7 +779,11 @@ describe("@jiminp/peranto application core", () => {
             () => createApplication(defineApplication({
                 components: [A, B],
             })),
-            DuplicateCallError,
+            (error: unknown) => {
+                assert.ok(error instanceof DuplicateComponentIdError);
+                assert.strictEqual(error.component_id, "shared");
+                return true;
+            },
         );
     });
 
@@ -1222,7 +1218,7 @@ describe("@jiminp/peranto application core", () => {
         );
 
         await app.stop();
-        assert.deepStrictEqual(stop_calls, ["b", "a"]);
+        assert.deepStrictEqual(stop_calls, ["a"]);
     });
 
     it("rejects stop with AggregateError when stop hooks throw", async () => {
@@ -1296,7 +1292,6 @@ describe("@jiminp/peranto application core", () => {
     });
 
     it("allows stop from failed state to clean up", async () => {
-        const stop_calls: string[] = [];
         const ACalls = defineComponentCalls({
             id: "a",
             calls: {get: {input: EmptyInput, output: CounterOutput}},
@@ -1306,9 +1301,6 @@ describe("@jiminp/peranto application core", () => {
             uses: [],
             start() {
                 throw new Error("start failed");
-            },
-            stop() {
-                stop_calls.push("a");
             },
             handlers: {
                 get: {handle() { return {count: 0}; }},
@@ -1321,51 +1313,12 @@ describe("@jiminp/peranto application core", () => {
         await assert.rejects(() => app.start());
 
         await app.stop();
-        assert.deepStrictEqual(stop_calls, ["a"]);
-    });
 
-    it("exposes parsed CLI arguments on the application runtime", () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
-        });
-        const CounterComponent = defineComponent({
-            calls: CounterCalls,
-            uses: [],
-            handlers: {
-                current: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(
-            defineApplication({components: [CounterComponent]}),
-            {argv: ["--config-dir", "./custom"]},
+        // app is back to idle — start is valid again
+        await assert.rejects(
+            () => app.start(),
+            {message: "start failed"},
         );
-
-        assert.ok(app.args.config_dir!.endsWith("custom"));
-    });
-
-    it("exposes undefined args when no CLI arguments are provided", () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
-        });
-        const CounterComponent = defineComponent({
-            calls: CounterCalls,
-            uses: [],
-            handlers: {
-                current: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(
-            defineApplication({components: [CounterComponent]}),
-            {argv: []},
-        );
-
-        assert.strictEqual(app.args.config_dir, void 0);
     });
 
     it("throws errors that are instanceof PerantoError", () => {

@@ -5,14 +5,36 @@ import {PerantoError} from "../error.ts";
 import {
     CircularDependencyError,
     DuplicateCallError,
+    DuplicateComponentIdError,
     MissingDependencyError,
     MissingHandlerError,
     UndeclaredCallError,
     UnregisteredCallError,
+    UnregisteredComponentError,
 } from "./error.ts";
 import {LifecycleStateError} from "./lifecycle.ts";
 
 describe("@jiminp/peranto errors", () => {
+    it("UnregisteredComponentError extends PerantoError with structured properties", () => {
+        const error = new UnregisteredComponentError("counter");
+
+        assert.ok(error instanceof PerantoError);
+        assert.ok(error instanceof Error);
+        assert.deepStrictEqual(error.name, "UnregisteredComponentError");
+        assert.deepStrictEqual(error.component_id, "counter");
+        assert.ok(error.message.includes("counter"));
+    });
+
+    it("DuplicateComponentIdError extends PerantoError with structured properties", () => {
+        const error = new DuplicateComponentIdError("counter");
+
+        assert.ok(error instanceof PerantoError);
+        assert.ok(error instanceof Error);
+        assert.deepStrictEqual(error.name, "DuplicateComponentIdError");
+        assert.deepStrictEqual(error.component_id, "counter");
+        assert.ok(error.message.includes("counter"));
+    });
+
     it("MissingDependencyError extends PerantoError with structured properties", () => {
         const error = new MissingDependencyError("page", "counter");
 
