@@ -4,7 +4,7 @@ title = "Implement resources and templates"
 status = "pending"
 tags = ["component", "context", "resources", "templates"]
 modifies = ["s0001", "s0003", "s0004", "s0005"]
-blocked_by = ["t0008"]
+blocked_by = []
 +++
 
 ## Scope

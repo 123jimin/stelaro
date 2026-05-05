@@ -4,7 +4,7 @@ title = "Add production-grade examples"
 status = "pending"
 tags = ["examples", "fastify", "discord", "application"]
 modifies = ["s0005"]
-blocked_by = ["t0007", "t0008", "t0009", "t0010"]
+blocked_by = ["t0009", "t0010"]
 +++
 
 ## Scope
