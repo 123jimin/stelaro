@@ -4,7 +4,7 @@ title = "Implement Discord gateway package"
 status = "pending"
 tags = ["gateway", "discord", "application", "examples"]
 modifies = ["s0001", "s0004", "s0005"]
-blocked_by = ["t0005"]
+blocked_by = ["t0018"]
 +++
 
 ## Scope
@@ -25,7 +25,4 @@ blocked_by = ["t0005"]
 
 ## Dependencies
 
-- Depends on `t0005` for the approved gateway model.
-- Depends on `t0006` for application runtime lifecycle.
-- Depends on `t0007` for component-scoped logging.
-- Depends on `t0008` for validated configuration.
+- Depends on `t0018` for a stable application runtime.

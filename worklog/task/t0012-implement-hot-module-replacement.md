@@ -4,7 +4,7 @@ title = "Implement Hot Module Replacement"
 status = "pending"
 tags = ["hmr", "application", "component", "lifecycle", "gateway"]
 modifies = ["s0001", "s0002", "s0003", "s0006"]
-blocked_by = ["t0005", "t0011"]
+blocked_by = ["t0011", "t0018"]
 +++
 
 ## Scope
@@ -26,7 +26,5 @@ blocked_by = ["t0005", "t0011"]
 
 ## Dependencies
 
-- Depends on `t0004` for state semantics.
-- Depends on `t0005` for the gateway model.
-- Depends on `t0006` for runtime lifecycle.
 - Depends on `t0011` for resources and templates.
+- Depends on `t0018` for a stable application runtime.
