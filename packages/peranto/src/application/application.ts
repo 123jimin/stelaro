@@ -16,6 +16,7 @@ import {TopologicalCycleError, topologicalSort} from "../util/topological-sort.t
 import {
     CircularDependencyError,
     DuplicateCallError,
+    DuplicateComponentIdError,
     MissingDependencyError,
     MissingHandlerError,
     UndeclaredCallError,
@@ -66,6 +67,11 @@ type ComponentRuntime = {
 
 type DispatchFn = (reference: AnyComponentCallReference, input: unknown) => Promise<unknown>;
 
+type DispatchEntry = {
+    readonly runtime: ComponentRuntime;
+    readonly handle: (context: AnyComponentContext, input: unknown) => Promisable<unknown>;
+};
+
 export function defineApplication<
     const TComponents extends readonly AnyComponent[],
     const TAppConfig extends ConfigSchema | undefined = undefined,
@@ -87,12 +93,14 @@ export function createApplication<
     const dispatchCall: DispatchFn = async (reference, input) => {
         lifecycle.require(["active", "reloading"], "call");
 
-        const handler = dispatchers.get(reference);
-        if(handler == null) {
+        const entry = dispatchers.get(reference);
+        if(entry == null) {
             throw new UnregisteredCallError(reference.component_id, reference.name);
         }
+        entry.runtime.lifecycle.require(["active", "reloading"], "call");
 
-        const result = await handler(input);
+        const context = buildContext(entry.runtime, dispatchCall);
+        const result = await entry.handle(context, reference.input.assert(input));
         return reference.output.assert(result);
     };
 
@@ -107,11 +115,16 @@ export function createApplication<
 
                 for(const runtime of runtimes) {
                     runtime.lifecycle.enter("starting");
-                    if(runtime.component.start != null) {
-                        const context = buildContext(runtime, dispatchCall);
-                        await runtime.component.start(context);
+                    try {
+                        if(runtime.component.start != null) {
+                            const context = buildContext(runtime, dispatchCall);
+                            await runtime.component.start(context);
+                        }
+                        runtime.lifecycle.enter("active");
+                    } catch (error) {
+                        runtime.lifecycle.enter("failed");
+                        throw error;
                     }
-                    runtime.lifecycle.enter("active");
                 }
             } catch (error) {
                 lifecycle.enter("failed");
@@ -191,10 +204,10 @@ function buildRuntimes(
     loggerFactory: LoggerFactory,
 ): {
     runtimes: readonly ComponentRuntime[];
-    dispatchers: Map<AnyComponentCallReference, (input: unknown) => Promisable<unknown>>;
+    dispatchers: ReadonlyMap<AnyComponentCallReference, DispatchEntry>;
 } {
     const runtimes: ComponentRuntime[] = [];
-    const dispatchers = new Map<AnyComponentCallReference, (input: unknown) => Promisable<unknown>>();
+    const dispatchers = new Map<AnyComponentCallReference, DispatchEntry>();
 
     for(const component of ordered_components) {
         const callable_references = new Set<AnyComponentCallReference>();
@@ -217,10 +230,14 @@ function buildRuntimes(
         runtimes.push(runtime);
 
         for(const [name, reference] of Object.entries(component.calls.calls)) {
-            const handler = component.handlers[name]!;
-            dispatchers.set(reference, (input) => {
-                // TODO: dispatch needs access to dispatchCall for context.call — currently deferred
-                return handler.handle(null as unknown as AnyComponentContext, reference.input.assert(input));
+            const handler = component.handlers[name];
+            if(handler == null) {
+                // unreachable after validateAndSort, kept as defensive check
+                throw new MissingHandlerError(component.calls.id, name);
+            }
+            dispatchers.set(reference, {
+                runtime,
+                handle: (context, input) => handler.handle(context, input),
             });
         }
     }
@@ -257,8 +274,7 @@ function validateAndSort(components: readonly AnyComponent[]): readonly AnyCompo
 
     for(const component of components) {
         if(seen_ids.has(component.calls.id)) {
-            // TODO: replace with dedicated DuplicateComponentIdError
-            throw new Error(`Duplicate component id: "${component.calls.id}".`);
+            throw new DuplicateComponentIdError(component.calls.id);
         }
         seen_ids.add(component.calls.id);
         calls_to_component.set(component.calls, component);
