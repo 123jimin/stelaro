@@ -13,8 +13,7 @@ blocked_by = []
 
 ## Spec divergences
 
-- s0002 `LifecycleState` does not include `"reloading"`, but the code adds it. s0002 lifecycle behavior references `"reloading"` as valid for `call` — this is an internal spec inconsistency that must be resolved (s0008 reload requires a state to block concurrent calls during reload).
-- s0008 specifies `reloadConfig`, `reloadComponentConfig`, `onConfigReload`, and application-level config, but s0002's `Application` and `ApplicationDefinition` types do not include them. The types in s0002 need to be reconciled with s0008 before implementation.
+- Code includes `argv` in `ApplicationOptions` and `args` on `Application` — CLI parsing has been removed from s0002. The code still imports `parseArgs` and exposes `ParsedArgs`.
 
 ## Structural problems
 
@@ -53,6 +52,7 @@ This is why `stop` after partial-start failure is broken — it doesn't know wha
 ### `application.spec.ts`
 
 - **Wrong assertion:** "transitions to failed on start hook error without rolling back" asserts both A and B are stopped after B's start throws. Per s0002, only active components should be stopped — B's start threw, so B should not get a stop call.
+- **Remove:** "exposes parsed CLI arguments on the application runtime" and "exposes undefined args when no CLI arguments are provided" — CLI parsing is no longer part of application creation (removed from s0002).
 - **Missing:** `DuplicateComponentIdError` — two components with the same id but different call surfaces.
 - **Missing:** Component lifetime tracking — after partial-start failure, only successfully-started components get stop hooks called.
 ### `config.spec.ts`

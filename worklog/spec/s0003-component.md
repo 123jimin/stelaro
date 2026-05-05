@@ -60,23 +60,11 @@ function defineComponent(definition: Component): Component;
 
 ## Behavior
 
-### Identity and calls
-
-- Component ids are stable public identifiers used for component identity and component-scoped logging.
-- Component call API inputs and outputs are defined with Arktype schemas (implementing `ComponentCallSchema`).
 - Component call APIs support IPC-like usage without requiring cross-process transport.
 - UNIMPLEMENTED Components may use gateway capabilities through typed component call APIs.
-
-### State
-
-- Components that declare a state factory receive their state object through handler context.
-- Components that do not declare a state factory do not receive state in context.
-
-### Lifecycle
-
-- Lifecycle hooks receive the same context as handlers.
-- Components without lifecycle hooks are silently skipped during application start/stop.
-- The application calls `start` hooks in topological dependency order and `stop` hooks in reverse order (see s0002).
+- Component state must be scoped to a single application runtime. A component definition reused across multiple application runtimes must have independent state per runtime.
+- Component state must not be shared between different components within the same application runtime.
+- Component state is ephemeral to the application runtime (the object returned by `createApplication`). State persists across stop/start cycles within one runtime. There is no persistent state model.
 
 ## Constraints
 
@@ -86,9 +74,6 @@ function defineComponent(definition: Component): Component;
 - Component call input and output definitions must be Arktype schemas.
 - Component behavior must not require raw gateway-specific runtime objects.
 - Component behavior may depend on typed call APIs exposed by gateway components.
-- Component state must be scoped to a single application runtime. A component definition reused across multiple application runtimes must have independent state per runtime.
-- Component state must not be shared between different components within the same application runtime.
-- Component state is ephemeral to the application runtime (the object returned by `createApplication`). State persists across stop/start cycles within one runtime. There is no persistent state model.
 
 ## Anticipated Changes
 

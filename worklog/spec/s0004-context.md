@@ -34,20 +34,14 @@ type ComponentContext = {
 
 ## Behavior
 
-- Component behavior receives context from the application runtime.
-- Component-scoped logging is available to handlers and lifecycle hooks through the same context object.
 - UNIMPLEMENTED Context allows behavior to call typed APIs exposed by gateway components.
-- Lifecycle hooks (`start`, `stop`) receive the same context as handlers.
+- Context must provide the same state object reference to all handler invocations of a given component within one application runtime.
 
 ## Constraints
 
-- Core context is defined by the core package and is available to core component behavior.
 - Core context provides Peranto-level capabilities, not raw gateway runtime objects.
 - Core context preserves the current component id for scoped capabilities such as logging and configuration.
-- Core context exposes validated configuration to behavior.
 - Core context may access gateway capabilities only through typed component call APIs.
-- Context must provide the same state object reference to all handler invocations of a given component within one application runtime.
-- Context must not provide state to components that did not declare a state factory.
 
 ## Anticipated Changes
 

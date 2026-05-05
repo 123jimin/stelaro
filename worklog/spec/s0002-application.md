@@ -10,7 +10,6 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 - s0003: Component
 - s0004: Context
 - s0006: Hot Module Replacement
-- s0009: CLI Arguments
 
 ## Types
 
@@ -27,12 +26,10 @@ type ApplicationDefinition = {
 };
 
 type ApplicationOptions = {
-    readonly argv?: string[];
     readonly config_dir?: string;
 };
 
 type Application = {
-    readonly args: ParsedArgs;
     readonly config?: unknown;              // present iff definition declares a config schema
     start(): Promise<void>;
     stop(): Promise<void>;
@@ -49,14 +46,20 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
 
 ### Core
 
-- An application coordinates registered components, typed component calls, configuration, and logging.
-- `createApplication` validates that all component ids are unique. Duplicate ids throw `DuplicateComponentIdError`.
-- `createApplication` initializes state for each registered component that declares a state factory.
+- `createApplication` validates that all component ids are unique.
 - `createApplication` computes a topological ordering of components from the `uses` dependency graph.
 - `createApplication` throws `CircularDependencyError` if the dependency graph contains a cycle.
-- The application creates one logger per component and provides that logger through the component's context.
 
-### Lifecycle
+### Lifecycle states
+
+- `idle` — not running. Initial state after `createApplication`, and after `stop()` completes.
+- `starting` — `start()` in progress; component start hooks executing in topological order.
+- `active` — all start hooks completed. Calls, stop, and config reload are valid.
+- `reloading` — config reload in progress. Calls still accepted.
+- `failed` — a start hook or `onConfigReload` hook threw. Some components may be partially started. Only `stop()` is valid, to clean up.
+- `stopping` — `stop()` in progress; component stop hooks executing in reverse order.
+
+### Lifecycle transitions
 
 - `app.start()` transitions `idle` → `starting` → `active`. Calls each component's `start` hook (if present) in topological dependency order.
 - A component becomes active during start if it has no `start` hook (skipped), or if its `start` hook completes successfully.
@@ -66,21 +69,15 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
 - `app.call()` only works in `active` or `reloading` states. All other states throw `LifecycleStateError`.
 - `app.start()` only works in `idle`. All other states throw `LifecycleStateError`.
 - `app.stop()` only works in `active` or `failed`. All other states throw `LifecycleStateError`.
-- Components without lifecycle hooks are silently skipped during start/stop.
 
 ## Constraints
 
-- Application behavior belongs to the core package.
-- Application behavior must not depend on gateway-specific runtimes.
-- Shared concerns stay with the application: lifecycle, configuration, logging, component registration, and typed calls.
 - Application runtime state initialization must happen during `createApplication`, before any calls are dispatched.
 
 ## Anticipated Changes
 
 - Gateway registration may be specified separately.
-- Configuration loading may be specified separately.
 
 ## Dangers
 
-- Mixing application behavior with gateway-specific routing can make the core package depend on external runtime protocols.
 - Mixing reusable definition concerns with runtime state can make the public model confusing.
