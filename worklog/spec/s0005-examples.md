@@ -22,6 +22,13 @@ paths = ["examples/**"]
 - Authentication uses `@fastify/passport` with Google and Discord strategies. `UNIMPLEMENTED`
 - Authentication credentials are mock values. `UNIMPLEMENTED`
 
+### Mini Stock Market
+
+- A minimal order-matching stock market with no gateway. `UNIMPLEMENTED`
+- Three components: Ledger (account balances), Exchange (order matching), Ticker (price history). `UNIMPLEMENTED`
+- Exchange settles matched trades through Ledger and records prices through Ticker. `UNIMPLEMENTED`
+- Entry point is `app.call()` directly. `UNIMPLEMENTED`
+
 ### Discord Chatbot
 
 - An empty shell. `UNIMPLEMENTED`
