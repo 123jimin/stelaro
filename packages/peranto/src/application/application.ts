@@ -13,7 +13,6 @@ import type {
     CallOutput,
     ComponentId,
 } from "../component/types.ts";
-import {ConfigValidationError} from "../config/error.ts";
 import {loadTomlConfig} from "../config/loader.ts";
 import type {ConfigSchema} from "../config/types.ts";
 import {TopologicalCycleError, topologicalSort} from "../util/topological-sort.ts";
@@ -259,11 +258,7 @@ export function createApplication<
             }
             if(runtime.component.config == null) {
                 lifecycle.enter("active");
-                throw new ConfigValidationError(
-                    join(config_dir, `${component_id}.toml`),
-                    component_id,
-                    new Error(`Component "${component_id}" does not declare a config schema.`),
-                );
+                return;
             }
 
             let pending_config: unknown;

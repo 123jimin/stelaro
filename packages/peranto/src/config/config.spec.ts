@@ -552,7 +552,7 @@ describe("@jiminp/peranto configuration", () => {
         await assert.rejects(() => app.reloadComponentConfig("a"), LifecycleStateError);
     });
 
-    it("throws ConfigValidationError when reloadComponentConfig targets a component without config schema", async () => {
+    it("treats reloadComponentConfig as a no-op for a component without config schema", async () => {
         const ACalls = defineComponentCalls({
             id: "a",
             calls: {run: {input: EmptyInput, output: CounterOutput}},
@@ -570,13 +570,7 @@ describe("@jiminp/peranto configuration", () => {
         );
         await app.start();
 
-        await assert.rejects(
-            () => app.reloadComponentConfig("a"),
-            (error: unknown) => {
-                assert.ok(error instanceof ConfigValidationError);
-                return true;
-            },
-        );
+        await app.reloadComponentConfig("a");
 
         await app.stop();
     });
