@@ -13,6 +13,7 @@ import type {
     CallOutput,
     ComponentId,
 } from "../component/types.ts";
+import {ConfigValidationError} from "../config/error.ts";
 import {loadTomlConfig} from "../config/loader.ts";
 import type {ConfigSchema} from "../config/types.ts";
 import {TopologicalCycleError, topologicalSort} from "../util/topological-sort.ts";
@@ -24,6 +25,7 @@ import {
     MissingHandlerError,
     UndeclaredCallError,
     UnregisteredCallError,
+    UnregisteredComponentError,
 } from "./error.ts";
 import {createLifecycleMachine, type LifecycleMachine} from "./lifecycle.ts";
 
@@ -91,7 +93,7 @@ export function createApplication<
     const loggerFactory = definition.logger ?? consoleLoggerFactory;
 
     const ordered_components = validateAndSort(definition.components);
-    const {runtimes, dispatchers} = buildRuntimes(ordered_components, loggerFactory);
+    const {runtimes, id_to_runtime, dispatchers} = buildRuntimes(ordered_components, loggerFactory);
 
     const dispatchCall: DispatchFn = async (reference, input) => {
         lifecycle.require(["active", "reloading"], "call");
@@ -194,9 +196,52 @@ export function createApplication<
             lifecycle.require("active", "reloadConfig");
             lifecycle.enter("reloading");
 
-            // TODO: reload all config from _config_dir (s0008)
-            // TODO: call onConfigReload hooks in topological order
-            // TODO: on hook failure, enter "failed" and rethrow
+            let pending_app_config: unknown = null;
+            const pending_component_configs = new Map<ComponentRuntime, unknown>();
+
+            try {
+                const config_loads: Promise<void>[] = [];
+                if(definition.config != null) {
+                    config_loads.push(
+                        loadTomlConfig(join(config_dir, "application.toml"), definition.config)
+                            .then((config) => { pending_app_config = config; }),
+                    );
+                }
+                for(const runtime of runtimes) {
+                    if(runtime.component.config != null) {
+                        config_loads.push(
+                            loadTomlConfig(join(config_dir, `${runtime.id}.toml`), runtime.component.config, runtime.id)
+                                .then((config) => { pending_component_configs.set(runtime, config); }),
+                        );
+                    }
+                }
+                await Promise.all(config_loads);
+            } catch (error) {
+                lifecycle.enter("active");
+                throw error;
+            }
+
+            if(definition.config != null) {
+                app_config = pending_app_config;
+            }
+            for(const [runtime, config] of pending_component_configs) {
+                runtime.config = config;
+            }
+
+            try {
+                for(const runtime of runtimes) {
+                    if(runtime.component.onConfigReload != null) {
+                        const context = buildContext(runtime, dispatchCall);
+                        await runtime.component.onConfigReload(context);
+                    }
+                }
+                if(definition.onConfigReload != null) {
+                    await definition.onConfigReload();
+                }
+            } catch (error) {
+                lifecycle.enter("failed");
+                throw error;
+            }
 
             lifecycle.enter("active");
         },
@@ -207,12 +252,44 @@ export function createApplication<
             lifecycle.require("active", "reloadComponentConfig");
             lifecycle.enter("reloading");
 
-            // TODO: look up runtime by id, reload config (s0008)
-            // TODO: call target component's onConfigReload hook
-            // TODO: on hook failure, enter "failed" and rethrow
+            const runtime = id_to_runtime.get(component_id);
+            if(runtime == null) {
+                lifecycle.enter("active");
+                throw new UnregisteredComponentError(component_id);
+            }
+            if(runtime.component.config == null) {
+                lifecycle.enter("active");
+                throw new ConfigValidationError(
+                    join(config_dir, `${component_id}.toml`),
+                    component_id,
+                    new Error(`Component "${component_id}" does not declare a config schema.`),
+                );
+            }
+
+            let pending_config: unknown;
+            try {
+                pending_config = await loadTomlConfig(
+                    join(config_dir, `${runtime.id}.toml`),
+                    runtime.component.config,
+                    runtime.id,
+                );
+            } catch (error) {
+                lifecycle.enter("active");
+                throw error;
+            }
+            runtime.config = pending_config;
+
+            try {
+                if(runtime.component.onConfigReload != null) {
+                    const context = buildContext(runtime, dispatchCall);
+                    await runtime.component.onConfigReload(context);
+                }
+            } catch (error) {
+                lifecycle.enter("failed");
+                throw error;
+            }
 
             lifecycle.enter("active");
-            void component_id;
         },
     };
 
@@ -224,9 +301,11 @@ function buildRuntimes(
     loggerFactory: LoggerFactory,
 ): {
     runtimes: readonly ComponentRuntime[];
+    id_to_runtime: ReadonlyMap<ComponentId, ComponentRuntime>;
     dispatchers: ReadonlyMap<AnyComponentCallReference, DispatchEntry>;
 } {
     const runtimes: ComponentRuntime[] = [];
+    const id_to_runtime = new Map<ComponentId, ComponentRuntime>();
     const dispatchers = new Map<AnyComponentCallReference, DispatchEntry>();
 
     for(const component of ordered_components) {
@@ -248,6 +327,7 @@ function buildRuntimes(
         };
 
         runtimes.push(runtime);
+        id_to_runtime.set(runtime.id, runtime);
 
         for(const [name, reference] of Object.entries(component.calls.calls)) {
             const handler = component.handlers[name];
@@ -262,7 +342,7 @@ function buildRuntimes(
         }
     }
 
-    return {runtimes, dispatchers};
+    return {runtimes, id_to_runtime, dispatchers};
 }
 
 function buildContext(

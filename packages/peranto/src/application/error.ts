@@ -1,5 +1,14 @@
 import {PerantoError} from "../error.ts";
 
+export class UnregisteredComponentError extends PerantoError {
+    readonly component_id: string;
+
+    constructor(component_id: string) {
+        super(`Component "${component_id}" is not registered in the application.`);
+        this.component_id = component_id;
+    }
+}
+
 export class DuplicateComponentIdError extends PerantoError {
     readonly component_id: string;
 
