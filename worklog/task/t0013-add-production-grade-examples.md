@@ -4,7 +4,7 @@ title = "Add production-grade examples"
 status = "pending"
 tags = ["examples", "fastify", "discord", "application"]
 modifies = ["s0005"]
-blocked_by = ["t0009", "t0010"]
+blocked_by = ["t0005", "t0010"]
 +++
 
 ## Scope
@@ -24,7 +24,5 @@ blocked_by = ["t0009", "t0010"]
 
 ## Dependencies
 
-- Depends on `t0007` for component-scoped logging.
-- Depends on `t0008` for validated configuration.
-- Depends on `t0009` for the Fastify gateway package.
+- Depends on `t0005` for the Fastify gateway package.
 - Depends on `t0010` for the Discord gateway package.
