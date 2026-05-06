@@ -1,7 +1,7 @@
 +++
 id = "t0018"
 title = "Reimplement application runtime"
-status = "pending"
+status = "done"
 tags = ["application", "architecture", "lifecycle", "config", "logging"]
 modifies = ["s0002"]
 blocked_by = []
