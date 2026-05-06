@@ -3,7 +3,7 @@ id = "t0004"
 title = "Define component state semantics"
 status = "done"
 tags = ["component", "context", "application"]
-modifies = ["s0001", "s0002", "s0003", "s0004", "s0005"]
+modifies = ["s0001", "s0002", "s0003", "s0004", "s0010"]
 blocked_by = []
 +++
 

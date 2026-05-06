@@ -3,7 +3,7 @@ id = "t0011"
 title = "Implement resources and templates"
 status = "pending"
 tags = ["component", "context", "resources", "templates"]
-modifies = ["s0001", "s0003", "s0004", "s0005"]
+modifies = ["s0001", "s0003", "s0004", "s0011", "s0014"]
 blocked_by = []
 +++
 

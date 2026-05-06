@@ -9,8 +9,8 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - s0002: Application
 - s0003: Component
 - s0004: Context
-- s0005: Examples
 - s0006: Hot Module Replacement
+- s0010: Examples (Common)
 
 ## Design Phase Note
 

@@ -3,7 +3,7 @@ id = "t0013"
 title = "Add production-grade examples"
 status = "pending"
 tags = ["examples", "fastify", "discord", "application"]
-modifies = ["s0005"]
+modifies = ["s0012", "s0014"]
 blocked_by = ["t0005", "t0010"]
 +++
 

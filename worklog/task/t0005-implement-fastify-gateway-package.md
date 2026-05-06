@@ -3,7 +3,7 @@ id = "t0005"
 title = "Implement Fastify gateway package"
 status = "pending"
 tags = ["gateway", "fastify", "application", "examples"]
-modifies = ["s0001", "s0004", "s0005"]
+modifies = ["s0001", "s0004", "s0011"]
 blocked_by = ["t0018"]
 +++
 
