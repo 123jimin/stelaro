@@ -43,10 +43,13 @@ paths = ["examples/fastify-web-server/**"]
 - `users` resolves an authenticated identity (provider plus provider-account-id) to a user record, creating a record on first sight. `UNIMPLEMENTED`
 - `threads` provides create, list, and get-by-id behavior for threads. `UNIMPLEMENTED`
 - `comments` provides create and list-by-thread behavior for comments. `UNIMPLEMENTED`
-- A Fastify HTTP gateway exposes the routes above, integrates `@fastify/passport`, and dispatches to component calls. `UNIMPLEMENTED`
+- A Fastify HTTP gateway exposes the routes above and dispatches to component calls. `UNIMPLEMENTED`
+- Gateway route handlers receive the Fastify request and reply objects alongside Peranto helpers. Gateway route definitions accept standard Fastify route options and forward them transparently. `UNIMPLEMENTED`
+- Authentication and session middleware are configured at the Fastify application level, outside the gateway definition. Route handlers access auth state through the Fastify request object. `UNIMPLEMENTED`
 
 ### Persistent storage
 
+- Components read and write JSONL files directly per request, without in-memory caching. `UNIMPLEMENTED`
 - Persistence uses append-only JSONL files under `data/`. `UNIMPLEMENTED`
 - `data/users.jsonl` stores one user record per line with fields `user_id`, `provider`, `provider_account_id`, `display_name`, `created_at`. `provider` is one of `google`, `discord`, or `id`. `UNIMPLEMENTED`
 - `data/threads.jsonl` stores one thread record per line with fields `thread_id`, `author_user_id`, `title`, `body`, `created_at`. `UNIMPLEMENTED`
@@ -55,6 +58,7 @@ paths = ["examples/fastify-web-server/**"]
 ## Constraints
 
 - The example must build only from public Peranto APIs.
+- The Fastify gateway definition must not include authentication or session concerns.
 - OAuth credentials for Google and Discord must be mock values, never real secrets.
 - The ID-based login must not require a password or any other secret.
 - Sessions must not be persisted to disk.
