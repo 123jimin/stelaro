@@ -1,8 +1,8 @@
-import type {FastifyInstance, FastifyReply, FastifyRequest} from "fastify";
 import fastifyPassport from "@fastify/passport";
 import fastifySecureSession from "@fastify/secure-session";
-import {Strategy as GoogleStrategy} from "passport-google-oauth20";
+import type {FastifyInstance, FastifyReply, FastifyRequest} from "fastify";
 import {Strategy as DiscordStrategy} from "passport-discord";
+import {Strategy as GoogleStrategy} from "passport-google-oauth20";
 
 export type SessionUser = {
     provider: "google" | "discord" | "id";
@@ -74,6 +74,6 @@ export const authenticateDiscordCallback = fastifyPassport.authenticate("discord
 
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     if(request.user == null) {
-        return reply.redirect("/login");
+        reply.redirect("/login");
     }
 }

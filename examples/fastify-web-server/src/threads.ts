@@ -1,5 +1,5 @@
-import {type as schema} from "arktype";
 import {defineComponent, defineComponentCalls} from "@jiminp/peranto";
+import {type as schema} from "arktype";
 
 import {appendJsonl, readJsonl} from "./storage.ts";
 

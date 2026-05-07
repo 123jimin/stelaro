@@ -1,6 +1,6 @@
-import Fastify from "fastify";
 import fastifyFormbody from "@fastify/formbody";
 import {createApplication, defineApplication} from "@jiminp/peranto";
+import Fastify from "fastify";
 
 import {registerAuth} from "./auth.ts";
 import {CommentsComponent} from "./comments.ts";
@@ -8,6 +8,7 @@ import {createGateway} from "./gateway.ts";
 import {ThreadsComponent} from "./threads.ts";
 import {UsersComponent} from "./users.ts";
 
+// eslint-disable-next-line new-cap -- Fastify's public API
 const server = Fastify();
 await server.register(fastifyFormbody);
 await registerAuth(server);

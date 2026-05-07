@@ -1,13 +1,13 @@
-import type {FastifyInstance} from "fastify";
 import {defineFastifyGateway} from "@jiminp/peranto-fastify";
+import type {FastifyInstance} from "fastify";
 
 import {
-    type SessionUser,
     authenticateDiscord,
     authenticateDiscordCallback,
     authenticateGoogle,
     authenticateGoogleCallback,
     requireAuth,
+    type SessionUser,
 } from "./auth.ts";
 import {CommentsCalls} from "./comments.ts";
 import {ThreadsCalls} from "./threads.ts";
@@ -29,14 +29,14 @@ export function createGateway(server: FastifyInstance) {
                     return html`
                         <h1>BBS</h1>
                         ${session_user != null
-                            ? `<nav>
+                                ? `<nav>
                                 Logged in as ${session_user.display_name}
                                 <form method="post" action="/logout" style="display:inline">
                                     <button type="submit">Logout</button>
                                 </form>
                                 | <a href="/threads/new">New Thread</a>
                             </nav>`
-                            : `<nav><a href="/login">Login</a></nav>`
+                                : `<nav><a href="/login">Login</a></nav>`
                         }
                         <ul>
                             ${threads.map((t) => `
@@ -90,13 +90,13 @@ export function createGateway(server: FastifyInstance) {
                             </div>
                         `).join("<hr>")}
                         ${session_user != null
-                            ? `<hr>
+                                ? `<hr>
                             <h3>Add Comment</h3>
                             <form method="post" action="/threads/${thread_id}/comments">
                                 <textarea name="body" required></textarea><br>
                                 <button type="submit">Post Comment</button>
                             </form>`
-                            : `<p><a href="/login">Login to comment</a></p>`
+                                : `<p><a href="/login">Login to comment</a></p>`
                         }
                         <p><a href="/">Back to threads</a></p>
                     `;
