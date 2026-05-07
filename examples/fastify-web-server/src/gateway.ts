@@ -23,83 +23,88 @@ export function createGateway(server: FastifyInstance) {
             {
                 method: "GET",
                 path: "/",
-                async handle({request, call, html}) {
+                async handle({request, reply, call}) {
                     const {threads} = await call(ThreadsCalls.calls.list, {});
                     const session_user = request.user as SessionUser | null;
-                    return html`
-                        <h1>BBS</h1>
-                        ${session_user != null
-                                ? `<nav>
-                                Logged in as ${session_user.display_name}
-                                <form method="post" action="/logout" style="display:inline">
-                                    <button type="submit">Logout</button>
-                                </form>
-                                | <a href="/threads/new">New Thread</a>
-                            </nav>`
-                                : `<nav><a href="/login">Login</a></nav>`
-                        }
-                        <ul>
+                    return reply.type("text/html").send(`
+                        <header>
+                            <h1>BBS</h1>
+                            <nav>
+                                ${session_user != null
+                                        ? `Logged in as ${session_user.display_name}
+                                        <form method="post" action="/logout" style="display:inline">
+                                            <button type="submit">Logout</button>
+                                        </form>
+                                        | <a href="/threads/new">New Thread</a>`
+                                        : `<a href="/login">Login</a>`
+                                }
+                            </nav>
+                        </header>
+                        <main>
                             ${threads.map((t) => `
-                                <li>
+                                <article>
                                     <a href="/threads/${t.thread_id}">${t.title}</a>
-                                    <small>(${t.created_at})</small>
-                                </li>
+                                    <footer><time>${t.created_at}</time></footer>
+                                </article>
                             `).join("")}
-                        </ul>
-                    `;
+                        </main>
+                    `);
                 },
             },
             {
                 method: "GET",
                 path: "/threads/new",
                 preHandler: [requireAuth],
-                async handle({html}) {
-                    return html`
+                async handle({reply}) {
+                    return reply.type("text/html").send(`
                         <h1>New Thread</h1>
                         <form method="post" action="/threads">
-                            <input type="text" name="title" placeholder="Title" required><br>
-                            <textarea name="body" placeholder="Body" required></textarea><br>
+                            <label>Title<br><input type="text" name="title" required></label>
+                            <label>Body<br><textarea name="body" required></textarea></label>
                             <button type="submit">Create Thread</button>
                         </form>
-                        <p><a href="/">Back</a></p>
-                    `;
+                        <nav><a href="/">Back</a></nav>
+                    `);
                 },
             },
             {
                 method: "GET",
                 path: "/threads/:thread_id",
-                async handle({request, call, html}) {
+                async handle({request, reply, call}) {
                     const {thread_id} = request.params as {thread_id: string};
                     const thread = await call(ThreadsCalls.calls.get, {thread_id});
                     if(thread == null) {
-                        return html`<h1>Thread not found</h1><p><a href="/">Back</a></p>`;
+                        return reply.status(404).type("text/html").send(
+                            `<h1>Thread not found</h1><nav><a href="/">Back</a></nav>`,
+                        );
                     }
                     const {comments} = await call(CommentsCalls.calls.list_by_thread, {thread_id});
                     const session_user = request.user as SessionUser | null;
-                    return html`
-                        <h1>${thread.title}</h1>
-                        <p>${thread.body}</p>
-                        <small>by ${thread.author_user_id} at ${thread.created_at}</small>
-                        <hr>
-                        <h2>Comments</h2>
-                        ${comments.length === 0 ? "<p>No comments yet.</p>" : ""}
-                        ${comments.map((c) => `
-                            <div>
-                                <p>${c.body}</p>
-                                <small>by ${c.author_user_id} at ${c.created_at}</small>
-                            </div>
-                        `).join("<hr>")}
-                        ${session_user != null
-                                ? `<hr>
-                            <h3>Add Comment</h3>
-                            <form method="post" action="/threads/${thread_id}/comments">
-                                <textarea name="body" required></textarea><br>
-                                <button type="submit">Post Comment</button>
-                            </form>`
-                                : `<p><a href="/login">Login to comment</a></p>`
-                        }
-                        <p><a href="/">Back to threads</a></p>
-                    `;
+                    return reply.type("text/html").send(`
+                        <article>
+                            <h1>${thread.title}</h1>
+                            <p>${thread.body}</p>
+                            <footer>by ${thread.author_user_id} at <time>${thread.created_at}</time></footer>
+                        </article>
+                        <section>
+                            <h2>Comments</h2>
+                            ${comments.length === 0 ? "<p>No comments yet.</p>" : ""}
+                            ${comments.map((c) => `
+                                <article>
+                                    <p>${c.body}</p>
+                                    <footer>by ${c.author_user_id} at <time>${c.created_at}</time></footer>
+                                </article>
+                            `).join("")}
+                            ${session_user != null
+                                    ? `<form method="post" action="/threads/${thread_id}/comments">
+                                    <label>Comment<br><textarea name="body" required></textarea></label>
+                                    <button type="submit">Post Comment</button>
+                                </form>`
+                                    : `<p><a href="/login">Login to comment</a></p>`
+                            }
+                        </section>
+                        <nav><a href="/">Back to threads</a></nav>
+                    `);
                 },
             },
             {
@@ -146,20 +151,26 @@ export function createGateway(server: FastifyInstance) {
             {
                 method: "GET",
                 path: "/login",
-                async handle({html}) {
-                    return html`
+                async handle({reply}) {
+                    return reply.type("text/html").send(`
                         <h1>Login</h1>
-                        <ul>
-                            <li><a href="/login/google">Login with Google</a></li>
-                            <li><a href="/login/discord">Login with Discord</a></li>
-                        </ul>
-                        <h2>Login with ID</h2>
-                        <form method="post" action="/login/id">
-                            <input type="text" name="name" placeholder="Your name" required>
-                            <button type="submit">Login</button>
-                        </form>
-                        <p><a href="/">Back</a></p>
-                    `;
+                        <section>
+                            <nav>
+                                <ul>
+                                    <li><a href="/login/google">Login with Google</a></li>
+                                    <li><a href="/login/discord">Login with Discord</a></li>
+                                </ul>
+                            </nav>
+                        </section>
+                        <section>
+                            <h2>Login with ID</h2>
+                            <form method="post" action="/login/id">
+                                <label>Name<br><input type="text" name="name" required></label>
+                                <button type="submit">Login</button>
+                            </form>
+                        </section>
+                        <nav><a href="/">Back</a></nav>
+                    `);
                 },
             },
             {
