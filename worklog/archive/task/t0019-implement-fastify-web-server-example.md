@@ -1,9 +1,9 @@
 +++
 id = "t0019"
 title = "Implement Fastify web server example"
-status = "active"
+status = "done"
 tags = ["examples", "fastify"]
-modifies = ["s0012"]
+modifies = ["s0012", "s0016"]
 blocked_by = []
 +++
 
