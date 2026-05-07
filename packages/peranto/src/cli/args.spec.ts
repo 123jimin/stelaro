@@ -5,30 +5,30 @@ import {describe, it} from "node:test";
 import {parseArgs} from "./args.ts";
 
 describe("@jiminp/peranto CLI argument parsing", () => {
-    it("returns undefined for config_dir when no arguments are provided", () => {
+    it("returns undefined for base_dir when no arguments are provided", () => {
         const args = parseArgs([]);
 
-        assert.strictEqual(args.config_dir, void 0);
+        assert.strictEqual(args.base_dir, void 0);
     });
 
-    it("resolves --config-dir to an absolute path", () => {
-        const args = parseArgs(["--config-dir", "./custom-config"]);
+    it("resolves --base-dir to an absolute path", () => {
+        const args = parseArgs(["--base-dir", "./custom-base"]);
 
-        assert.strictEqual(args.config_dir, resolve("./custom-config"));
-        assert.ok(isAbsolute(args.config_dir!));
+        assert.strictEqual(args.base_dir, resolve("./custom-base"));
+        assert.ok(isAbsolute(args.base_dir!));
     });
 
-    it("resolves --config-dir with equals syntax to an absolute path", () => {
-        const args = parseArgs(["--config-dir=./custom-config"]);
+    it("resolves --base-dir with equals syntax to an absolute path", () => {
+        const args = parseArgs(["--base-dir=./custom-base"]);
 
-        assert.strictEqual(args.config_dir, resolve("./custom-config"));
+        assert.strictEqual(args.base_dir, resolve("./custom-base"));
     });
 
-    it("preserves an already-absolute --config-dir path", () => {
+    it("preserves an already-absolute --base-dir path", () => {
         const absolute_path = resolve("/tmp/config");
-        const args = parseArgs(["--config-dir", absolute_path]);
+        const args = parseArgs(["--base-dir", absolute_path]);
 
-        assert.strictEqual(args.config_dir, absolute_path);
+        assert.strictEqual(args.base_dir, absolute_path);
     });
 
     it("throws on unknown arguments", () => {

@@ -1,7 +1,7 @@
 +++
 id = "t0020"
 title = "Restructure config directory to app base directory"
-status = "pending"
+status = "done"
 tags = ["config", "cli", "application"]
 modifies = ["s0008", "s0009"]
 blocked_by = []

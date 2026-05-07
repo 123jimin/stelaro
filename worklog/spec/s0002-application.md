@@ -26,7 +26,7 @@ type ApplicationDefinition = {
 };
 
 type ApplicationOptions = {
-    readonly config_dir?: string;
+    readonly base_dir?: string;
 };
 
 type Application = {

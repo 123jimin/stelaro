@@ -69,6 +69,7 @@ function defineComponent(definition: Component): Component;
 ## Constraints
 
 - Component behavior belongs to the core package.
+- Component ids must be lowercase kebab-case.
 - Component ids must be stable enough to serve as public identity within an application.
 - Component call boundaries must remain typed.
 - Component call input and output definitions must be Arktype schemas.
@@ -77,6 +78,7 @@ function defineComponent(definition: Component): Component;
 
 ## Anticipated Changes
 
+- Component id format rules may be relaxed or extended.
 - Component resources and templates may be specified separately.
 - Component reloading may be specified separately.
 - State preservation across Hot Module Replacement may be specified separately.

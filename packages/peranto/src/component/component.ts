@@ -1,3 +1,4 @@
+import {InvalidComponentIdError, isValidComponentId} from "../error.ts";
 import type {ConfigSchema} from "../config/types.ts";
 import type {
     AnyComponentCallReference,
@@ -25,6 +26,10 @@ export function defineComponentCalls<
     readonly id: TId;
     readonly calls: TDeclarations;
 }): ComponentCalls<TId, TDeclarations> {
+    if(!isValidComponentId(definition.id)) {
+        throw new InvalidComponentIdError(definition.id);
+    }
+
     const calls: Record<ComponentCallName, AnyComponentCallReference> = {};
 
     for(const [name, declaration] of Object.entries(definition.calls)) {

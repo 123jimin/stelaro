@@ -8,6 +8,7 @@ import {
     consoleLoggerFactory,
     type Logger,
 } from "../index.ts";
+import {InvalidComponentIdError} from "../error.ts";
 import {
     type AnyComponent,
     type AnyComponentContext,
@@ -132,6 +133,32 @@ describe("@jiminp/peranto component core", () => {
         });
 
         assert.deepStrictEqual("state" in CounterComponent, false);
+    });
+
+    it("accepts lowercase kebab-case component ids", () => {
+        for(const id of ["a", "users", "http-gateway", "auth-v2", "a1b"]) {
+            const calls = defineComponentCalls({
+                id,
+                calls: {run: {input: EmptyInput, output: CounterOutput}},
+            });
+            assert.strictEqual(calls.id, id);
+        }
+    });
+
+    it("throws InvalidComponentIdError for non-kebab-case component ids", () => {
+        for(const id of ["", "A", "Users", "my_component", "123", "foo-", "-foo", "foo--bar", "FOO"]) {
+            assert.throws(
+                () => defineComponentCalls({
+                    id,
+                    calls: {run: {input: EmptyInput, output: CounterOutput}},
+                }),
+                (error: unknown) => {
+                    assert.ok(error instanceof InvalidComponentIdError);
+                    assert.strictEqual(error.component_id, id);
+                    return true;
+                },
+            );
+        }
     });
 
     it("exports a default console logger factory from the core package root", () => {

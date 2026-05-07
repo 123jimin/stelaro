@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import {mkdtemp, rm, writeFile} from "node:fs/promises";
+import {mkdir, mkdtemp, rm, writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
-import {join} from "node:path";
+import {dirname, join} from "node:path";
 import {afterEach, beforeEach, describe, it} from "node:test";
 
 import {type as schema} from "arktype";
@@ -22,18 +22,23 @@ const EmptyInput = schema({});
 const CounterOutput = schema({count: "number"});
 
 describe("@jiminp/peranto configuration", () => {
-    let config_dir: string;
+    let base_dir: string;
 
     beforeEach(async () => {
-        config_dir = await mkdtemp(join(tmpdir(), "peranto-config-"));
+        base_dir = await mkdtemp(join(tmpdir(), "peranto-config-"));
     });
 
     afterEach(async () => {
-        await rm(config_dir, {recursive: true});
+        await rm(base_dir, {recursive: true});
     });
 
+    async function writeConfig(file_path: string, content: string): Promise<void> {
+        await mkdir(dirname(file_path), {recursive: true});
+        await writeFile(file_path, content);
+    }
+
     it("provides validated config to component handlers after start", async () => {
-        await writeFile(join(config_dir, "counter.toml"), 'initial = 10\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -55,7 +60,7 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [CounterComponent]}),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
@@ -85,7 +90,7 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [AComponent]}),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
@@ -96,7 +101,7 @@ describe("@jiminp/peranto configuration", () => {
     });
 
     it("exposes validated application config on the runtime after start", async () => {
-        await writeFile(join(config_dir, "application.toml"), 'env = "dev"\n');
+        await writeConfig(join(base_dir, "config.toml"), 'env = "dev"\n');
 
         const ACalls = defineComponentCalls({
             id: "a",
@@ -114,7 +119,7 @@ describe("@jiminp/peranto configuration", () => {
                 components: [AComponent],
                 config: schema({env: "string"}),
             }),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
@@ -124,7 +129,7 @@ describe("@jiminp/peranto configuration", () => {
     });
 
     it("makes config available in component start hooks", async () => {
-        await writeFile(join(config_dir, "counter.toml"), 'initial = 42\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 42\n');
 
         let start_config_value: number | undefined;
         const CounterCalls = defineComponentCalls({
@@ -150,7 +155,7 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [CounterComponent]}),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
@@ -180,7 +185,7 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [CounterComponent]}),
-            {config_dir},
+            {base_dir},
         );
 
         await assert.rejects(
@@ -194,7 +199,7 @@ describe("@jiminp/peranto configuration", () => {
     });
 
     it("throws ConfigValidationError when config fails schema validation", async () => {
-        await writeFile(join(config_dir, "counter.toml"), 'initial = "not a number"\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = "not a number"\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -216,7 +221,7 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [CounterComponent]}),
-            {config_dir},
+            {base_dir},
         );
 
         await assert.rejects(
@@ -250,7 +255,7 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [CounterComponent]}),
-            {config_dir},
+            {base_dir},
         );
 
         await assert.rejects(() => app.start(), ConfigFileError);
@@ -265,7 +270,7 @@ describe("@jiminp/peranto configuration", () => {
     });
 
     it("reloads all config with reloadConfig", async () => {
-        await writeFile(join(config_dir, "counter.toml"), 'initial = 10\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -287,13 +292,13 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [CounterComponent]}),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 10});
 
-        await writeFile(join(config_dir, "counter.toml"), 'initial = 99\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 99\n');
         await app.reloadConfig();
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 99});
@@ -302,7 +307,7 @@ describe("@jiminp/peranto configuration", () => {
     });
 
     it("rejects reloadConfig on validation failure and preserves old config", async () => {
-        await writeFile(join(config_dir, "counter.toml"), 'initial = 10\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -324,11 +329,11 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [CounterComponent]}),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
-        await writeFile(join(config_dir, "counter.toml"), 'initial = "bad"\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = "bad"\n');
         await assert.rejects(() => app.reloadConfig(), ConfigValidationError);
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 10});
@@ -337,8 +342,8 @@ describe("@jiminp/peranto configuration", () => {
     });
 
     it("calls onConfigReload hooks in topological order", async () => {
-        await writeFile(join(config_dir, "a.toml"), 'value = 1\n');
-        await writeFile(join(config_dir, "b.toml"), 'value = 2\n');
+        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 1\n');
+        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 2\n');
 
         const reload_order: string[] = [];
 
@@ -374,12 +379,12 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [BComponent, AComponent]}),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
-        await writeFile(join(config_dir, "a.toml"), 'value = 10\n');
-        await writeFile(join(config_dir, "b.toml"), 'value = 20\n');
+        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 10\n');
+        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 20\n');
         await app.reloadConfig();
 
         assert.deepStrictEqual(reload_order, ["a", "b"]);
@@ -401,15 +406,15 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [AComponent]}),
-            {config_dir},
+            {base_dir},
         );
 
         await assert.rejects(() => app.reloadConfig(), LifecycleStateError);
     });
 
     it("reloads a single component config with reloadComponentConfig", async () => {
-        await writeFile(join(config_dir, "a.toml"), 'value = 1\n');
-        await writeFile(join(config_dir, "b.toml"), 'value = 2\n');
+        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 1\n');
+        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 2\n');
 
         const ACalls = defineComponentCalls({
             id: "a",
@@ -437,11 +442,11 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [AComponent, BComponent]}),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
-        await writeFile(join(config_dir, "a.toml"), 'value = 99\n');
+        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 99\n');
         await app.reloadComponentConfig("a");
 
         assert.deepStrictEqual(await app.call(ACalls.calls.run, {}), {count: 99});
@@ -451,8 +456,8 @@ describe("@jiminp/peranto configuration", () => {
     });
 
     it("calls only the target component onConfigReload hook for reloadComponentConfig", async () => {
-        await writeFile(join(config_dir, "a.toml"), 'value = 1\n');
-        await writeFile(join(config_dir, "b.toml"), 'value = 2\n');
+        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 1\n');
+        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 2\n');
 
         const reload_calls: string[] = [];
 
@@ -484,11 +489,11 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [AComponent, BComponent]}),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
-        await writeFile(join(config_dir, "a.toml"), 'value = 99\n');
+        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 99\n');
         await app.reloadComponentConfig("a");
 
         assert.deepStrictEqual(reload_calls, ["a"]);
@@ -497,7 +502,7 @@ describe("@jiminp/peranto configuration", () => {
     });
 
     it("rejects reloadComponentConfig on validation failure and preserves old config", async () => {
-        await writeFile(join(config_dir, "counter.toml"), 'initial = 10\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -519,11 +524,11 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [CounterComponent]}),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
-        await writeFile(join(config_dir, "counter.toml"), 'initial = "bad"\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = "bad"\n');
         await assert.rejects(() => app.reloadComponentConfig("counter"), ConfigValidationError);
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 10});
@@ -546,7 +551,7 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [AComponent]}),
-            {config_dir},
+            {base_dir},
         );
 
         await assert.rejects(() => app.reloadComponentConfig("a"), LifecycleStateError);
@@ -566,7 +571,7 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [AComponent]}),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
@@ -576,7 +581,7 @@ describe("@jiminp/peranto configuration", () => {
     });
 
     it("transitions to failed when onConfigReload hook throws", async () => {
-        await writeFile(join(config_dir, "counter.toml"), 'initial = 10\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -601,19 +606,19 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [CounterComponent]}),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
-        await writeFile(join(config_dir, "counter.toml"), 'initial = 99\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 99\n');
         await assert.rejects(() => app.reloadConfig());
 
         await assert.rejects(() => app.reloadConfig(), LifecycleStateError);
     });
 
     it("calls application onConfigReload hook after all component hooks", async () => {
-        await writeFile(join(config_dir, "application.toml"), 'env = "dev"\n');
-        await writeFile(join(config_dir, "counter.toml"), 'initial = 10\n');
+        await writeConfig(join(base_dir, "config.toml"), 'env = "dev"\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const hook_order: string[] = [];
 
@@ -646,12 +651,12 @@ describe("@jiminp/peranto configuration", () => {
                     hook_order.push("application");
                 },
             }),
-            {config_dir},
+            {base_dir},
         );
         await app.start();
 
-        await writeFile(join(config_dir, "application.toml"), 'env = "prod"\n');
-        await writeFile(join(config_dir, "counter.toml"), 'initial = 99\n');
+        await writeConfig(join(base_dir, "config.toml"), 'env = "prod"\n');
+        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 99\n');
         await app.reloadConfig();
 
         assert.deepStrictEqual(hook_order, ["component", "application"]);
@@ -680,7 +685,7 @@ describe("@jiminp/peranto configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [CounterComponent]}),
-            {config_dir},
+            {base_dir},
         );
 
         try {

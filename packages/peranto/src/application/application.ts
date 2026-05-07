@@ -39,7 +39,7 @@ export type ApplicationDefinition<
 };
 
 export type ApplicationOptions = {
-    readonly config_dir?: string;
+    readonly base_dir?: string;
 };
 
 export type Application<
@@ -88,7 +88,7 @@ export function createApplication<
     const TAppConfig extends ConfigSchema | undefined = undefined,
 >(definition: ApplicationDefinition<TComponents, TAppConfig>, options?: ApplicationOptions): Application<TComponents, TAppConfig> {
     const lifecycle = createLifecycleMachine();
-    const config_dir = options?.config_dir ?? "config";
+    const base_dir = options?.base_dir ?? ".";
     const loggerFactory = definition.logger ?? consoleLoggerFactory;
 
     const ordered_components = validateAndSort(definition.components);
@@ -120,14 +120,14 @@ export function createApplication<
                 const config_loads: Promise<void>[] = [];
                 if(definition.config != null) {
                     config_loads.push(
-                        loadTomlConfig(join(config_dir, "application.toml"), definition.config)
+                        loadTomlConfig(join(base_dir, "config.toml"), definition.config)
                             .then((config) => { app_config = config; }),
                     );
                 }
                 for(const runtime of runtimes) {
                     if(runtime.component.config != null) {
                         config_loads.push(
-                            loadTomlConfig(join(config_dir, `${runtime.id}.toml`), runtime.component.config, runtime.id)
+                            loadTomlConfig(join(base_dir, runtime.id, "config.toml"), runtime.component.config, runtime.id)
                                 .then((config) => { runtime.config = config; }),
                         );
                     }
@@ -202,14 +202,14 @@ export function createApplication<
                 const config_loads: Promise<void>[] = [];
                 if(definition.config != null) {
                     config_loads.push(
-                        loadTomlConfig(join(config_dir, "application.toml"), definition.config)
+                        loadTomlConfig(join(base_dir, "config.toml"), definition.config)
                             .then((config) => { pending_app_config = config; }),
                     );
                 }
                 for(const runtime of runtimes) {
                     if(runtime.component.config != null) {
                         config_loads.push(
-                            loadTomlConfig(join(config_dir, `${runtime.id}.toml`), runtime.component.config, runtime.id)
+                            loadTomlConfig(join(base_dir, runtime.id, "config.toml"), runtime.component.config, runtime.id)
                                 .then((config) => { pending_component_configs.set(runtime, config); }),
                         );
                     }
@@ -264,7 +264,7 @@ export function createApplication<
             let pending_config: unknown;
             try {
                 pending_config = await loadTomlConfig(
-                    join(config_dir, `${runtime.id}.toml`),
+                    join(base_dir, runtime.id, "config.toml"),
                     runtime.component.config,
                     runtime.id,
                 );
