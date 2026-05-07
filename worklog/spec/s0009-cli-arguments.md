@@ -23,7 +23,7 @@ paths = ["packages/peranto/src/cli/**"]
 
 | Argument | Type | Default | Purpose |
 |----------|------|---------|---------|
-| `--config-dir` | string | `undefined` | Override config directory path |
+| `--base-dir` | string | `undefined` | Override base directory path |
 
 ## Constraints
 

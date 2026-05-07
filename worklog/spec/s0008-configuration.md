@@ -15,10 +15,10 @@ paths = ["packages/peranto/src/config/**"]
 
 ### Sources
 
-- Application configuration is loaded from a TOML file named `application.toml` within the config directory.
-- Component configuration is loaded from per-component TOML files named `{component_id}.toml` within the config directory.
-- The default config directory is `config/` relative to the working directory.
-- The config directory path may be overridden at application creation.
+- Application configuration is loaded from `config.toml` within the base directory.
+- Component configuration is loaded from `{component_id}/config.toml` within the base directory.
+- The default base directory is the working directory.
+- The base directory path may be overridden at application creation.
 
 ### Schema Declaration
 
@@ -43,7 +43,7 @@ paths = ["packages/peranto/src/config/**"]
 
 ### Reload
 
-- `reloadConfig` re-reads all config files from the config directory.
+- `reloadConfig` re-reads all config files from the base directory.
 - `reloadConfig` validates all files against declared schemas before applying changes.
 - If any validation fails during full reload, the reload is rejected, old config persists, and a configuration error is thrown.
 - On successful full validation, all config references are swapped.
