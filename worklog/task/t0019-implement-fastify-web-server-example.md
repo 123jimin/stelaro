@@ -1,7 +1,7 @@
 +++
 id = "t0019"
 title = "Implement Fastify web server example"
-status = "pending"
+status = "active"
 tags = ["examples", "fastify"]
 modifies = ["s0012"]
 blocked_by = []
