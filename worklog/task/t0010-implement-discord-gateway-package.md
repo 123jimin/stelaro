@@ -4,7 +4,7 @@ title = "Implement Discord gateway package"
 status = "pending"
 tags = ["gateway", "discord", "application", "examples"]
 modifies = ["s0001", "s0004", "s0014"]
-blocked_by = ["t0018"]
+blocked_by = []
 +++
 
 ## Scope

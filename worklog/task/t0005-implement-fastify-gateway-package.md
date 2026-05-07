@@ -4,7 +4,7 @@ title = "Implement Fastify gateway package"
 status = "pending"
 tags = ["gateway", "fastify", "examples"]
 modifies = ["s0011", "s0012", "s0016"]
-blocked_by = ["t0018", "t0019"]
+blocked_by = []
 +++
 
 ## Scope
