@@ -10,6 +10,36 @@ paths = ["packages/peranto-fastify/**"]
 - s0015: Gateways (Common)
 - s0012: Fastify Web Server Example
 
+## Types
+
+Types are shown erased to their widest form for readability. Implementations must be as narrow as possible — e.g. `call` accepts only references from the gateway's `uses` declarations, with input/output types inferred from the reference. Fastify types (`FastifyInstance`, `FastifyRequest`, `FastifyReply`, `RouteGenericInterface`, `RouteOptions`, `HTTPMethods`) are used directly from the `fastify` package — the gateway must not redefine them.
+
+```typescript
+type GatewayHandlerContext<Route extends RouteGenericInterface = RouteGenericInterface> = {
+    readonly request: FastifyRequest<Route>;
+    readonly reply: FastifyReply<Route>;
+    call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
+    redirect(url: string): void;
+};
+
+type GatewayRoute<Route extends RouteGenericInterface = RouteGenericInterface> =
+    & Omit<RouteOptions<Route>, "method" | "url" | "handler">
+    & {
+        readonly method: HTTPMethods;
+        readonly path: string;
+        handle(context: GatewayHandlerContext<Route>): Promisable<unknown>;
+    };
+
+type FastifyGatewayDefinition = {
+    readonly id: ComponentId;
+    readonly server: FastifyInstance;
+    readonly uses: readonly ComponentCalls[];
+    readonly routes: readonly GatewayRoute[];
+};
+
+function defineFastifyGateway(definition: FastifyGatewayDefinition): Component;
+```
+
 ## Behavior
 
 ### Gateway definition
@@ -22,7 +52,7 @@ paths = ["packages/peranto-fastify/**"]
 ### Route definitions
 
 - Each route specifies an HTTP method and path. `UNIMPLEMENTED`
-- Route definitions accept all standard Fastify route options and forward them without interpretation. These properties use Fastify's own types directly. `UNIMPLEMENTED`
+- Route definitions accept all standard Fastify route options and forward them without interpretation via `Omit<RouteOptions, "method" | "url" | "handler">`. `UNIMPLEMENTED`
 - Each route has a handler that receives the Fastify request and reply objects alongside Peranto-provided helpers. `UNIMPLEMENTED`
 
 ### Response helpers
