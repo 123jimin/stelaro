@@ -2,39 +2,46 @@
 id = "t0005"
 title = "Implement Fastify gateway package"
 status = "pending"
-tags = ["gateway", "fastify", "application", "examples"]
-modifies = ["s0001", "s0004", "s0011"]
+tags = ["gateway", "fastify", "examples"]
+modifies = ["s0011", "s0012", "s0016"]
 blocked_by = ["t0018", "t0019"]
 +++
 
 ## Scope
 
-- Define the approved Fastify gateway behavior needed by the web server example.
-- Specify how external HTTP requests bind to typed Peranto component calls.
-- Specify what gateway-specific request and response concepts belong in the Fastify package instead of the core package.
-- Decide how a Fastify gateway declaration participates in an application definition.
-- Implement the Fastify gateway package behavior.
-- Bind HTTP routes to typed Peranto component calls.
-- Validate request bodies with schemas where route definitions provide them.
-- Provide approved response helpers for HTTP route behavior.
-- Expose approved outbound HTTP-facing capabilities through typed gateway call APIs.
-- Update the web server example to use public Peranto and Fastify gateway APIs naturally.
-- Update affected specs with approved behavior.
+### Implementation
+
+- Implement `defineFastifyGateway` per s0016 types and behavior.
+- Define a component config schema for the server listen port.
+- Add `fastify` as a peer dependency to `peranto-fastify`.
+- Register routes on the Fastify instance during the component start hook and begin listening.
+- Close the Fastify server during the component stop hook.
+- Implement `GatewayHandlerContext`: typed `call` dispatch narrowed to `uses` declarations, `redirect` helper.
+- Forward all standard Fastify route options via `Omit<RouteOptions, "method" | "url" | "handler">` without interpretation.
+
+### Example update
+
+- Update `examples/fastify-web-server` to use config-based port instead of hardcoded `port: 3000` in the gateway definition.
+
+### Spec cleanup
+
+- Remove `UNIMPLEMENTED` markers from s0016 as behavior is implemented.
+- Retire s0011 (old design sketch, superseded by s0012).
 
 ## Out of Scope
 
 - Discord, command-line, or other non-HTTP gateway behavior.
-- A universal gateway abstraction beyond the minimal shared behavior already approved in existing specs.
-- Production deployment configuration.
-- Authentication, authorization, sessions, or database integrations unless separately specified.
-- Credentials, deployment settings, or environment-specific server configuration.
+- Gateway-level request body validation beyond what Fastify provides natively through forwarded route options.
+- Authentication, authorization, sessions, or database integrations.
+- Production deployment configuration, credentials, or environment-specific server configuration.
 
 ## Notes
 
-- The current web server example imports non-existent `peranto` and `peranto-fastify` packages as an API design sketch.
+- s0016 and the example (t0019) were designed together — the API surface is already validated by usage.
 - The core package must not take a Fastify runtime dependency.
-- If a dedicated Fastify gateway spec becomes necessary, add it during this task and update `modifies` accordingly.
+- Request body schema validation is handled by Fastify natively when consumers pass `schema` in route options — the gateway forwards it without interpretation.
 
 ## Dependencies
 
-- Depends on `t0018` for a stable application runtime.
+- `t0018`: Stable application runtime (done).
+- `t0019`: Fastify web server example driving the API design (done).
