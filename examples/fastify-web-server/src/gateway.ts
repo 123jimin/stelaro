@@ -22,10 +22,10 @@ export function createGateway(server: FastifyInstance) {
             {
                 method: "GET",
                 path: "/",
-                async handle({request, reply, call}) {
+                async handle({request, call, html}) {
                     const {threads} = await call(ThreadsCalls.calls.list, {});
                     const session_user = request.user as SessionUser | null;
-                    return reply.type("text/html").send(`
+                    return html(`
                         <header>
                             <h1>BBS</h1>
                             <nav>
@@ -54,8 +54,8 @@ export function createGateway(server: FastifyInstance) {
                 method: "GET",
                 path: "/threads/new",
                 preHandler: [requireAuth],
-                async handle({reply}) {
-                    return reply.type("text/html").send(`
+                async handle({html}) {
+                    return html(`
                         <h1>New Thread</h1>
                         <form method="post" action="/threads">
                             <label>Title<br><input type="text" name="title" required></label>
@@ -69,7 +69,7 @@ export function createGateway(server: FastifyInstance) {
             {
                 method: "GET",
                 path: "/threads/:thread_id",
-                async handle({request, reply, call}) {
+                async handle({request, reply, call, html}) {
                     const {thread_id} = request.params as {thread_id: string};
                     const thread = await call(ThreadsCalls.calls.get, {thread_id});
                     if(thread == null) {
@@ -79,7 +79,7 @@ export function createGateway(server: FastifyInstance) {
                     }
                     const {comments} = await call(CommentsCalls.calls.list_by_thread, {thread_id});
                     const session_user = request.user as SessionUser | null;
-                    return reply.type("text/html").send(`
+                    return html(`
                         <article>
                             <h1>${thread.title}</h1>
                             <p>${thread.body}</p>
@@ -150,8 +150,8 @@ export function createGateway(server: FastifyInstance) {
             {
                 method: "GET",
                 path: "/login",
-                async handle({reply}) {
-                    return reply.type("text/html").send(`
+                async handle({html}) {
+                    return html(`
                         <h1>Login</h1>
                         <section>
                             <nav>

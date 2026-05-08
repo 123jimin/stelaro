@@ -11,6 +11,7 @@ import type {Promisable} from "@jiminp/tooltool";
 import {type as schema} from "arktype";
 import type {
     FastifyInstance,
+    FastifyListenOptions,
     FastifyReply,
     FastifyRequest,
     HTTPMethods,
@@ -18,7 +19,7 @@ import type {
     RouteOptions,
 } from "fastify";
 
-const FastifyGatewayConfig = schema({port: "number"});
+const FastifyGatewayConfig = schema({"port": "number", "host?": "string"});
 
 export type GatewayHandlerContext<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
@@ -31,6 +32,7 @@ export type GatewayHandlerContext<
         input: CallInput<TCall>,
     ): Promise<CallOutput<TCall>>;
     redirect(url: string): void;
+    html(content: string): void;
 };
 
 export type GatewayRoute<
@@ -81,12 +83,19 @@ export function defineFastifyGateway<
                             redirect(url) {
                                 reply.redirect(url);
                             },
+                            html(content) {
+                                reply.type("text/html").send(content);
+                            },
                         });
                     },
                 });
             }
 
-            await definition.server.listen({port: context.config.port});
+            const listen_options: FastifyListenOptions = {port: context.config.port};
+            if(context.config.host != null) {
+                listen_options.host = context.config.host;
+            }
+            await definition.server.listen(listen_options);
         },
         async stop() {
             await definition.server.close();

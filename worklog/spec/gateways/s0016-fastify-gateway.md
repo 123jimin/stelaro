@@ -20,6 +20,7 @@ type GatewayHandlerContext<Route extends RouteGenericInterface = RouteGenericInt
     readonly reply: FastifyReply<Route>;
     call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
     redirect(url: string): void;
+    html(content: string): void;
 };
 
 type GatewayRoute<Route extends RouteGenericInterface = RouteGenericInterface> =
@@ -47,7 +48,7 @@ function defineFastifyGateway(definition: FastifyGatewayDefinition): Component;
 - A Fastify gateway is a Peranto component that bridges HTTP requests to component calls.
 - A gateway declares which component call surfaces it uses. The component dispatch function is typed exclusively from these declarations.
 - A gateway receives a Fastify instance and registers its routes on it. The gateway does not create its own instance.
-- Server listen port is read from component config.
+- Server listen port and optional host are read from component config.
 
 ### Route definitions
 
@@ -58,6 +59,7 @@ function defineFastifyGateway(definition: FastifyGatewayDefinition): Component;
 ### Response helpers
 
 - The redirect helper sends an HTTP redirect response.
+- The html helper sends an HTML response with the correct content type.
 
 ### Lifecycle
 
@@ -71,7 +73,7 @@ function defineFastifyGateway(definition: FastifyGatewayDefinition): Component;
 
 ## Anticipated Changes
 
-- An HTML response helper may be added if a common pattern emerges across examples.
+- Additional response helpers may be added if common patterns emerge across examples.
 
 ## Dangers
 
