@@ -1,4 +1,5 @@
-import {defineFastifyGateway} from "@jiminp/peranto-fastify";
+import {defineFastifyGateway, route} from "@jiminp/peranto-fastify";
+import {type as schema} from "arktype";
 import type {FastifyInstance} from "fastify";
 
 import {
@@ -66,18 +67,18 @@ export function createGateway(server: FastifyInstance) {
                     `);
                 },
             },
-            {
+            route({
                 method: "GET",
                 path: "/threads/:thread_id",
-                async handle({request, reply, call, html}) {
-                    const {thread_id} = request.params as {thread_id: string};
-                    const thread = await call(ThreadsCalls.calls.get, {thread_id});
+                params: schema({"thread_id": "string"}),
+                async handle({request, reply, params, call, html}) {
+                    const thread = await call(ThreadsCalls.calls.get, {thread_id: params.thread_id});
                     if(thread == null) {
                         return reply.status(404).type("text/html").send(
                             `<h1>Thread not found</h1><nav><a href="/">Back</a></nav>`,
                         );
                     }
-                    const {comments} = await call(CommentsCalls.calls.list_by_thread, {thread_id});
+                    const {comments} = await call(CommentsCalls.calls.list_by_thread, {thread_id: params.thread_id});
                     const session_user = request.user as SessionUser | null;
                     return html(`
                         <article>
@@ -95,7 +96,7 @@ export function createGateway(server: FastifyInstance) {
                                 </article>
                             `).join("")}
                             ${session_user != null
-                                    ? `<form method="post" action="/threads/${thread_id}/comments">
+                                    ? `<form method="post" action="/threads/${params.thread_id}/comments">
                                     <label>Comment<br><textarea name="body" required></textarea></label>
                                     <button type="submit">Post Comment</button>
                                 </form>`
@@ -105,48 +106,48 @@ export function createGateway(server: FastifyInstance) {
                         <nav><a href="/">Back to threads</a></nav>
                     `);
                 },
-            },
-            {
+            }),
+            route({
                 method: "POST",
                 path: "/threads",
                 preHandler: [requireAuth],
-                async handle({request, call, redirect}) {
+                body: schema({"title": "string", "body": "string"}),
+                async handle({request, body: form, call, redirect}) {
                     const session_user = request.user as SessionUser;
                     const {user_id} = await call(UsersCalls.calls.resolve, {
                         provider: session_user.provider,
                         provider_account_id: session_user.provider_account_id,
                         display_name: session_user.display_name,
                     });
-                    const {title, body} = request.body as {title: string; body: string};
                     const thread = await call(ThreadsCalls.calls.create, {
                         author_user_id: user_id,
-                        title,
-                        body,
+                        title: form.title,
+                        body: form.body,
                     });
                     return redirect(`/threads/${thread.thread_id}`);
                 },
-            },
-            {
+            }),
+            route({
                 method: "POST",
                 path: "/threads/:thread_id/comments",
                 preHandler: [requireAuth],
-                async handle({request, call, redirect}) {
+                params: schema({"thread_id": "string"}),
+                body: schema({"body": "string"}),
+                async handle({request, params, body: form, call, redirect}) {
                     const session_user = request.user as SessionUser;
                     const {user_id} = await call(UsersCalls.calls.resolve, {
                         provider: session_user.provider,
                         provider_account_id: session_user.provider_account_id,
                         display_name: session_user.display_name,
                     });
-                    const {thread_id} = request.params as {thread_id: string};
-                    const {body} = request.body as {body: string};
                     await call(CommentsCalls.calls.create, {
-                        thread_id,
+                        thread_id: params.thread_id,
                         author_user_id: user_id,
-                        body,
+                        body: form.body,
                     });
-                    return redirect(`/threads/${thread_id}`);
+                    return redirect(`/threads/${params.thread_id}`);
                 },
-            },
+            }),
             {
                 method: "GET",
                 path: "/login",
@@ -200,25 +201,25 @@ export function createGateway(server: FastifyInstance) {
                     return redirect("/");
                 },
             },
-            {
+            route({
                 method: "POST",
                 path: "/login/id",
-                async handle({request, call, redirect}) {
-                    const {name} = request.body as {name: string};
+                body: schema({"name": "string"}),
+                async handle({request, body: form, call, redirect}) {
                     const session_user: SessionUser = {
                         provider: "id",
-                        provider_account_id: name,
-                        display_name: name,
+                        provider_account_id: form.name,
+                        display_name: form.name,
                     };
                     await request.login(session_user);
                     await call(UsersCalls.calls.resolve, {
                         provider: "id",
-                        provider_account_id: name,
-                        display_name: name,
+                        provider_account_id: form.name,
+                        display_name: form.name,
                     });
                     return redirect("/");
                 },
-            },
+            }),
             {
                 method: "POST",
                 path: "/logout",
