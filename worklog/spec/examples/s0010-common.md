@@ -7,7 +7,6 @@ paths = ["examples/**"]
 
 ## Related Specs
 
-- s0011: Web Server Example
 - s0012: Fastify Web Server Example
 - s0013: Mini Stock Market Example
 - s0014: Discord Chatbot Example

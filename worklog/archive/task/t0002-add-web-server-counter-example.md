@@ -3,7 +3,7 @@ id = "t0002"
 title = "Add web server counter example"
 status = "done"
 tags = ["examples"]
-modifies = ["s0011"]
+modifies = []
 blocked_by = []
 +++
 

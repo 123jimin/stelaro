@@ -3,7 +3,7 @@ id = "t0001"
 title = "Create minimal web server example"
 status = "done"
 tags = ["examples"]
-modifies = ["s0011"]
+modifies = []
 blocked_by = []
 +++
 

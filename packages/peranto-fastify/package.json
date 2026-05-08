@@ -35,6 +35,14 @@
   },
   "homepage": "https://github.com/123jimin/peranto/tree/main/packages/peranto-fastify",
   "dependencies": {
-    "@jiminp/peranto": "workspace:*"
+    "@jiminp/peranto": "workspace:*",
+    "@jiminp/tooltool": "^0.3.2",
+    "arktype": "^2.2.0"
+  },
+  "peerDependencies": {
+    "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "fastify": "^5.3.3"
   }
 }

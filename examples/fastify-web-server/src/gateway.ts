@@ -17,7 +17,6 @@ export function createGateway(server: FastifyInstance) {
     return defineFastifyGateway({
         id: "http",
         server,
-        port: 3000,
         uses: [UsersCalls, ThreadsCalls, CommentsCalls],
         routes: [
             {

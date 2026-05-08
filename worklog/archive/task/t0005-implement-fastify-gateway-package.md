@@ -1,9 +1,9 @@
 +++
 id = "t0005"
 title = "Implement Fastify gateway package"
-status = "pending"
+status = "done"
 tags = ["gateway", "fastify", "examples"]
-modifies = ["s0011", "s0012", "s0016"]
+modifies = ["s0012", "s0016"]
 blocked_by = []
 +++
 

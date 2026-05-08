@@ -44,26 +44,25 @@ function defineFastifyGateway(definition: FastifyGatewayDefinition): Component;
 
 ### Gateway definition
 
-- A Fastify gateway is a Peranto component that bridges HTTP requests to component calls. `UNIMPLEMENTED`
-- A gateway declares which component call surfaces it uses. The component dispatch function is typed exclusively from these declarations. `UNIMPLEMENTED`
-- A gateway receives a Fastify instance and registers its routes on it. The gateway does not create its own instance. `UNIMPLEMENTED`
-- Server listen port is read from component config. `UNIMPLEMENTED`
+- A Fastify gateway is a Peranto component that bridges HTTP requests to component calls.
+- A gateway declares which component call surfaces it uses. The component dispatch function is typed exclusively from these declarations.
+- A gateway receives a Fastify instance and registers its routes on it. The gateway does not create its own instance.
+- Server listen port is read from component config.
 
 ### Route definitions
 
-- Each route specifies an HTTP method and path. `UNIMPLEMENTED`
-- Route definitions accept all standard Fastify route options and forward them without interpretation via `Omit<RouteOptions, "method" | "url" | "handler">`. `UNIMPLEMENTED`
-- Each route has a handler that receives the Fastify request and reply objects alongside Peranto-provided helpers. `UNIMPLEMENTED`
+- Each route specifies an HTTP method and path.
+- Route definitions accept all standard Fastify route options and forward them without interpretation via `Omit<RouteOptions, "method" | "url" | "handler">`.
+- Each route has a handler that receives the Fastify request and reply objects alongside Peranto-provided helpers.
 
 ### Response helpers
 
-- The redirect helper sends an HTTP redirect response. `UNIMPLEMENTED`
+- The redirect helper sends an HTTP redirect response.
 
 ### Lifecycle
 
-- The gateway registers routes during its component start hook and begins listening. `UNIMPLEMENTED`
-- The gateway closes the server during its component stop hook. `UNIMPLEMENTED`
-
+- The gateway registers routes during its component start hook and begins listening.
+- The gateway closes the server during its component stop hook.
 ## Constraints
 
 - The gateway must not define types that parallel Fastify's own types for requests, replies, route options, or hooks.
