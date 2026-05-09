@@ -4,11 +4,11 @@ import {describe, it} from "node:test";
 import {assertEqualType} from "@jiminp/tooltool";
 import {type as schema} from "arktype";
 
+import {InvalidComponentIdError} from "../error.ts";
 import {
     consoleLoggerFactory,
     type Logger,
 } from "../index.ts";
-import {InvalidComponentIdError} from "../error.ts";
 import {
     type AnyComponent,
     type AnyComponentContext,

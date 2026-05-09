@@ -1,5 +1,5 @@
-import {InvalidComponentIdError, isValidComponentId} from "../error.ts";
 import type {ConfigSchema} from "../config/types.ts";
+import {InvalidComponentIdError, isValidComponentId} from "../error.ts";
 import type {
     AnyComponentCallReference,
     AnyComponentCalls,
