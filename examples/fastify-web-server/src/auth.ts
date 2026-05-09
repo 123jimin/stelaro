@@ -1,8 +1,10 @@
-import fastifyPassport from "@fastify/passport";
+import {Authenticator} from "@fastify/passport";
 import fastifySecureSession from "@fastify/secure-session";
 import type {FastifyInstance, FastifyReply, FastifyRequest} from "fastify";
 import {Strategy as DiscordStrategy} from "passport-discord";
 import {Strategy as GoogleStrategy} from "passport-google-oauth20";
+
+const fastifyPassport = new Authenticator();
 
 export type SessionUser = {
     provider: "google" | "discord" | "id";
@@ -58,19 +60,26 @@ export async function registerAuth(server: FastifyInstance): Promise<void> {
     ));
 }
 
-export const authenticateGoogle = fastifyPassport.authenticate("google", {
-    scope: ["profile", "email"],
-});
+const _authenticateGoogle = fastifyPassport.authenticate("google", {scope: ["profile", "email"]});
+const _authenticateGoogleCallback = fastifyPassport.authenticate("google", {failureRedirect: "/login"});
+const _authenticateDiscord = fastifyPassport.authenticate("discord");
+const _authenticateDiscordCallback = fastifyPassport.authenticate("discord", {failureRedirect: "/login"});
 
-export const authenticateGoogleCallback = fastifyPassport.authenticate("google", {
-    failureRedirect: "/login",
-});
+export async function authenticateGoogle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await _authenticateGoogle.call(request.server, request, reply);
+}
 
-export const authenticateDiscord = fastifyPassport.authenticate("discord");
+export async function authenticateGoogleCallback(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await _authenticateGoogleCallback.call(request.server, request, reply);
+}
 
-export const authenticateDiscordCallback = fastifyPassport.authenticate("discord", {
-    failureRedirect: "/login",
-});
+export async function authenticateDiscord(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await _authenticateDiscord.call(request.server, request, reply);
+}
+
+export async function authenticateDiscordCallback(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await _authenticateDiscordCallback.call(request.server, request, reply);
+}
 
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     if(request.user == null) {
