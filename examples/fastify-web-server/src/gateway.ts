@@ -8,7 +8,6 @@ import {
     authenticateGoogle,
     authenticateGoogleCallback,
     requireAuth,
-    type SessionUser,
 } from "./auth.ts";
 import {CommentsCalls} from "./comments.ts";
 import {ThreadsCalls} from "./threads.ts";
@@ -25,7 +24,7 @@ export function createGateway(server: FastifyInstance) {
                 path: "/",
                 async handle({request, call, html}) {
                     const {threads} = await call(ThreadsCalls.calls.list, {});
-                    const session_user = request.user as SessionUser | null;
+                    const session_user = request.user ?? null;
                     return html(`
                         <header>
                             <h1>BBS</h1>
@@ -79,7 +78,7 @@ export function createGateway(server: FastifyInstance) {
                         );
                     }
                     const {comments} = await call(CommentsCalls.calls.list_by_thread, {thread_id: params.thread_id});
-                    const session_user = request.user as SessionUser | null;
+                    const session_user = request.user ?? null;
                     return html(`
                         <article>
                             <h1>${thread.title}</h1>
@@ -113,11 +112,11 @@ export function createGateway(server: FastifyInstance) {
                 preHandler: [requireAuth],
                 body: schema({title: "string", body: "string"}),
                 async handle({request, body: form, call, redirect}) {
-                    const session_user = request.user as SessionUser;
+                    if(request.user == null) return;
                     const {user_id} = await call(UsersCalls.calls.resolve, {
-                        provider: session_user.provider,
-                        provider_account_id: session_user.provider_account_id,
-                        display_name: session_user.display_name,
+                        provider: request.user.provider,
+                        provider_account_id: request.user.provider_account_id,
+                        display_name: request.user.display_name,
                     });
                     const thread = await call(ThreadsCalls.calls.create, {
                         author_user_id: user_id,
@@ -134,11 +133,11 @@ export function createGateway(server: FastifyInstance) {
                 params: schema({thread_id: "string"}),
                 body: schema({body: "string"}),
                 async handle({request, params, body: form, call, redirect}) {
-                    const session_user = request.user as SessionUser;
+                    if(request.user == null) return;
                     const {user_id} = await call(UsersCalls.calls.resolve, {
-                        provider: session_user.provider,
-                        provider_account_id: session_user.provider_account_id,
-                        display_name: session_user.display_name,
+                        provider: request.user.provider,
+                        provider_account_id: request.user.provider_account_id,
+                        display_name: request.user.display_name,
                     });
                     await call(CommentsCalls.calls.create, {
                         thread_id: params.thread_id,
@@ -206,12 +205,11 @@ export function createGateway(server: FastifyInstance) {
                 path: "/login/id",
                 body: schema({name: "string"}),
                 async handle({request, body: form, call, redirect}) {
-                    const session_user: SessionUser = {
+                    await request.login({
                         provider: "id",
                         provider_account_id: form.name,
                         display_name: form.name,
-                    };
-                    await request.login(session_user);
+                    });
                     await call(UsersCalls.calls.resolve, {
                         provider: "id",
                         provider_account_id: form.name,

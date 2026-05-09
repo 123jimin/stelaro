@@ -12,6 +12,10 @@ export type SessionUser = {
     display_name: string;
 };
 
+declare module "fastify" {
+    interface PassportUser extends SessionUser {}
+}
+
 export async function registerAuth(server: FastifyInstance): Promise<void> {
     await server.register(fastifySecureSession, {
         key: Buffer.alloc(32),
