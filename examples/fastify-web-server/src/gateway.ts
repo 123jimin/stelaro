@@ -70,7 +70,7 @@ export function createGateway(server: FastifyInstance) {
             route({
                 method: "GET",
                 path: "/threads/:thread_id",
-                params: schema({"thread_id": "string"}),
+                params: schema({thread_id: "string"}),
                 async handle({request, reply, params, call, html}) {
                     const thread = await call(ThreadsCalls.calls.get, {thread_id: params.thread_id});
                     if(thread == null) {
@@ -111,7 +111,7 @@ export function createGateway(server: FastifyInstance) {
                 method: "POST",
                 path: "/threads",
                 preHandler: [requireAuth],
-                body: schema({"title": "string", "body": "string"}),
+                body: schema({title: "string", body: "string"}),
                 async handle({request, body: form, call, redirect}) {
                     const session_user = request.user as SessionUser;
                     const {user_id} = await call(UsersCalls.calls.resolve, {
@@ -131,8 +131,8 @@ export function createGateway(server: FastifyInstance) {
                 method: "POST",
                 path: "/threads/:thread_id/comments",
                 preHandler: [requireAuth],
-                params: schema({"thread_id": "string"}),
-                body: schema({"body": "string"}),
+                params: schema({thread_id: "string"}),
+                body: schema({body: "string"}),
                 async handle({request, params, body: form, call, redirect}) {
                     const session_user = request.user as SessionUser;
                     const {user_id} = await call(UsersCalls.calls.resolve, {
@@ -204,7 +204,7 @@ export function createGateway(server: FastifyInstance) {
             route({
                 method: "POST",
                 path: "/login/id",
-                body: schema({"name": "string"}),
+                body: schema({name: "string"}),
                 async handle({request, body: form, call, redirect}) {
                     const session_user: SessionUser = {
                         provider: "id",
