@@ -1,7 +1,10 @@
 import {defineComponent, defineComponentCalls} from "@jiminp/peranto";
+import {defineFastifyRoutes, route} from "@jiminp/peranto-fastify";
 import {type as schema} from "arktype";
 
+import {requireAuth} from "./auth.ts";
 import {appendJsonl, readJsonl} from "./storage.ts";
+import {UsersCalls} from "./users.ts";
 
 const DATA_PATH = "data/comments.jsonl";
 
@@ -61,4 +64,31 @@ export const CommentsComponent = defineComponent({
             },
         },
     },
+});
+
+export const CommentsRoutes = defineFastifyRoutes({
+    uses: [CommentsCalls, UsersCalls],
+    routes: [
+        route({
+            method: "POST",
+            path: "/threads/:thread_id/comments",
+            preHandler: [requireAuth],
+            params: schema({thread_id: "string"}),
+            body: schema({body: "string"}),
+            async handle({request, params, body: form, call, redirect}) {
+                if(request.user == null) return;
+                const {user_id} = await call(UsersCalls.calls.resolve, {
+                    provider: request.user.provider,
+                    provider_account_id: request.user.provider_account_id,
+                    display_name: request.user.display_name,
+                });
+                await call(CommentsCalls.calls.create, {
+                    thread_id: params.thread_id,
+                    author_user_id: user_id,
+                    body: form.body,
+                });
+                return redirect(`/threads/${params.thread_id}`);
+            },
+        }),
+    ],
 });

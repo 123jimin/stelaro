@@ -37,14 +37,21 @@ type GatewayRoute =
         handle(context: GatewayHandlerContext): Promisable<unknown>;
     };
 
-type FastifyGatewayDefinition = {
-    readonly id: ComponentId;
-    readonly server: FastifyInstance;
+type FastifyRouteGroup = {
     readonly uses: readonly ComponentCalls[];
     readonly routes: readonly GatewayRoute[];
 };
 
+type FastifyGatewayDefinition = {
+    readonly id: ComponentId;
+    readonly server: FastifyInstance;
+    readonly uses: readonly ComponentCalls[];
+    readonly mounts?: readonly FastifyRouteGroup[];
+    readonly routes?: readonly GatewayRoute[];
+};
+
 function defineFastifyGateway(definition: FastifyGatewayDefinition): Component;
+function defineFastifyRoutes(definition: FastifyRouteGroup): FastifyRouteGroup;
 function route(definition: GatewayRoute): GatewayRoute;
 ```
 
@@ -53,9 +60,15 @@ function route(definition: GatewayRoute): GatewayRoute;
 ### Gateway definition
 
 - A Fastify gateway is a Peranto component that bridges HTTP requests to component calls.
-- A gateway declares which component call surfaces it uses. The component dispatch function is typed exclusively from these declarations.
 - A gateway receives a Fastify instance and registers its routes on it. The gateway does not create its own instance.
 - Server listen port and optional host are read from component config.
+
+### Mount model
+
+- A gateway composes route groups contributed by component code via `defineFastifyRoutes()`. Each route group declares its own `uses` and route list.
+- The gateway's effective `uses` is the merge of its own `uses` and all mounts' `uses`, deduplicated by reference.
+- The gateway may also declare its own `routes` for gateway-level concerns (health checks, static pages) that do not belong to any component.
+- The component dispatch function is typed exclusively from the effective `uses` declarations.
 
 ### Route definitions
 

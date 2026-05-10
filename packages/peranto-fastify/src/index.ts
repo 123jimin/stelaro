@@ -61,13 +61,22 @@ export type GatewayRoute<
     >): Promisable<unknown>;
 };
 
+export type FastifyRouteGroup<
+    TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
+> = {
+    readonly uses: TUses;
+    readonly routes: readonly GatewayRoute<TUses>[];
+};
+
 export type FastifyGatewayDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
+    TContributions extends readonly FastifyRouteGroup[] = readonly FastifyRouteGroup[],
 > = {
     readonly id: ComponentId;
     readonly server: FastifyInstance;
     readonly uses: TUses;
-    readonly routes: readonly GatewayRoute<TUses>[];
+    readonly mounts?: TContributions;
+    readonly routes?: readonly GatewayRoute<TUses>[];
 };
 
 export function route<
@@ -78,21 +87,37 @@ export function route<
     return definition;
 }
 
+export function defineFastifyRoutes<
+    const TUses extends readonly AnyComponentCalls[],
+>(definition: FastifyRouteGroup<TUses>): FastifyRouteGroup<TUses> {
+    return definition;
+}
+
 export function defineFastifyGateway<
     const TUses extends readonly AnyComponentCalls[],
->(definition: FastifyGatewayDefinition<TUses>) {
+    const TContributions extends readonly FastifyRouteGroup[],
+>(definition: FastifyGatewayDefinition<TUses, TContributions>) {
     const gateway_calls = defineComponentCalls({
         id: definition.id,
         calls: {},
     });
 
+    const all_uses = [...new Set([
+        ...definition.uses,
+        ...(definition.mounts ?? []).flatMap((c) => c.uses),
+    ])];
+    const all_routes = [
+        ...(definition.routes ?? []),
+        ...(definition.mounts ?? []).flatMap((c) => c.routes),
+    ];
+
     return defineComponent({
         calls: gateway_calls,
-        uses: definition.uses,
+        uses: all_uses,
         config: FastifyGatewayConfig,
         handlers: {},
         async start(context) {
-            for(const route_def of definition.routes) {
+            for(const route_def of all_routes) {
                 const {
                     method, path, handle,
                     params: params_schema,

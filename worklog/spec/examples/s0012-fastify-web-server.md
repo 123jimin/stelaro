@@ -43,7 +43,8 @@ paths = ["examples/fastify-web-server/**"]
 - `users` resolves an authenticated identity (provider plus provider-account-id) to a user record, creating a record on first sight. `UNIMPLEMENTED`
 - `threads` provides create, list, and get-by-id behavior for threads. `UNIMPLEMENTED`
 - `comments` provides create and list-by-thread behavior for comments. `UNIMPLEMENTED`
-- A Fastify HTTP gateway exposes the routes above and dispatches to component calls. `UNIMPLEMENTED`
+- A Fastify HTTP gateway composes route group mounts from component files. The gateway file is a thin shell that lists mounts. `UNIMPLEMENTED`
+- Route groups are co-located with the component they primarily serve. Thread-related routes (including the index page) live in the threads module. Comment routes live in the comments module. Auth routes live in the auth module. `UNIMPLEMENTED`
 - Gateway route handlers receive the Fastify request and reply objects alongside Peranto helpers. Gateway route definitions accept standard Fastify route options and forward them transparently. `UNIMPLEMENTED`
 - Authentication and session middleware are configured at the Fastify application level, outside the gateway definition. Route handlers access auth state through the Fastify request object. `UNIMPLEMENTED`
 

@@ -15,7 +15,8 @@ blocked_by = ["t0022"]
 
 ### Command routing
 
-- `defineDiscordGateway()` accepts declarative command definitions (slash commands and context menu commands) and registers them with the Discord API on start.
+- `defineDiscordGateway()` composes mounts from `defineDiscordRoutes()` (per t0023 mount model). Each mount declares its own `uses` and command/event/interaction definitions.
+- The gateway registers all contributed commands with the Discord API on start.
 - Command definitions accept ArkType schemas for option validation (parallel to Fastify route `params`/`body`/`querystring`). Validated options are passed to the handler as a typed object.
 - Autocomplete handlers are co-located with their command definition. The gateway extracts the focused option and passes it to the handler.
 
@@ -56,5 +57,6 @@ blocked_by = ["t0022"]
 
 ## Dependencies
 
+- Depends on `t0023` for the mount model (established on Fastify side).
 - Depends on `t0022` for the API surface design (example as brainstorm board).
 - Depends on `t0018` for a stable application runtime.

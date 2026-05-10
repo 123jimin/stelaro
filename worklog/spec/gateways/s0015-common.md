@@ -16,6 +16,14 @@ paths = []
 - A gateway exposes the raw underlying instance or client to route/event handlers. Handlers interact with the native API directly rather than through gateway abstractions.
 - Gateway API surfaces are designed through example projects first, then extracted into implementations.
 
+### Mount model
+
+- Route, command, and event handler definitions are co-located with the component code they serve, not centralized in the gateway file.
+- Components export **route groups** (gateway-specific binding sets) that declare their own `uses` and handler definitions.
+- The gateway composes route groups (mounts) into a single gateway component. The gateway's `uses` is the merge of its own `uses` and all mounts' `uses`, deduplicated by reference.
+- The gateway may declare its own `uses` and handlers for gateway-level concerns that do not belong to any component.
+- Route groups are grouped by primary domain: a route that calls multiple components belongs to the route group of the primary resource it serves.
+
 ## Constraints
 
 - Gateways must not redefine types or abstractions that the underlying platform already provides. Use the platform's own types directly.

@@ -4,7 +4,7 @@ title = "Implement Discord quote board example"
 status = "pending"
 tags = ["examples", "gateway", "discord"]
 modifies = ["s0014", "s0017"]
-blocked_by = []
+blocked_by = ["t0023"]
 +++
 
 ## Problem
@@ -52,6 +52,7 @@ s0014 (Discord Chatbot Example) is an empty shell, and s0017 (Discord Gateway) i
 
 ### Gateway API patterns the example must surface
 
+- **Mount model** (per t0023): commands, events, and interactions are defined in component files via `defineDiscordRoutes()`, not in the central gateway file. The gateway composes mounts.
 - Declarative command definitions with ArkType option schemas (parallel to Fastify route schemas).
 - Declarative event handler registration.
 - Persistent interaction routing by custom ID pattern.
@@ -69,4 +70,4 @@ s0014 (Discord Chatbot Example) is an empty shell, and s0017 (Discord Gateway) i
 
 ## Dependencies
 
-- None. This task produces a non-compiling API sketch that informs t0010.
+- Depends on `t0023` for the mount model established on the Fastify side. The Discord example follows the same philosophy.
