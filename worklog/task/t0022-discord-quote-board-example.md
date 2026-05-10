@@ -4,7 +4,7 @@ title = "Implement Discord quote board example"
 status = "pending"
 tags = ["examples", "gateway", "discord"]
 modifies = ["s0014", "s0017"]
-blocked_by = ["t0023"]
+blocked_by = []
 +++
 
 ## Problem
