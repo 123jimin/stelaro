@@ -1,0 +1,4 @@
+board_channel_id = "your-board-channel-id-here"
+reaction_emoji = "⭐"
+reaction_threshold = 5
+max_quotes_per_user = 100

@@ -1,0 +1,5 @@
+token = "your-bot-token-here"
+application_id = "your-application-id-here"
+
+# Uncomment for dev-only command registration (instant, guild-scoped):
+# guild_id = "your-dev-guild-id-here"

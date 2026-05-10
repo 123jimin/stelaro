@@ -1,7 +1,7 @@
 +++
 id = "t0022"
 title = "Implement Discord quote board example"
-status = "pending"
+status = "done"
 tags = ["examples", "gateway", "discord"]
 modifies = ["s0014", "s0017"]
 blocked_by = []
