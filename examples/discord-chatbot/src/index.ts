@@ -1,7 +1,7 @@
 import {createApplication, defineApplication} from "@jiminp/peranto";
 
 import {DiscordGateway} from "./gateway.ts";
-import {QuotesComponent} from "./quotes.ts";
+import {QuotesComponent} from "./quotes/index.ts";
 import {UsersComponent} from "./users.ts";
 
 const QuoteBoardApp = defineApplication({

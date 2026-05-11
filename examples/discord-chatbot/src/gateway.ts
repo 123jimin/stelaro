@@ -1,7 +1,7 @@
 import {defineDiscordGateway} from "@jiminp/peranto-discord";
 import {Client, GatewayIntentBits} from "discord.js";
 
-import {QuotesMounts} from "./quotes.ts";
+import {QuotesMounts} from "./quotes/index.ts";
 
 const client = new Client({
     intents: [
