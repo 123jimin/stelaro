@@ -1,7 +1,7 @@
 import {defineComponent} from "@jiminp/peranto";
 import {type as schema} from "arktype";
 
-import {appendJsonl, readJsonl} from "../storage.ts";
+import {appendJsonl, readJsonl, writeJsonl} from "../storage.ts";
 import {type QuoteRecord, QuotesCalls} from "./calls.ts";
 
 const DATA_PATH = "data/quotes.jsonl";
@@ -40,10 +40,8 @@ export const QuotesComponent = defineComponent({
                 if(quote == null || quote.saved_by_discord_user_id !== input.deleted_by_discord_user_id) {
                     return {deleted: false};
                 }
-                // Simplified: rewrite file without the deleted quote
-                const {writeFile} = await import("node:fs/promises");
                 const remaining = quotes.filter((q) => q.quote_id !== input.quote_id);
-                await writeFile(DATA_PATH, remaining.map((q) => JSON.stringify(q)).join("\n") + "\n", "utf-8");
+                await writeJsonl(DATA_PATH, remaining);
                 return {deleted: true};
             },
         },

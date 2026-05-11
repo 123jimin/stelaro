@@ -16,7 +16,7 @@ import {
 } from "discord.js";
 
 import {UsersCalls} from "../users.ts";
-import {type QuoteSchema, QuotesCalls} from "./calls.ts";
+import {type QuoteRecord, type QuoteSchema, QuotesCalls} from "./calls.ts";
 
 function buildQuoteEmbed(quote: typeof QuoteSchema.infer) {
     return new EmbedBuilder()
@@ -32,6 +32,11 @@ function buildDeleteRow(quote_id: string) {
             .setLabel("Delete")
             .setStyle(ButtonStyle.Danger),
     );
+}
+
+function formatQuoteList(quotes: QuoteRecord[]): string {
+    if(quotes.length === 0) return "No quotes on this page.";
+    return quotes.map((q) => `> ${q.content}\n— ${q.author_display_name}`).join("\n\n");
 }
 
 function buildPaginationRow(user_filter: string, page: number, total_pages: number) {
@@ -105,9 +110,7 @@ export const QuotesMounts = defineDiscordMounts({
                     }
                     const embed = new EmbedBuilder()
                         .setTitle(`Search results for "${query}"`)
-                        .setDescription(
-                            quotes.map((q) => `> ${q.content}\n— ${q.author_display_name}`).join("\n\n"),
-                        );
+                        .setDescription(formatQuoteList(quotes));
                     await interaction.reply({embeds: [embed]});
                     return;
                 }
@@ -125,9 +128,7 @@ export const QuotesMounts = defineDiscordMounts({
                     }
                     const embed = new EmbedBuilder()
                         .setTitle(target_user != null ? `Quotes by ${target_user.displayName}` : "All quotes")
-                        .setDescription(
-                            quotes.map((q) => `> ${q.content}\n— ${q.author_display_name}`).join("\n\n"),
-                        )
+                        .setDescription(formatQuoteList(quotes))
                         .setFooter({text: `Page 1 / ${total_pages}`});
                     await interaction.reply({
                         embeds: [embed],
@@ -141,7 +142,7 @@ export const QuotesMounts = defineDiscordMounts({
                 const focused = interaction.options.getFocused();
                 const {quotes} = await call(QuotesCalls.calls.search, {query: focused});
                 await interaction.respond(
-                    quotes.slice(0, 25).map((q) => ({
+                    quotes.map((q) => ({
                         name: q.content.length > 100 ? q.content.slice(0, 97) + "..." : q.content,
                         value: q.content,
                     })),
@@ -252,11 +253,7 @@ export const QuotesMounts = defineDiscordMounts({
                 });
                 const embed = new EmbedBuilder()
                     .setTitle(author_discord_user_id != null ? `Quotes by user` : "All quotes")
-                    .setDescription(
-                        quotes.length > 0
-                            ? quotes.map((q) => `> ${q.content}\n— ${q.author_display_name}`).join("\n\n")
-                            : "No quotes on this page.",
-                    )
+                    .setDescription(formatQuoteList(quotes))
                     .setFooter({text: `Page ${page + 1} / ${total_pages}`});
                 await interaction.update({
                     embeds: [embed],

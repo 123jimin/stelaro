@@ -12,19 +12,15 @@ export type LoggerFactory = (component_id: ComponentId) => Logger;
 type ConsoleLogMethod = (...args: unknown[]) => void;
 
 export function consoleLoggerFactory(component_id: ComponentId): Logger {
+    const debug = console.debug.bind(console);
+    const info = console.info.bind(console);
+    const warn = console.warn.bind(console);
+    const error = console.error.bind(console);
     return {
-        debug(...args: unknown[]) {
-            writeConsoleLog(console.debug.bind(console), component_id, args);
-        },
-        info(...args: unknown[]) {
-            writeConsoleLog(console.info.bind(console), component_id, args);
-        },
-        warn(...args: unknown[]) {
-            writeConsoleLog(console.warn.bind(console), component_id, args);
-        },
-        error(...args: unknown[]) {
-            writeConsoleLog(console.error.bind(console), component_id, args);
-        },
+        debug(...args: unknown[]) { writeConsoleLog(debug, component_id, args); },
+        info(...args: unknown[]) { writeConsoleLog(info, component_id, args); },
+        warn(...args: unknown[]) { writeConsoleLog(warn, component_id, args); },
+        error(...args: unknown[]) { writeConsoleLog(error, component_id, args); },
     };
 }
 

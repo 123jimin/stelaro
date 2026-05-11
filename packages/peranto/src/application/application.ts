@@ -228,12 +228,12 @@ export function createApplication<
             }
 
             try {
-                for(const runtime of runtimes) {
+                await Promise.all(runtimes.map(async (runtime) => {
                     if(runtime.component.onConfigReload != null) {
                         const context = buildContext(runtime, dispatchCall);
                         await runtime.component.onConfigReload(context);
                     }
-                }
+                }));
                 if(definition.onConfigReload != null) {
                     await definition.onConfigReload();
                 }
