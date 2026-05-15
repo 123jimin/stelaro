@@ -138,15 +138,11 @@ export const QuotesMounts = defineDiscordMounts({
                 }
             },
 
-            async autocomplete({interaction, call}) {
-                const focused = interaction.options.getFocused();
-                const {quotes} = await call(QuotesCalls.calls.search, {query: focused});
-                await interaction.respond(
-                    quotes.map((q) => ({
-                        name: q.content.length > 100 ? q.content.slice(0, 97) + "..." : q.content,
-                        value: q.content,
-                    })),
-                );
+            autocomplete: {
+                async query({value, call}) {
+                    const {quotes} = await call(QuotesCalls.calls.search, {query: value});
+                    return quotes.map((q) => q.content);
+                },
             },
         }),
 
@@ -157,6 +153,7 @@ export const QuotesMounts = defineDiscordMounts({
                 .setDMPermission(false),
 
             async handle({interaction, call}) {
+                if(!interaction.isMessageContextMenuCommand()) return;
                 const message = interaction.targetMessage;
                 const {user_id} = await call(UsersCalls.calls.resolve, {
                     discord_user_id: interaction.user.id,
@@ -226,11 +223,10 @@ export const QuotesMounts = defineDiscordMounts({
 
     interactions: [
         interaction({
-            pattern: "quote:delete:*",
+            pattern: "quote:delete:{quote_id}",
             async handle({interaction, call, params}) {
-                const [quote_id] = params;
                 const {deleted} = await call(QuotesCalls.calls.delete, {
-                    quote_id: quote_id!,
+                    quote_id: params.quote_id,
                     deleted_by_discord_user_id: interaction.user.id,
                 });
                 if(deleted) {
@@ -242,11 +238,10 @@ export const QuotesMounts = defineDiscordMounts({
         }),
 
         interaction({
-            pattern: "quote:list:*:*",
+            pattern: "quote:list:{user_filter}:{page}",
             async handle({interaction, call, params}) {
-                const [user_filter, page_str] = params;
-                const page = parseInt(page_str!, 10);
-                const author_discord_user_id = user_filter === "*" ? undefined : user_filter;
+                const page = parseInt(params.page, 10);
+                const author_discord_user_id = params.user_filter === "*" ? undefined : params.user_filter;
                 const {quotes, total_pages} = await call(QuotesCalls.calls.list, {
                     author_discord_user_id,
                     page,
@@ -257,7 +252,7 @@ export const QuotesMounts = defineDiscordMounts({
                     .setFooter({text: `Page ${page + 1} / ${total_pages}`});
                 await interaction.update({
                     embeds: [embed],
-                    components: [buildPaginationRow(user_filter!, page, total_pages)],
+                    components: [buildPaginationRow(params.user_filter, page, total_pages)],
                 });
             },
         }),
