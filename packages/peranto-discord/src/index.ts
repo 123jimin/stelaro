@@ -1,4 +1,3 @@
-export {command} from "./command.ts";
 export type {
     AutocompleteChoice,
     AutocompleteHandlerContext,
@@ -7,22 +6,19 @@ export type {
     CommandDefinition,
     CommandHandlerContext,
 } from "./command.ts";
-
-export {event} from "./event.ts";
+export {command} from "./command.ts";
 export type {
     EventDefinition,
     EventHandlerContext,
 } from "./event.ts";
-
-export {interaction} from "./interaction.ts";
+export {event} from "./event.ts";
+export type {DiscordGatewayDefinition} from "./gateway.ts";
+export {defineDiscordGateway} from "./gateway.ts";
 export type {
     InteractionDefinition,
     InteractionHandlerContext,
     InteractionParams,
 } from "./interaction.ts";
-
-export {defineDiscordMounts} from "./mount.ts";
+export {interaction} from "./interaction.ts";
 export type {DiscordMountGroup} from "./mount.ts";
-
-export {defineDiscordGateway} from "./gateway.ts";
-export type {DiscordGatewayDefinition} from "./gateway.ts";
+export {defineDiscordMounts} from "./mount.ts";

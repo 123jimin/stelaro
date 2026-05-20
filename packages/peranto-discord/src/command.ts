@@ -12,8 +12,8 @@ import type {BaseHandlerContext, CallFn, SchemaOutput} from "./types.ts";
 
 type CommandInteractionOf<TData> =
     TData extends SlashCommandBuilder ? ChatInputCommandInteraction
-    : TData extends ContextMenuCommandBuilder ? ContextMenuCommandInteraction
-    : ChatInputCommandInteraction | ContextMenuCommandInteraction;
+        : TData extends ContextMenuCommandBuilder ? ContextMenuCommandInteraction
+            : ChatInputCommandInteraction | ContextMenuCommandInteraction;
 
 export type CommandHandlerContext<
     TUses extends readonly AnyComponentCalls[],

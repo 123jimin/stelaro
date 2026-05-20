@@ -27,8 +27,8 @@ import {
 } from "./command.ts";
 import type {EventDefinition} from "./event.ts";
 import {
-    type InteractionDefinition,
     compilePattern,
+    type InteractionDefinition,
     matchPattern,
 } from "./interaction.ts";
 import type {DiscordMountGroup} from "./mount.ts";
