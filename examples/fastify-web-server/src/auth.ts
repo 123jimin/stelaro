@@ -1,6 +1,6 @@
 import {Authenticator} from "@fastify/passport";
 import fastifySecureSession from "@fastify/secure-session";
-import {defineFastifyRoutes, route} from "@jiminp/peranto-fastify";
+import {defineFastifyRoutes, route} from "@jiminp/stelaro-fastify";
 import {type as schema} from "arktype";
 import type {FastifyInstance, FastifyReply, FastifyRequest} from "fastify";
 import {Strategy as DiscordStrategy} from "passport-discord";

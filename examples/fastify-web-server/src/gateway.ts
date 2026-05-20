@@ -1,4 +1,4 @@
-import {defineFastifyGateway} from "@jiminp/peranto-fastify";
+import {defineFastifyGateway} from "@jiminp/stelaro-fastify";
 import type {FastifyInstance} from "fastify";
 
 import {AuthRoutes} from "./auth.ts";

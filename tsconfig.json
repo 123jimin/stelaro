@@ -2,16 +2,16 @@
     "files": [],
     "references": [
         {
-            "path": "./packages/peranto"
+            "path": "./packages/stelaro"
         },
         {
-            "path": "./packages/peranto-fastify"
+            "path": "./packages/stelaro-fastify"
         },
         {
-            "path": "./packages/peranto-discord"
+            "path": "./packages/stelaro-discord"
         },
         {
-            "path": "./packages/peranto-pino"
+            "path": "./packages/stelaro-pino"
         }
     ]
 }

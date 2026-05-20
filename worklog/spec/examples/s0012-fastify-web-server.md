@@ -13,7 +13,7 @@ paths = ["examples/fastify-web-server/**"]
 
 ### Domain
 
-- A BBS (bulletin board system) server built from public Peranto APIs. `UNIMPLEMENTED`
+- A BBS (bulletin board system) server built from public Stelaro APIs. `UNIMPLEMENTED`
 - Users may create threads and leave comments. Threads and comments may not be edited or deleted. `UNIMPLEMENTED`
 
 ### HTTP API
@@ -45,7 +45,7 @@ paths = ["examples/fastify-web-server/**"]
 - `comments` provides create and list-by-thread behavior for comments. `UNIMPLEMENTED`
 - A Fastify HTTP gateway composes route group mounts from component files. The gateway file is a thin shell that lists mounts. `UNIMPLEMENTED`
 - Route groups are co-located with the component they primarily serve. Thread-related routes (including the index page) live in the threads module. Comment routes live in the comments module. Auth routes live in the auth module. `UNIMPLEMENTED`
-- Gateway route handlers receive the Fastify request and reply objects alongside Peranto helpers. Gateway route definitions accept standard Fastify route options and forward them transparently. `UNIMPLEMENTED`
+- Gateway route handlers receive the Fastify request and reply objects alongside Stelaro helpers. Gateway route definitions accept standard Fastify route options and forward them transparently. `UNIMPLEMENTED`
 - Authentication and session middleware are configured at the Fastify application level, outside the gateway definition. Route handlers access auth state through the Fastify request object. `UNIMPLEMENTED`
 
 ### Persistent storage
@@ -58,7 +58,7 @@ paths = ["examples/fastify-web-server/**"]
 
 ## Constraints
 
-- The example must build only from public Peranto APIs.
+- The example must build only from public Stelaro APIs.
 - The Fastify gateway definition must not include authentication or session concerns.
 - OAuth credentials for Google and Discord must be mock values, never real secrets.
 - The ID-based login must not require a password or any other secret.

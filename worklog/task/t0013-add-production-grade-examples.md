@@ -9,8 +9,8 @@ blocked_by = ["t0005", "t0010"]
 
 ## Scope
 
-- Add one full web server backend example built from public Peranto APIs.
-- Add one rich Discord chatbot example built from public Peranto APIs.
+- Add one full web server backend example built from public Stelaro APIs.
+- Add one rich Discord chatbot example built from public Stelaro APIs.
 - Ensure examples demonstrate typed component calls, gateway integration, logging, and validated configuration.
 - Keep examples free of credentials and environment-specific assumptions.
 - Update the examples spec with approved behavior.

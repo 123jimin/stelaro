@@ -2,7 +2,7 @@
 id = "s0008"
 title = "Configuration"
 tags = ["config", "application", "component", "context"]
-paths = ["packages/peranto/src/config/**"]
+paths = ["packages/stelaro/src/config/**"]
 +++
 
 ## Related Specs

@@ -1,4 +1,4 @@
-import {defineComponentCalls} from "@jiminp/peranto";
+import {defineComponentCalls} from "@jiminp/stelaro";
 import {type as schema} from "arktype";
 
 export const QuoteSchema = schema({

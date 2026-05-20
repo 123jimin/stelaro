@@ -19,7 +19,7 @@ blocked_by = []
 
 ## API
 
-File: `packages/peranto/src/util/topological-sort.ts`
+File: `packages/stelaro/src/util/topological-sort.ts`
 
 ```ts
 export class TopologicalCycleError<T> extends Error {
@@ -38,7 +38,7 @@ export function topologicalSort<T>(
 - Returns `T[]` in dependency-first order.
 - Throws `TopologicalCycleError<T>` on cycle. `remaining` carries the nodes that could not be placed (the cycle participants and their downstream dependents). Callers catch and rethrow as their domain error.
 
-`TopologicalCycleError` does not extend `PerantoError` — it is an internal utility error, not a user-facing domain error.
+`TopologicalCycleError` does not extend `StelaroError` — it is an internal utility error, not a user-facing domain error.
 
 ## Implementation Plan
 

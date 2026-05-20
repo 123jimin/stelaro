@@ -1,4 +1,4 @@
-import {defineComponent} from "@jiminp/peranto";
+import {defineComponent} from "@jiminp/stelaro";
 import {type as schema} from "arktype";
 
 import {appendJsonl, readJsonl, writeJsonl} from "../storage.ts";

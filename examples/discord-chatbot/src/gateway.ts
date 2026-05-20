@@ -1,4 +1,4 @@
-import {defineDiscordGateway} from "@jiminp/peranto-discord";
+import {defineDiscordGateway} from "@jiminp/stelaro-discord";
 import {Client, GatewayIntentBits} from "discord.js";
 
 import {QuotesMounts} from "./quotes/index.ts";

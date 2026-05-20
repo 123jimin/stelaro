@@ -14,16 +14,16 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 ## Design Phase Note
 
-- Peranto is currently in the design phase.
+- Stelaro is currently in the design phase.
 - During the design phase, worklog rules about spec absoluteness apply more weakly to exploratory details such as constraints and dangers.
 - Design-phase constraints and dangers should be read skeptically while the architecture is still being refined.
 - Even during the design phase, editing spec behavior or intentionally diverging from a spec requires explicit user confirmation.
 
 ## Behavior
 
-### Peranto
+### Stelaro
 
-- UNIMPLEMENTED Peranto is an opinionated component system for applications that may include web servers, Discord bots, command-line entrypoints, and other external runtime entrypoints.
+- UNIMPLEMENTED Stelaro is an opinionated component system for applications that may include web servers, Discord bots, command-line entrypoints, and other external runtime entrypoints.
 
 ### Application
 
@@ -47,7 +47,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 ### Gateway
 
-- UNIMPLEMENTED Gateway components adapt external runtime entrypoints to Peranto components.
+- UNIMPLEMENTED Gateway components adapt external runtime entrypoints to Stelaro components.
 - UNIMPLEMENTED Fastify and Discord gateways are separate publishable packages from the core package.
 - UNIMPLEMENTED Gateway behavior is unified around binding external triggers to typed component calls.
 - UNIMPLEMENTED Gateway APIs preserve protocol-specific request and response concepts rather than forcing every gateway into one universal request model.
@@ -64,7 +64,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 ### Validation
 
-- Arktype is a core validation and typing tool for Peranto boundaries.
+- Arktype is a core validation and typing tool for Stelaro boundaries.
 
 ## Constraints
 
@@ -90,7 +90,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 - Over-unifying gateways can hide important differences between HTTP, Discord interactions, command-line execution, and future runtimes.
 - Adding gateway runtime dependencies to core would make unrelated applications pay for unused integrations.
-- Weak typing at call or gateway boundaries would undermine Peranto's main design goal.
+- Weak typing at call or gateway boundaries would undermine Stelaro's main design goal.
 - Treating component ids as mutable labels would make logging and routing harder to reason about.
 - Centralizing all external routing in gateway components can make applications harder to compose.
 - Blocking typed access to gateway capabilities would make cross-gateway workflows harder to model.

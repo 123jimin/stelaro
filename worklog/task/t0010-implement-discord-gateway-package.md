@@ -9,13 +9,13 @@ blocked_by = []
 
 ## Problem
 
-`peranto-discord` is an empty skeleton. The example from t0022 defines the intended API surface through concrete use; this task implements the package so the example compiles and runs.
+`stelaro-discord` is an empty skeleton. The example from t0022 defines the intended API surface through concrete use; this task implements the package so the example compiles and runs.
 
 ## Scope
 
 ### Package setup
 
-- Add `discord.js` as a peerDependency to `packages/peranto-discord/package.json`.
+- Add `discord.js` as a peerDependency to `packages/stelaro-discord/package.json`.
 
 ### Command routing
 

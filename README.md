@@ -1,6 +1,6 @@
-# @jiminp/peranto
+# @jiminp/stelaro
 
-**Peranto** is my own flexible component system for various applications:
+**Stelaro** is my own flexible component system for various applications:
 
 - Web Server
 - CLI Application
@@ -19,10 +19,10 @@ This project uses [pnpm](https://pnpm.io/) for package management.
 
 ## Packages
 
-- `@jiminp/peranto` – core component system.
-- `@jiminp/peranto-fastify` – Fastify gateway component.
-- `@jiminp/peranto-discord` – Discord.js gateway component.
-- `@jiminp/peranto-pino` – Pino logger adapter.
+- `@jiminp/stelaro` – core component system.
+- `@jiminp/stelaro-fastify` – Fastify gateway component.
+- `@jiminp/stelaro-discord` – Discord.js gateway component.
+- `@jiminp/stelaro-pino` – Pino logger adapter.
 
 ## License
 

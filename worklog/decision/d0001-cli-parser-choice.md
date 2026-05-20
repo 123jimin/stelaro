@@ -7,7 +7,7 @@ supersedes = []
 
 ## Context
 
-Peranto needs CLI argument parsing for a fixed set of core arguments. The set is small and non-customizable by application authors.
+Stelaro needs CLI argument parsing for a fixed set of core arguments. The set is small and non-customizable by application authors.
 
 ## Choice
 

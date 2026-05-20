@@ -12,7 +12,7 @@ paths = []
 
 ## Behavior
 
-- A gateway is a Peranto component that bridges an external interface to component calls.
+- A gateway is a Stelaro component that bridges an external interface to component calls.
 - A gateway exposes the raw underlying instance or client to route/event handlers. Handlers interact with the native API directly rather than through gateway abstractions.
 - Gateway API surfaces are designed through example projects first, then extracted into implementations.
 

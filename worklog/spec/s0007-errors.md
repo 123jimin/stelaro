@@ -2,7 +2,7 @@
 id = "s0007"
 title = "Errors"
 tags = ["errors", "application", "component"]
-paths = ["packages/peranto/src/error.ts"]
+paths = ["packages/stelaro/src/error.ts"]
 +++
 
 ## Related Specs
@@ -13,7 +13,7 @@ paths = ["packages/peranto/src/error.ts"]
 
 ## Behavior
 
-- `PerantoError` is an abstract base class that extends `Error`. All peranto-core error classes extend `PerantoError`.
+- `StelaroError` is an abstract base class that extends `Error`. All stelaro-core error classes extend `StelaroError`.
 - Each error class identifies a distinct failure condition in the core package.
 - Error classes carry structured properties relevant to the failure (component ids, call names, etc.) in addition to a human-readable message.
 
@@ -29,12 +29,12 @@ paths = ["packages/peranto/src/error.ts"]
 
 ### Validation errors
 
-- Arktype schema validation failures are thrown by Arktype itself and are not wrapped by Peranto error classes.
+- Arktype schema validation failures are thrown by Arktype itself and are not wrapped by Stelaro error classes.
 
 ## Constraints
 
-- All Peranto-core errors must extend `PerantoError`.
-- `PerantoError` must extend `Error`.
+- All Stelaro-core errors must extend `StelaroError`.
+- `StelaroError` must extend `Error`.
 - Error class names must end with `Error`.
 - Error classes must be exported from the core package.
 - Error classes must not depend on gateway-specific packages.
@@ -42,7 +42,7 @@ paths = ["packages/peranto/src/error.ts"]
 
 ## Anticipated Changes
 
-- Gateway packages may define their own error classes that extend `PerantoError`.
+- Gateway packages may define their own error classes that extend `StelaroError`.
 - Additional error classes may be added as lifecycle, configuration, and HMR behavior is specified.
 
 ## Dangers

@@ -42,12 +42,12 @@ importers:
 
   examples/discord-chatbot:
     dependencies:
-      '@jiminp/peranto':
+      '@jiminp/stelaro':
         specifier: workspace:*
-        version: link:../../packages/peranto
-      '@jiminp/peranto-discord':
+        version: link:../../packages/stelaro
+      '@jiminp/stelaro-discord':
         specifier: workspace:*
-        version: link:../../packages/peranto-discord
+        version: link:../../packages/stelaro-discord
       '@jiminp/tooltool':
         specifier: ^0.3.2
         version: 0.3.2
@@ -69,12 +69,12 @@ importers:
       '@fastify/secure-session':
         specifier: ^8.1.0
         version: 8.3.0(bare-events@2.8.2)
-      '@jiminp/peranto':
+      '@jiminp/stelaro':
         specifier: workspace:*
-        version: link:../../packages/peranto
-      '@jiminp/peranto-fastify':
+        version: link:../../packages/stelaro
+      '@jiminp/stelaro-fastify':
         specifier: workspace:*
-        version: link:../../packages/peranto-fastify
+        version: link:../../packages/stelaro-fastify
       '@jiminp/tooltool':
         specifier: ^0.3.2
         version: 0.3.2
@@ -98,7 +98,7 @@ importers:
         specifier: ^2.0.17
         version: 2.0.17
 
-  packages/peranto:
+  packages/stelaro:
     dependencies:
       '@jiminp/tooltool':
         specifier: ^0.3.2
@@ -110,11 +110,11 @@ importers:
         specifier: ^1.6.1
         version: 1.6.1
 
-  packages/peranto-discord:
+  packages/stelaro-discord:
     dependencies:
-      '@jiminp/peranto':
+      '@jiminp/stelaro':
         specifier: workspace:*
-        version: link:../peranto
+        version: link:../stelaro
       '@jiminp/tooltool':
         specifier: ^0.3.2
         version: 0.3.2
@@ -126,11 +126,11 @@ importers:
         specifier: ^14.18.0
         version: 14.26.4
 
-  packages/peranto-fastify:
+  packages/stelaro-fastify:
     dependencies:
-      '@jiminp/peranto':
+      '@jiminp/stelaro':
         specifier: workspace:*
-        version: link:../peranto
+        version: link:../stelaro
       '@jiminp/tooltool':
         specifier: ^0.3.2
         version: 0.3.2
@@ -142,11 +142,11 @@ importers:
         specifier: ^5.3.3
         version: 5.8.5
 
-  packages/peranto-pino:
+  packages/stelaro-pino:
     dependencies:
-      '@jiminp/peranto':
+      '@jiminp/stelaro':
         specifier: workspace:*
-        version: link:../peranto
+        version: link:../stelaro
 
 packages:
 

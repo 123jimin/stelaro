@@ -13,7 +13,7 @@ blocked_by = []
 
 - Implement `defineFastifyGateway` per s0016 types and behavior.
 - Define a component config schema for the server listen port.
-- Add `fastify` as a peer dependency to `peranto-fastify`.
+- Add `fastify` as a peer dependency to `stelaro-fastify`.
 - Register routes on the Fastify instance during the component start hook and begin listening.
 - Close the Fastify server during the component stop hook.
 - Implement `GatewayHandlerContext`: typed `call` dispatch narrowed to `uses` declarations, `redirect` helper.

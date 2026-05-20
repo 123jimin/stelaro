@@ -1,5 +1,5 @@
-import {defineComponent, defineComponentCalls} from "@jiminp/peranto";
-import {defineFastifyRoutes, route} from "@jiminp/peranto-fastify";
+import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
+import {defineFastifyRoutes, route} from "@jiminp/stelaro-fastify";
 import {type as schema} from "arktype";
 
 import {requireAuth} from "./auth.ts";

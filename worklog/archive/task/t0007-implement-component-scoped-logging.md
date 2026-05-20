@@ -107,8 +107,8 @@ Prefixes each log line with `[componentId]`. Maps `debug` → `console.debug`, `
 
 ## Verification
 
-- `pnpm --filter @jiminp/peranto test`
-- `pnpm --filter @jiminp/peranto lint`
+- `pnpm --filter @jiminp/stelaro test`
+- `pnpm --filter @jiminp/stelaro lint`
 - `worklog validate.py`
 
 ## Out of Scope

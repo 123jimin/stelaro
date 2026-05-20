@@ -11,7 +11,7 @@ blocked_by = []
 
 - Add a minimal web server example as an API design sketch.
 - The example is not expected to work at this stage.
-- Use non-existent `peranto` and `peranto-fastify` packages.
+- Use non-existent `stelaro` and `stelaro-fastify` packages.
 
 ## Notes
 

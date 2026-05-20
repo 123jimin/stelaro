@@ -2,7 +2,7 @@
 id = "s0016"
 title = "Fastify Gateway"
 tags = ["gateway", "fastify"]
-paths = ["packages/peranto-fastify/**"]
+paths = ["packages/stelaro-fastify/**"]
 +++
 
 ## Related Specs
@@ -59,7 +59,7 @@ function route(definition: GatewayRoute): GatewayRoute;
 
 ### Gateway definition
 
-- A Fastify gateway is a Peranto component that bridges HTTP requests to component calls.
+- A Fastify gateway is a Stelaro component that bridges HTTP requests to component calls.
 - A gateway receives a Fastify instance and registers its routes on it. The gateway does not create its own instance.
 - Server listen port and optional host are read from component config.
 
@@ -74,7 +74,7 @@ function route(definition: GatewayRoute): GatewayRoute;
 
 - Each route specifies an HTTP method and path.
 - Route definitions accept all standard Fastify route options and forward them without interpretation via `Omit<RouteOptions, "method" | "url" | "handler">`.
-- Each route has a handler that receives the Fastify request and reply objects alongside Peranto-provided helpers.
+- Each route has a handler that receives the Fastify request and reply objects alongside Stelaro-provided helpers.
 
 ### Route schema validation
 

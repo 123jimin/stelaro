@@ -2,7 +2,7 @@
 id = "s0017"
 title = "Discord Gateway"
 tags = ["gateway", "discord"]
-paths = ["packages/peranto-discord/**"]
+paths = ["packages/stelaro-discord/**"]
 +++
 
 ## Related Specs
@@ -79,7 +79,7 @@ function interaction(definition: InteractionDefinition): InteractionDefinition;
 
 ### Gateway definition
 
-- A Discord gateway is a Peranto component that bridges Discord interactions and events to component calls.
+- A Discord gateway is a Stelaro component that bridges Discord interactions and events to component calls.
 - A gateway receives a pre-created discord.js `Client` and attaches listeners to it. The gateway does not create the client.
 - Config provides `token`, `application_id`, and optional `guild_id` for dev-only command registration.
 

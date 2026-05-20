@@ -1,6 +1,6 @@
 +++
 id = "t0016"
-title = "Set up GitHub Pages for Peranto documentation"
+title = "Set up GitHub Pages for Stelaro documentation"
 status = "pending"
 tags = ["documentation", "infrastructure"]
 modifies = []
@@ -9,7 +9,7 @@ blocked_by = []
 
 ## Scope
 
-- Set up a documentation site for Peranto, deployed via GitHub Pages.
+- Set up a documentation site for Stelaro, deployed via GitHub Pages.
 - Choose and configure a static site generator.
 - Set up GitHub Actions workflow for automated deployment on push to main.
 - Create initial documentation structure (landing page, getting started, API reference outline).
@@ -31,7 +31,7 @@ Options:
 
 ### Q3: Custom domain
 
-- Deploy to default `<user>.github.io/peranto`, or configure a custom domain?
+- Deploy to default `<user>.github.io/stelaro`, or configure a custom domain?
 
 ## Out of Scope
 
@@ -59,8 +59,8 @@ Observed documentation setup:
 - `ci.yaml` calls the docs workflow after `build-test`, only on `refs/heads/main`.
 - `ci.yaml` ignores pushes that only touch `docs/**`, so generated documentation-only changes do not retrigger CI.
 
-Implications for Peranto:
+Implications for Stelaro:
 
 - The closest matching setup would be TypeDoc plus GitHub Pages artifact deployment.
-- Peranto should decide whether docs are generated output in `docs/`, or source-authored docs with generated API references as a later step.
-- If using TypeDoc for API docs, Peranto needs entry points chosen from its package structure rather than copying the observed `src/*/index.ts` pattern blindly.
+- Stelaro should decide whether docs are generated output in `docs/`, or source-authored docs with generated API references as a later step.
+- If using TypeDoc for API docs, Stelaro needs entry points chosen from its package structure rather than copying the observed `src/*/index.ts` pattern blindly.

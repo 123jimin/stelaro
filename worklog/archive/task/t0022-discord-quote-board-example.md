@@ -14,7 +14,7 @@ s0014 (Discord Chatbot Example) is an empty shell, and s0017 (Discord Gateway) i
 ## Scope
 
 - Implement a "Quote Board" Discord bot example under `examples/discord-chatbot/`.
-- The example uses `peranto-discord` APIs that do not exist yet. Write the example against the intended API shape, using the example as the design brainstorm for the package. The code will not compile until t0010 is done.
+- The example uses `stelaro-discord` APIs that do not exist yet. Write the example against the intended API shape, using the example as the design brainstorm for the package. The code will not compile until t0010 is done.
 - Update s0014 with the approved example behavior.
 - Update s0017 with gateway behavior, types, and constraints discovered through designing the example.
 
@@ -62,7 +62,7 @@ s0014 (Discord Chatbot Example) is an empty shell, and s0017 (Discord Gateway) i
 
 ## Out of Scope
 
-- Implementing `peranto-discord` package internals (that is t0010).
+- Implementing `stelaro-discord` package internals (that is t0010).
 - Voice, sharding, or clustering.
 - Real credentials or deployment configuration.
 - Rate limiting, permission system, or moderation.

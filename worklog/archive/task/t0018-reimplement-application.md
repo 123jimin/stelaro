@@ -9,7 +9,7 @@ blocked_by = []
 
 ## Summary
 
-`createApplication` in `packages/peranto/src/application/application.ts` needs to be rewritten from the ground up. The problems below are stated relative to the specs (s0002, s0003, s0004, s0008), not the current code structure.
+`createApplication` in `packages/stelaro/src/application/application.ts` needs to be rewritten from the ground up. The problems below are stated relative to the specs (s0002, s0003, s0004, s0008), not the current code structure.
 
 ## Spec divergences
 

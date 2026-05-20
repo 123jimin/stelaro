@@ -45,7 +45,7 @@ State is scoped to one component within one application runtime. All calls to th
 
 State is a plain mutable JavaScript object. Handlers mutate it directly. No immutable-update ceremony, no setter API, no proxy. The state object returned by the factory is the same object reference throughout the lifetime of the application runtime.
 
-**Clarification:** Peranto component state is explicitly not a persistent state model (contrast: React). State is ephemeral to the application runtime.
+**Clarification:** Stelaro component state is explicitly not a persistent state model (contrast: React). State is ephemeral to the application runtime.
 
 ### Q5: State injection into context — APPROVED
 

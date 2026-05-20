@@ -17,7 +17,7 @@ The desired property: **minimize edits outside of component code** when adding, 
 
 Introduce a **mount model** for gateways. Components export gateway-specific binding groups (routes, commands, events). The gateway composes these mounts into a single gateway component.
 
-### For peranto-fastify
+### For stelaro-fastify
 
 - Add `defineFastifyRoutes()` — defines a group of routes with their own `uses` declaration and route list.
 - Update `defineFastifyGateway()` to accept a `mounts` array of route groups. The gateway merges all mounts' routes with its own `uses`.
@@ -69,7 +69,7 @@ defineFastifyGateway({
 
 - Update s0015 (Gateways Common) with the mount philosophy: gateways compose route/command mounts exported by component code, rather than owning all bindings centrally.
 - Update s0016 (Fastify Gateway) types and behavior to include `defineFastifyRoutes()` and `mounts`.
-- Implement `defineFastifyRoutes()` and update `defineFastifyGateway()` in `packages/peranto-fastify/src/index.ts`.
+- Implement `defineFastifyRoutes()` and update `defineFastifyGateway()` in `packages/stelaro-fastify/src/index.ts`.
 - Refactor `examples/fastify-web-server/` to use mounts. Routes move from `gateway.ts` into their respective component files.
 - Update s0012 (Fastify Web Server Example) to reflect the new structure.
 - Verify the example builds clean after refactor.

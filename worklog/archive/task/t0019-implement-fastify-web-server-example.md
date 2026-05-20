@@ -14,11 +14,11 @@ blocked_by = []
 - Define components for users, threads, and comments with direct JSONL file I/O per request.
 - Sketch authentication via `@fastify/passport` (Google, Discord) and ID-based login as Fastify-level middleware, separate from the gateway definition.
 - Add `examples/*` to `pnpm-workspace.yaml` so the example is a workspace member.
-- The example should be executable and testable once peranto packages are implemented.
+- The example should be executable and testable once stelaro packages are implemented.
 
 ## Out of Scope
 
-- Implementing real `peranto-fastify` package behavior (that is t0005).
+- Implementing real `stelaro-fastify` package behavior (that is t0005).
 - Real OAuth credentials or working OAuth flows.
 - Production deployment concerns.
 - Persistent component state — components read/write JSONL directly, no in-memory caching.
@@ -53,8 +53,8 @@ examples/fastify-web-server/
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@jiminp/peranto": "workspace:*",
-    "@jiminp/peranto-fastify": "workspace:*",
+    "@jiminp/stelaro": "workspace:*",
+    "@jiminp/stelaro-fastify": "workspace:*",
     "arktype": "^2.2.0",
     "fastify": "^5.3.3",
     "@fastify/passport": "^3.1.1",

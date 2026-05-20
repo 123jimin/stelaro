@@ -1,4 +1,4 @@
-import {createApplication, defineApplication} from "@jiminp/peranto";
+import {createApplication, defineApplication} from "@jiminp/stelaro";
 
 import {DiscordGateway} from "./gateway.ts";
 import {QuotesComponent} from "./quotes/index.ts";

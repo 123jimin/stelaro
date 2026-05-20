@@ -3,7 +3,7 @@ import {
     defineDiscordMounts,
     event,
     interaction,
-} from "@jiminp/peranto-discord";
+} from "@jiminp/stelaro-discord";
 import {
     ActionRowBuilder,
     ApplicationCommandType,

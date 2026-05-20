@@ -1,5 +1,5 @@
 {
-  "name": "@jiminp/peranto-workspace",
+  "name": "@jiminp/stelaro-workspace",
   "version": "0.0.0",
   "description": "Opinionated Component System",
   "private": true,
@@ -7,7 +7,7 @@
   "scripts": {
     "clean": "pnpm -r --if-present clean",
     "build": "pnpm -r --if-present build",
-    "build:watch": "pnpm --filter @jiminp/peranto build:watch",
+    "build:watch": "pnpm --filter @jiminp/stelaro build:watch",
     "lint": "pnpm -r --if-present lint",
     "test": "pnpm -r --if-present test"
   },

@@ -39,7 +39,7 @@ type ComponentContext = {
 
 ## Constraints
 
-- Core context provides Peranto-level capabilities, not raw gateway runtime objects.
+- Core context provides Stelaro-level capabilities, not raw gateway runtime objects.
 - Core context preserves the current component id for scoped capabilities such as logging and configuration.
 - Core context may access gateway capabilities only through typed component call APIs.
 

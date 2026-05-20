@@ -2,7 +2,7 @@
 id = "s0009"
 title = "CLI Arguments"
 tags = ["cli", "application"]
-paths = ["packages/peranto/src/cli/**"]
+paths = ["packages/stelaro/src/cli/**"]
 +++
 
 ## Related Specs
@@ -12,7 +12,7 @@ paths = ["packages/peranto/src/cli/**"]
 
 ## Behavior
 
-- Peranto defines a fixed set of CLI arguments.
+- Stelaro defines a fixed set of CLI arguments.
 - CLI arguments are parsed and validated during application creation.
 - CLI argument parsing occurs before config file loading.
 - Parsed CLI arguments are available on the application runtime.

@@ -1,5 +1,5 @@
 import fastifyFormbody from "@fastify/formbody";
-import {createApplication, defineApplication} from "@jiminp/peranto";
+import {createApplication, defineApplication} from "@jiminp/stelaro";
 import Fastify from "fastify";
 
 import {registerAuth} from "./auth.ts";

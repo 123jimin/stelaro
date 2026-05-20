@@ -8,7 +8,7 @@ modifies = ["s0002", "s0009"]
 
 ## Scope
 
-- Implement parsing and validation of Peranto's fixed CLI arguments during application creation.
+- Implement parsing and validation of Stelaro's fixed CLI arguments during application creation.
 - Expose parsed CLI arguments on the application runtime.
 - Ensure CLI argument parsing completes before config loading.
 - Update affected specs with approved behavior, leaving `UNIMPLEMENTED` markers where related behavior remains out of scope.
@@ -33,7 +33,7 @@ The first fixed argument, consumed by t0008 (config loading) when it lands:
 
 ### 1. Spec update (s0009) — needs approval
 
-Add `--config-dir` as the first enumerated argument in s0009 behavior section. The spec currently says "Peranto defines a fixed set of CLI arguments" without listing any.
+Add `--config-dir` as the first enumerated argument in s0009 behavior section. The spec currently says "Stelaro defines a fixed set of CLI arguments" without listing any.
 
 ### 2. Internal parser boundary — `src/cli/args.ts`
 

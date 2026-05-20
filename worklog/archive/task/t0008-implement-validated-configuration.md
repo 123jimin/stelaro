@@ -65,7 +65,7 @@ defineApplication({
 - `ConfigFileError` — file missing or unparseable TOML. Properties: `file_path`, `component_id?`.
 - `ConfigValidationError` — schema validation failed. Properties: `component_id?`, `file_path`.
 
-Both extend `PerantoError`.
+Both extend `StelaroError`.
 
 ### 5. Loading and validation in `app.start()`
 

@@ -305,8 +305,8 @@ await app.call(string_reference, {});
 ## Implementation Notes
 
 - Core implementation exports `defineComponentCalls`, `defineComponent`, `defineApplication`, and `createApplication`.
-- Component definitions and call-surface helpers live in `packages/peranto/src/component.ts`; the package entrypoint re-exports them.
-- Application definitions and runtime dispatch live in `packages/peranto/src/application.ts`; the package entrypoint re-exports them.
+- Component definitions and call-surface helpers live in `packages/stelaro/src/component.ts`; the package entrypoint re-exports them.
+- Application definitions and runtime dispatch live in `packages/stelaro/src/application.ts`; the package entrypoint re-exports them.
 - Application runtime dispatch validates call inputs and outputs with the declared schemas.
 - Component context calls are limited to the call surfaces declared in `uses`.
-- Verification through `pnpm --filter @jiminp/peranto test` is currently blocked before test execution by a local Node CSPRNG assertion in the Codex command runner.
+- Verification through `pnpm --filter @jiminp/stelaro test` is currently blocked before test execution by a local Node CSPRNG assertion in the Codex command runner.

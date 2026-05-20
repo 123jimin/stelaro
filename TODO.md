@@ -43,5 +43,5 @@
    - Depends on: state, lifecycle, gateway model, resources/templates.
 
 10. Production examples (`t0013`)
-    - Make one full web backend and one rich Discord chatbot from public Peranto APIs.
+    - Make one full web backend and one rich Discord chatbot from public Stelaro APIs.
     - Depends on: Fastify gateway, Discord gateway, logging, configuration.
