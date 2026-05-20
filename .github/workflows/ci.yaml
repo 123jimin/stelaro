@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+    paths-ignore:
+      - "docs/**"
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    uses: "./.github/workflows/build-test.yaml"
+  build-docs:
+    needs: build-test
+    if: ${{ github.ref == 'refs/heads/main' }}
+    uses: "./.github/workflows/build-docs.yaml"
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

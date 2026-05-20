@@ -9,7 +9,8 @@
     "build": "pnpm -r --if-present build",
     "build:watch": "pnpm --filter @jiminp/stelaro build:watch",
     "lint": "pnpm -r --if-present lint",
-    "test": "pnpm -r --if-present test"
+    "test": "pnpm -r --if-present test",
+    "build-docs": "typedoc"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -19,6 +20,7 @@
     "eslint": "^10.2.1",
     "eslint-plugin-simple-import-sort": "^13.0.0",
     "rimraf": "^6.1.3",
+    "typedoc": "^0.28.19",
     "typescript": "^6.0.3",
     "typescript-eslint": "8.58.2"
   },

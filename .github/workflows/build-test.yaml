@@ -1,7 +1,10 @@
 name: Build and Test
-on: push
+
+on:
+  workflow_call:
+
 jobs:
-  build:
+  build-test:
     name: Build and Test
     runs-on: ubuntu-latest
     steps:
@@ -14,7 +17,6 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          version: 10.24
           run_install: true
       - name: Lint
         run: pnpm lint
