@@ -1,15 +1,18 @@
 {
+    "name": "Stelaro",
     "entryPoints": [
-        "packages/stelaro/src/index.ts",
-        "packages/stelaro-discord/src/index.ts",
-        "packages/stelaro-fastify/src/index.ts",
-        "packages/stelaro-pino/src/index.ts"
+        "packages/stelaro",
+        "packages/stelaro-discord",
+        "packages/stelaro-fastify",
+        "packages/stelaro-pino"
     ],
-    "entryPointStrategy": "resolve",
+    "entryPointStrategy": "packages",
     "out": "docs",
     "exclude": ["**/*.spec.ts"],
-    "groupReferencesByType": true,
-    "useFirstParagraphOfCommentAsSummary": true,
+    "packageOptions": {
+        "groupReferencesByType": true,
+        "useFirstParagraphOfCommentAsSummary": true
+    },
     "navigationLinks": {
         "GitHub": "https://github.com/123jimin/stelaro"
     }
