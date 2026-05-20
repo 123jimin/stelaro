@@ -88,7 +88,7 @@ export const QuotesMounts = defineDiscordMounts({
                 if(sub === "random") {
                     const target_user = interaction.options.getUser("user");
                     const quote = await call(QuotesCalls.calls.random, {
-                        author_discord_user_id: target_user?.id,
+                        ...(target_user != null ? {author_discord_user_id: target_user.id} : {}),
                     });
                     if(quote == null) {
                         await interaction.reply({content: "No quotes found.", ephemeral: true});
@@ -119,7 +119,7 @@ export const QuotesMounts = defineDiscordMounts({
                     const target_user = interaction.options.getUser("user");
                     const user_filter = target_user?.id ?? "*";
                     const {quotes, total_pages} = await call(QuotesCalls.calls.list, {
-                        author_discord_user_id: target_user?.id,
+                        ...(target_user != null ? {author_discord_user_id: target_user.id} : {}),
                         page: 0,
                     });
                     if(quotes.length === 0) {
@@ -212,7 +212,7 @@ export const QuotesMounts = defineDiscordMounts({
                 });
 
                 const board_channel = await client.channels.fetch(reaction_config.board_channel_id);
-                if(board_channel?.isTextBased()) {
+                if(board_channel?.isSendable()) {
                     await board_channel.send({
                         embeds: [buildQuoteEmbed(quote)],
                     });
@@ -225,6 +225,7 @@ export const QuotesMounts = defineDiscordMounts({
         interaction({
             pattern: "quote:delete:{quote_id}",
             async handle({interaction, call, params}) {
+                if(!interaction.isButton()) return;
                 const {deleted} = await call(QuotesCalls.calls.delete, {
                     quote_id: params.quote_id,
                     deleted_by_discord_user_id: interaction.user.id,
@@ -240,14 +241,15 @@ export const QuotesMounts = defineDiscordMounts({
         interaction({
             pattern: "quote:list:{user_filter}:{page}",
             async handle({interaction, call, params}) {
+                if(!interaction.isButton()) return;
                 const page = parseInt(params.page, 10);
-                const author_discord_user_id = params.user_filter === "*" ? undefined : params.user_filter;
+                const user_filter = params.user_filter !== "*" ? params.user_filter : null;
                 const {quotes, total_pages} = await call(QuotesCalls.calls.list, {
-                    author_discord_user_id,
+                    ...(user_filter != null ? {author_discord_user_id: user_filter} : {}),
                     page,
                 });
                 const embed = new EmbedBuilder()
-                    .setTitle(author_discord_user_id != null ? `Quotes by user` : "All quotes")
+                    .setTitle(user_filter != null ? `Quotes by user` : "All quotes")
                     .setDescription(formatQuoteList(quotes))
                     .setFooter({text: `Page ${page + 1} / ${total_pages}`});
                 await interaction.update({

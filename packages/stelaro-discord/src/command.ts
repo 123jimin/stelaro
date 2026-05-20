@@ -6,14 +6,17 @@ import type {
     ContextMenuCommandBuilder,
     ContextMenuCommandInteraction,
     SlashCommandBuilder,
+    SlashCommandOptionsOnlyBuilder,
+    SlashCommandSubcommandsOnlyBuilder,
 } from "discord.js";
 
 import type {BaseHandlerContext, CallFn, SchemaOutput} from "./types.ts";
 
+type AnySlashCommandData = SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder;
+
 type CommandInteractionOf<TData> =
-    TData extends SlashCommandBuilder ? ChatInputCommandInteraction
-        : TData extends ContextMenuCommandBuilder ? ContextMenuCommandInteraction
-            : ChatInputCommandInteraction | ContextMenuCommandInteraction;
+    TData extends ContextMenuCommandBuilder ? ContextMenuCommandInteraction
+        : ChatInputCommandInteraction;
 
 export type CommandHandlerContext<
     TUses extends readonly AnyComponentCalls[],
@@ -57,7 +60,7 @@ export type AutocompleteFallback<TUses extends readonly AnyComponentCalls[]> =
 
 export type CommandDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
-    TData extends SlashCommandBuilder | ContextMenuCommandBuilder = SlashCommandBuilder | ContextMenuCommandBuilder,
+    TData extends AnySlashCommandData | ContextMenuCommandBuilder = AnySlashCommandData | ContextMenuCommandBuilder,
     TOptions extends ComponentCallSchema | undefined = undefined,
 > = {
     readonly data: TData;
@@ -67,7 +70,7 @@ export type CommandDefinition<
 };
 
 export function command<
-    TData extends SlashCommandBuilder | ContextMenuCommandBuilder,
+    TData extends AnySlashCommandData | ContextMenuCommandBuilder,
     TOptions extends ComponentCallSchema | undefined = undefined,
 >(definition: CommandDefinition<readonly AnyComponentCalls[], TData, TOptions>): CommandDefinition {
     return definition as unknown as CommandDefinition;
