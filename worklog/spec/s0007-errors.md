@@ -2,7 +2,7 @@
 id = "s0007"
 title = "Errors"
 tags = ["errors", "application", "component"]
-paths = ["packages/stelaro/src/error.ts"]
+paths = ["packages/stelaro/src/error.ts", "packages/stelaro/src/application/error.ts", "packages/stelaro/src/application/lifecycle.ts", "packages/stelaro/src/config/error.ts"]
 +++
 
 ## Related Specs
@@ -19,13 +19,24 @@ paths = ["packages/stelaro/src/error.ts"]
 
 ### Application errors
 
+- `DuplicateComponentIdError`: two or more components are registered with the same component id.
 - `MissingDependencyError`: a component declares a `uses` call surface that is not registered in the application.
 - `MissingHandlerError`: a component does not define a handler for one of its declared calls.
 - `DuplicateCallError`: two or more components register the same component call id.
 - `UnregisteredCallError`: a dispatch targets a component call that is not registered in the application.
+- `UnregisteredComponentError`: an operation targets a component id that is not registered in the application.
 - `UndeclaredCallError`: a component handler calls a reference it did not declare in `uses`.
-- UNIMPLEMENTED `CircularDependencyError`: the component `uses` graph contains a cycle, making topological ordering impossible.
-- UNIMPLEMENTED `LifecycleStateError`: an operation is attempted in an invalid lifecycle state (e.g. `call` before `start`, `start` when already started, `stop` when not started).
+- `CircularDependencyError`: the component `uses` graph contains a cycle, making topological ordering impossible.
+- `LifecycleStateError`: an operation is attempted in an invalid lifecycle state (e.g. `call` before `start`, `start` when already started, `stop` when not started).
+
+### Component errors
+
+- `InvalidComponentIdError`: a component id does not match the required lowercase kebab-case format.
+
+### Configuration errors
+
+- `ConfigFileError`: a config file could not be read from disk.
+- `ConfigValidationError`: a config file's parsed contents failed schema validation.
 
 ### Validation errors
 

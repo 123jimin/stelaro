@@ -23,7 +23,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 ### Stelaro
 
-- UNIMPLEMENTED Stelaro is an opinionated component system for applications that may include web servers, Discord bots, command-line entrypoints, and other external runtime entrypoints.
+- Stelaro is an opinionated component system for applications that may include web servers, Discord bots, command-line entrypoints, and other external runtime entrypoints.
 
 ### Application
 
@@ -47,10 +47,10 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 ### Gateway
 
-- UNIMPLEMENTED Gateway components adapt external runtime entrypoints to Stelaro components.
-- UNIMPLEMENTED Fastify and Discord gateways are separate publishable packages from the core package.
-- UNIMPLEMENTED Gateway behavior is unified around binding external triggers to typed component calls.
-- UNIMPLEMENTED Gateway APIs preserve protocol-specific request and response concepts rather than forcing every gateway into one universal request model.
+- Gateway components adapt external runtime entrypoints to Stelaro components.
+- Fastify and Discord gateways are separate publishable packages from the core package.
+- Gateway behavior is unified around binding external triggers to typed component calls.
+- Gateway APIs preserve protocol-specific request and response concepts rather than forcing every gateway into one universal request model.
 - UNIMPLEMENTED Gateway components may expose typed call APIs for outbound protocol capabilities.
 - UNIMPLEMENTED Non-gateway components may use gateway capabilities through typed component call APIs.
 
@@ -83,7 +83,6 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - Command-line gateway support may be added later, but it is not part of the current package set.
 - Component resource/template support is expected to be defined.
 - Component reloading is expected to be defined.
-- The configuration file format is expected to be chosen separately.
 - Gateway packages are expected to define protocol-native binding helpers.
 
 ## Dangers
@@ -98,4 +97,4 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 ## Proposals
 
 - Reusable component and gateway declarations may use definition-oriented public names.
-- TOML may be a good default authoring format for configuration, with parsed data validated through Arktype.
+- TOML is the default authoring format for configuration, with parsed data validated through Arktype.

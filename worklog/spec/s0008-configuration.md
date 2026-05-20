@@ -47,7 +47,7 @@ paths = ["packages/stelaro/src/config/**"]
 - `reloadConfig` validates all files against declared schemas before applying changes.
 - If any validation fails during full reload, the reload is rejected, old config persists, and a configuration error is thrown.
 - On successful full validation, all config references are swapped.
-- Components declaring an `onConfigReload` hook are called in topological order after config is swapped.
+- Components declaring an `onConfigReload` hook are called concurrently after config is swapped.
 - Applications may declare an `onConfigReload` hook, called after all component reload hooks.
 - If any reload hook throws, the application transitions to `failed`.
 - `reloadConfig` returns void.

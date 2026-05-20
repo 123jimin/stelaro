@@ -15,21 +15,37 @@ paths = ["packages/stelaro-discord/**"]
 Types are shown erased to their widest form for readability. Implementations must be as narrow as possible — e.g. `call` accepts only references from the mount's `uses` declarations. Discord.js types (`Client`, `ChatInputCommandInteraction`, `AutocompleteInteraction`, `ButtonInteraction`, `MessageReaction`, `User`, etc.) are used directly — the gateway must not redefine them.
 
 ```typescript
+type AnySlashCommandData = SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder;
+
 type CommandHandlerContext = {
-    readonly interaction: ChatInputCommandInteraction | MessageContextMenuCommandInteraction;
+    readonly interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction;
+    readonly options: unknown;
     readonly client: Client;
     call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
 };
 
 type AutocompleteHandlerContext = {
+    readonly value: string;
     readonly interaction: AutocompleteInteraction;
     call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
 };
 
+type AutocompleteChoice = {
+    readonly name: string;
+    readonly value: string;
+};
+
+type AutocompleteResult = readonly string[] | readonly AutocompleteChoice[];
+
+type AutocompleteHandler = (context: AutocompleteHandlerContext) => Promisable<AutocompleteResult>;
+type AutocompleteMap = Record<string, AutocompleteHandler>;
+type AutocompleteFallback = (context: { readonly interaction: AutocompleteInteraction; call: CallFn; }) => Promisable<void>;
+
 type CommandDefinition = {
-    readonly data: SlashCommandBuilder | ContextMenuCommandBuilder;
+    readonly data: AnySlashCommandData | ContextMenuCommandBuilder;
+    readonly options?: ComponentCallSchema;
     handle(context: CommandHandlerContext): Promisable<void>;
-    autocomplete?(context: AutocompleteHandlerContext): Promisable<void>;
+    readonly autocomplete?: AutocompleteMap | AutocompleteFallback;
 };
 
 type EventDefinition = {
@@ -50,7 +66,8 @@ type InteractionDefinition = {
 
 type InteractionHandlerContext = {
     readonly interaction: ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction;
-    readonly params: string[];
+    readonly params: Record<string, string>;
+    readonly client: Client;
     call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
 };
 
@@ -90,11 +107,12 @@ function interaction(definition: InteractionDefinition): InteractionDefinition;
 
 ### Command routing
 
-- Slash commands and context menu commands are defined declaratively with discord.js builders (`SlashCommandBuilder`, `ContextMenuCommandBuilder`).
+- Slash commands and context menu commands are defined declaratively with discord.js builders (`SlashCommandBuilder`, `ContextMenuCommandBuilder`). The `data` field also accepts `SlashCommandSubcommandsOnlyBuilder` and `SlashCommandOptionsOnlyBuilder` (the return types of `.addSubcommand()` and `.addStringOption()` etc.).
 - The gateway registers all commands with the Discord API on start.
-- `command()` is a per-element inference helper (parallel to Fastify's `route()`).
+- `command()` is a per-element inference helper (parallel to Fastify's `route()`). It narrows `CommandHandlerContext.interaction` based on the `data` builder type: `ChatInputCommandInteraction` for slash command builders, `ContextMenuCommandInteraction` for context menu builders.
+- Command definitions may declare an optional `options` field as a `ComponentCallSchema`. When present, the gateway validates slash command option data against the schema before calling the handler, and the handler receives the validated data through `context.options`.
 - Command handlers receive the raw discord.js interaction, the client, and a typed `call()`.
-- Autocomplete handlers are co-located with their command definition. They receive the raw `AutocompleteInteraction` and `call()`.
+- Autocomplete is co-located with the command definition via the `autocomplete` field. It may be either a per-option handler map (`AutocompleteMap`) keyed by option name (using `subcommand/option` qualified keys for subcommands), or a single fallback function. Map handlers receive the focused option's current `value`, the raw `AutocompleteInteraction`, and `call()`, and return an `AutocompleteResult` (string array or `{name, value}` choice array). Results are truncated and normalized by the gateway.
 
 ### Event routing
 
@@ -104,8 +122,9 @@ function interaction(definition: InteractionDefinition): InteractionDefinition;
 
 ### Interaction routing (persistent)
 
-- Interaction handlers match button, select menu, and modal interactions by a custom ID glob pattern (e.g. `quote:delete:*`).
-- Wildcard segments (`*`) are extracted and provided as `params` (an array of captured strings).
+- Interaction handlers match button, select menu, and modal interactions by a custom ID pattern with named parameters (e.g. `quote:delete:{quote_id}`).
+- Named parameter segments (`{name}`) are extracted and provided as `params` (a `Record<string, string>` keyed by parameter name). Literal segments must match exactly.
+- Interaction handlers also receive `client` and `call()`.
 - Transient interactions (created and awaited within one handler via discord.js collectors) remain the handler's responsibility.
 
 ### Lifecycle
