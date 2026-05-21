@@ -10,15 +10,13 @@ paths = ["packages/stelaro/src/config/**"]
 - s0002: Application
 - s0003: Component
 - s0004: Context
+- s0019: Base Directory
 
 ## Behavior
 
 ### Sources
 
-- Application configuration is loaded from `config.toml` within the base directory.
-- Component configuration is loaded from `{component_id}/config.toml` within the base directory.
-- The default base directory is the working directory.
-- The base directory path may be overridden at application creation.
+- Configuration file paths within the base directory are defined by s0019.
 
 ### Schema Declaration
 
