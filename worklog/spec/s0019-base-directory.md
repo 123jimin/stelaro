@@ -23,8 +23,26 @@ paths = []
 ### Layout
 
 - `config.toml` — application-level configuration.
+- UNIMPLEMENTED `secrets.toml` — application-level secrets. Must not be committed to version control.
+- UNIMPLEMENTED `data/` — application-level templates and text data.
+- UNIMPLEMENTED `config.{env}.toml` — environment-specific configuration overlay, deep-merged onto `config.toml`.
+- UNIMPLEMENTED `secrets.{env}.toml` — environment-specific secrets overlay, deep-merged onto `secrets.toml`.
 - `{component_id}/` — per-component subdirectory.
 - `{component_id}/config.toml` — component-level configuration.
+- UNIMPLEMENTED `{component_id}/secrets.toml` — component-level secrets.
+- UNIMPLEMENTED `{component_id}/data/` — component-level templates and text data.
+- UNIMPLEMENTED `{component_id}/config.{env}.toml` — component environment-specific configuration overlay.
+- UNIMPLEMENTED `{component_id}/secrets.{env}.toml` — component environment-specific secrets overlay.
+
+### Initialization
+
+- UNIMPLEMENTED The application can initialize the base directory, creating empty config and secrets files for the application and all registered components.
+
+### Environment Overlays
+
+- UNIMPLEMENTED Environment overlay files (`config.{env}.toml`, `secrets.{env}.toml`) contain only fields that differ from the base file.
+- UNIMPLEMENTED Overlay values are deep-merged onto the base file. Overlay fields take precedence.
+- UNIMPLEMENTED Implementing environment overlays requires partial config loading and merge semantics.
 
 ## Constraints
 
@@ -33,8 +51,7 @@ paths = []
 
 ## Anticipated Changes
 
-- Per-component data, template, or secret directories.
-- Application-level data, template, or secret directories.
+- Locale-specific subdirectories within `data/`.
 
 ## Dangers
 

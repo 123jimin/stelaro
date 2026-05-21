@@ -69,8 +69,6 @@ paths = ["packages/stelaro/src/config/**"]
 ## Anticipated Changes
 
 - Config file watching for automatic reload may be specified later.
-- Environment-specific config overlays may be specified later.
-- Secrets management may be layered on top of config later.
 - Remote config providers may be specified later.
 
 ## Dangers
