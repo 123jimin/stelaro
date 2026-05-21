@@ -18,6 +18,7 @@ type CommandInteractionOf<TData> =
     TData extends ContextMenuCommandBuilder ? ContextMenuCommandInteraction
         : ChatInputCommandInteraction;
 
+/** @category Commands */
 export type CommandHandlerContext<
     TUses extends readonly AnyComponentCalls[],
     TData = SlashCommandBuilder | ContextMenuCommandBuilder,
@@ -27,13 +28,16 @@ export type CommandHandlerContext<
     readonly options: SchemaOutput<TOptions>;
 };
 
+/** @category Commands */
 export type AutocompleteChoice = {
     readonly name: string;
     readonly value: string;
 };
 
+/** @category Commands */
 export type AutocompleteResult = readonly string[] | readonly AutocompleteChoice[];
 
+/** @category Commands */
 export type AutocompleteHandlerContext<
     TUses extends readonly AnyComponentCalls[],
 > = {
@@ -52,12 +56,14 @@ export type AutocompleteFallbackContext<
 export type AutocompleteHandler<TUses extends readonly AnyComponentCalls[]> =
     (context: AutocompleteHandlerContext<TUses>) => Promisable<AutocompleteResult>;
 
+/** @category Commands */
 export type AutocompleteMap<TUses extends readonly AnyComponentCalls[]> =
     Record<string, AutocompleteHandler<TUses>>;
 
 export type AutocompleteFallback<TUses extends readonly AnyComponentCalls[]> =
     (context: AutocompleteFallbackContext<TUses>) => Promisable<void>;
 
+/** @category Commands */
 export type CommandDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TData extends AnySlashCommandData | ContextMenuCommandBuilder = AnySlashCommandData | ContextMenuCommandBuilder,
@@ -69,6 +75,7 @@ export type CommandDefinition<
     readonly autocomplete?: AutocompleteMap<TUses> | AutocompleteFallback<TUses>;
 };
 
+/** @category Commands */
 export function command<
     TData extends AnySlashCommandData | ContextMenuCommandBuilder,
     TOptions extends ComponentCallSchema | undefined = undefined,

@@ -2,7 +2,7 @@
 id = "s0018"
 title = "GitHub Pages Documentation"
 tags = ["documentation", "infrastructure"]
-paths = [".github/workflows/build-docs.yaml", ".github/workflows/ci.yaml", "typedoc.json", "docs/**"]
+paths = [".github/workflows/build-docs.yaml", ".github/workflows/ci.yaml", "typedoc.json", "packages/*/typedoc.json", "docs/**"]
 +++
 
 ## Behavior
@@ -15,12 +15,13 @@ paths = [".github/workflows/build-docs.yaml", ".github/workflows/ci.yaml", "type
 ### CI/CD
 
 - Documentation is automatically built and deployed to GitHub Pages on every push to `main`, after build-and-test succeeds.
-- Pushes that only touch `docs/**` do not trigger CI. `UNIMPLEMENTED`
+- Pushes that only touch `docs/**` do not trigger CI.
 
 ### Scope
 
 - Documentation covers all packages under `packages/*` — currently `stelaro`, `stelaro-discord`, `stelaro-fastify`, `stelaro-pino`.
-- When a new `stelaro-*` package is added, its public entry point must be included in the TypeDoc configuration.
+- When a new `stelaro-*` package is added, its public entry point must be included in the TypeDoc configuration, and a per-package `typedoc.json` with a `name` override (without the `@jiminp/` scope) must be created.
+- All public exports carry a `@category` TSDoc tag. The sidebar groups symbols by category within each package.
 
 ## Constraints
 

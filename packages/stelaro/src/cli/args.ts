@@ -1,6 +1,7 @@
 import {resolve} from "node:path";
 import {parseArgs as nodeParseArgs} from "node:util";
 
+/** @category Application */
 export type ParsedArgs = {
     readonly base_dir: string | undefined;
 };

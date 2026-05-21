@@ -1,3 +1,4 @@
+/** @category Configuration */
 export interface ConfigSchema {
     readonly inferIn: unknown;
     readonly infer: unknown;

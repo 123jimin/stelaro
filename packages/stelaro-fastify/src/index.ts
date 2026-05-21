@@ -23,6 +23,7 @@ const FastifyGatewayConfig = schema({"port": "number", "host?": "string"});
 
 type SchemaOutput<T> = T extends ComponentCallSchema ? T["infer"] : null;
 
+/** @category Routes */
 export type GatewayHandlerContext<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TParams = null,
@@ -42,6 +43,7 @@ export type GatewayHandlerContext<
     html(content: string): void;
 };
 
+/** @category Routes */
 export type GatewayRoute<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TParams extends ComponentCallSchema | undefined = ComponentCallSchema | undefined,
@@ -61,6 +63,7 @@ export type GatewayRoute<
     >): Promisable<unknown>;
 };
 
+/** @category Routes */
 export type FastifyRouteGroup<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
 > = {
@@ -68,6 +71,7 @@ export type FastifyRouteGroup<
     readonly routes: readonly GatewayRoute<TUses>[];
 };
 
+/** @category Gateway */
 export type FastifyGatewayDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TContributions extends readonly FastifyRouteGroup[] = readonly FastifyRouteGroup[],
@@ -79,6 +83,7 @@ export type FastifyGatewayDefinition<
     readonly routes?: readonly GatewayRoute<TUses>[];
 };
 
+/** @category Routes */
 export function route<
     TParams extends ComponentCallSchema | undefined = undefined,
     TBody extends ComponentCallSchema | undefined = undefined,
@@ -87,12 +92,14 @@ export function route<
     return definition;
 }
 
+/** @category Routes */
 export function defineFastifyRoutes<
     const TUses extends readonly AnyComponentCalls[],
 >(definition: FastifyRouteGroup<TUses>): FastifyRouteGroup<TUses> {
     return definition;
 }
 
+/** @category Gateway */
 export function defineFastifyGateway<
     const TUses extends readonly AnyComponentCalls[],
     const TContributions extends readonly FastifyRouteGroup[],

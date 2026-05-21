@@ -9,9 +9,28 @@
     "entryPointStrategy": "packages",
     "out": "docs",
     "exclude": ["**/*.spec.ts"],
+    "useFirstParagraphOfCommentAsSummary": true,
     "packageOptions": {
         "groupReferencesByType": true,
-        "useFirstParagraphOfCommentAsSummary": true
+        "categoryOrder": [
+            "Application",
+            "Lifecycle",
+            "Component",
+            "Configuration",
+            "Logging",
+            "Commands",
+            "Events",
+            "Interactions",
+            "Gateway",
+            "Mounts",
+            "Routes",
+            "Errors",
+            "*"
+        ]
+    },
+    "navigation": {
+        "includeFolders": false,
+        "includeCategories": true
     },
     "navigationLinks": {
         "GitHub": "https://github.com/123jimin/stelaro"

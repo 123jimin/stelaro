@@ -4,6 +4,7 @@ import type {CommandDefinition} from "./command.ts";
 import type {EventDefinition} from "./event.ts";
 import type {InteractionDefinition} from "./interaction.ts";
 
+/** @category Mounts */
 export type DiscordMountGroup<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
 > = {
@@ -13,6 +14,7 @@ export type DiscordMountGroup<
     readonly interactions?: readonly InteractionDefinition<TUses>[];
 };
 
+/** @category Mounts */
 export function defineDiscordMounts<
     const TUses extends readonly AnyComponentCalls[],
 >(definition: DiscordMountGroup<TUses>): DiscordMountGroup<TUses> {

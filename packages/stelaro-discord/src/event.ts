@@ -4,6 +4,7 @@ import type {ClientEvents} from "discord.js";
 
 import type {BaseHandlerContext} from "./types.ts";
 
+/** @category Events */
 export type EventHandlerContext<
     TUses extends readonly AnyComponentCalls[],
     TEvent extends keyof ClientEvents = keyof ClientEvents,
@@ -11,6 +12,7 @@ export type EventHandlerContext<
     readonly event: ClientEvents[TEvent];
 };
 
+/** @category Events */
 export type EventDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TEvent extends keyof ClientEvents = keyof ClientEvents,
@@ -19,6 +21,7 @@ export type EventDefinition<
     handle(context: EventHandlerContext<TUses, TEvent>): Promisable<void>;
 };
 
+/** @category Events */
 export function event<
     TEvent extends keyof ClientEvents,
 >(definition: EventDefinition<readonly AnyComponentCalls[], TEvent>): EventDefinition {

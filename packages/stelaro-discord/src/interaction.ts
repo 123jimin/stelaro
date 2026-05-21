@@ -13,11 +13,13 @@ type ParamKeys<P extends string> =
         ? Name | ParamKeys<Rest>
         : never;
 
+/** @category Interactions */
 export type InteractionParams<P extends string> =
     [ParamKeys<P>] extends [never]
         ? Record<string, never>
         : {readonly [K in ParamKeys<P>]: string};
 
+/** @category Interactions */
 export type InteractionHandlerContext<
     TUses extends readonly AnyComponentCalls[],
     TPattern extends string = string,
@@ -26,6 +28,7 @@ export type InteractionHandlerContext<
     readonly params: InteractionParams<TPattern>;
 };
 
+/** @category Interactions */
 export type InteractionDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TPattern extends string = string,
@@ -34,6 +37,7 @@ export type InteractionDefinition<
     handle(context: InteractionHandlerContext<TUses, TPattern>): Promisable<void>;
 };
 
+/** @category Interactions */
 export function interaction<
     TPattern extends string,
 >(definition: InteractionDefinition<readonly AnyComponentCalls[], TPattern>): InteractionDefinition {

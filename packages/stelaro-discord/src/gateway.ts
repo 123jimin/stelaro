@@ -39,6 +39,7 @@ const DiscordGatewayConfig = schema({
     "guild_id?": "string",
 });
 
+/** @category Gateway */
 export type DiscordGatewayDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TMounts extends readonly DiscordMountGroup[] = readonly DiscordMountGroup[],
@@ -49,6 +50,7 @@ export type DiscordGatewayDefinition<
     readonly mounts?: TMounts;
 };
 
+/** @category Gateway */
 export function defineDiscordGateway<
     const TUses extends readonly AnyComponentCalls[],
     const TMounts extends readonly DiscordMountGroup[],

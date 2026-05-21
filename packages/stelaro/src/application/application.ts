@@ -28,6 +28,7 @@ import {
 } from "./error.ts";
 import {createLifecycleMachine, type LifecycleMachine} from "./lifecycle.ts";
 
+/** @category Application */
 export type ApplicationDefinition<
     TComponents extends readonly AnyComponent[],
     TAppConfig extends ConfigSchema | undefined = undefined,
@@ -38,10 +39,12 @@ export type ApplicationDefinition<
     readonly onConfigReload?: () => Promisable<void>;
 };
 
+/** @category Application */
 export type ApplicationOptions = {
     readonly base_dir?: string;
 };
 
+/** @category Application */
 export type Application<
     TComponents extends readonly AnyComponent[],
     TAppConfig extends ConfigSchema | undefined = undefined,
@@ -76,6 +79,7 @@ type DispatchEntry = {
     readonly handle: (context: AnyComponentContext, input: unknown) => Promisable<unknown>;
 };
 
+/** @category Application */
 export function defineApplication<
     const TComponents extends readonly AnyComponent[],
     const TAppConfig extends ConfigSchema | undefined = undefined,
@@ -83,6 +87,7 @@ export function defineApplication<
     return definition;
 }
 
+/** @category Application */
 export function createApplication<
     const TComponents extends readonly AnyComponent[],
     const TAppConfig extends ConfigSchema | undefined = undefined,

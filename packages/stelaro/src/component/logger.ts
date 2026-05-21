@@ -1,5 +1,6 @@
 import type {ComponentId} from "./types.ts";
 
+/** @category Logging */
 export type Logger = {
     debug(...args: unknown[]): void;
     info(...args: unknown[]): void;
@@ -7,10 +8,12 @@ export type Logger = {
     error(...args: unknown[]): void;
 };
 
+/** @category Logging */
 export type LoggerFactory = (component_id: ComponentId) => Logger;
 
 type ConsoleLogMethod = (...args: unknown[]) => void;
 
+/** @category Logging */
 export function consoleLoggerFactory(component_id: ComponentId): Logger {
     const debug = console.debug.bind(console);
     const info = console.info.bind(console);

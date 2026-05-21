@@ -18,6 +18,7 @@ export type * from "./types.ts";
  *
  * @param definition - Component id plus per-call input/output schemas.
  * @returns A call surface containing typed reference values.
+ * @category Component
  */
 export function defineComponentCalls<
     const TId extends ComponentId,
@@ -53,6 +54,7 @@ export function defineComponentCalls<
  *
  * @param definition - Complete component definition.
  * @returns The same definition with preserved generic inference.
+ * @category Component
  */
 export function defineComponent<
     const TCalls extends AnyComponentCalls,

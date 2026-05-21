@@ -1,7 +1,9 @@
 import {StelaroError} from "../error.ts";
 
+/** @category Lifecycle */
 export type LifecycleState = "idle" | "starting" | "stopping" | "active" | "reloading" | "failed";
 
+/** @category Errors */
 export class LifecycleStateError extends StelaroError {
     readonly current_state: LifecycleState;
     readonly operation: string;
@@ -15,12 +17,14 @@ export class LifecycleStateError extends StelaroError {
     }
 }
 
+/** @category Lifecycle */
 export type LifecycleMachine = {
     readonly state: LifecycleState;
     require(expected: LifecycleState | readonly LifecycleState[], operation: string): void;
     enter(state: LifecycleState): void;
 };
 
+/** @category Lifecycle */
 export function createLifecycleMachine(): LifecycleMachine {
     let current: LifecycleState = "idle";
 

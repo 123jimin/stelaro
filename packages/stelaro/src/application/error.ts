@@ -1,5 +1,6 @@
 import {StelaroError} from "../error.ts";
 
+/** @category Errors */
 export class UnregisteredComponentError extends StelaroError {
     readonly component_id: string;
 
@@ -9,6 +10,7 @@ export class UnregisteredComponentError extends StelaroError {
     }
 }
 
+/** @category Errors */
 export class DuplicateComponentIdError extends StelaroError {
     readonly component_id: string;
 
@@ -18,6 +20,7 @@ export class DuplicateComponentIdError extends StelaroError {
     }
 }
 
+/** @category Errors */
 export class MissingDependencyError extends StelaroError {
     readonly component_id: string;
     readonly dependency_id: string;
@@ -32,6 +35,7 @@ export class MissingDependencyError extends StelaroError {
     }
 }
 
+/** @category Errors */
 export class MissingHandlerError extends StelaroError {
     readonly component_id: string;
     readonly call_name: string;
@@ -45,6 +49,7 @@ export class MissingHandlerError extends StelaroError {
     }
 }
 
+/** @category Errors */
 export class DuplicateCallError extends StelaroError {
     readonly duplicate_keys: readonly string[];
 
@@ -56,6 +61,7 @@ export class DuplicateCallError extends StelaroError {
     }
 }
 
+/** @category Errors */
 export class UnregisteredCallError extends StelaroError {
     readonly component_id: string;
     readonly call_name: string;
@@ -69,6 +75,7 @@ export class UnregisteredCallError extends StelaroError {
     }
 }
 
+/** @category Errors */
 export class UndeclaredCallError extends StelaroError {
     readonly component_id: string;
     readonly target_component_id: string;
@@ -85,6 +92,7 @@ export class UndeclaredCallError extends StelaroError {
     }
 }
 
+/** @category Errors */
 export class CircularDependencyError extends StelaroError {
     readonly component_ids: readonly string[];
 

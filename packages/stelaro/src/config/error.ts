@@ -1,5 +1,6 @@
 import {StelaroError} from "../error.ts";
 
+/** @category Errors */
 export class ConfigFileError extends StelaroError {
     readonly file_path: string;
     readonly component_id: string | undefined;
@@ -15,6 +16,7 @@ export class ConfigFileError extends StelaroError {
     }
 }
 
+/** @category Errors */
 export class ConfigValidationError extends StelaroError {
     readonly file_path: string;
     readonly component_id: string | undefined;

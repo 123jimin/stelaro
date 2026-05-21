@@ -6,8 +6,10 @@ import type {
     ComponentContext,
 } from "./context.ts";
 
+/** @category Component */
 export type ComponentId = string;
 
+/** @category Component */
 export type ComponentCallName = string;
 
 /**
@@ -15,6 +17,8 @@ export type ComponentCallName = string;
  *
  * `inferIn` is the input accepted at a call boundary, `infer` is the
  * validated output, and `assert` performs runtime validation.
+ *
+ * @category Component
  */
 export interface ComponentCallSchema {
     readonly inferIn: unknown;
@@ -29,6 +33,8 @@ type ValueOf<T extends object> = T extends unknown ? T[keyof T] : never;
  *
  * References carry the component id, call name, and the schemas that define
  * the call boundary.
+ *
+ * @category Component
  */
 export type ComponentCallReference<
     TId extends ComponentId,
@@ -42,6 +48,7 @@ export type ComponentCallReference<
     readonly output: TOutputSchema;
 };
 
+/** @category Component */
 export type AnyComponentCallReference = ComponentCallReference<
     ComponentId,
     ComponentCallName,
@@ -49,6 +56,7 @@ export type AnyComponentCallReference = ComponentCallReference<
     ComponentCallSchema
 >;
 
+/** @category Component */
 export type ComponentCallDeclarations = Record<
     ComponentCallName,
     {
@@ -59,6 +67,8 @@ export type ComponentCallDeclarations = Record<
 
 /**
  * Declared call surface for a component id.
+ *
+ * @category Component
  */
 export type ComponentCalls<
     TId extends ComponentId,
@@ -75,14 +85,19 @@ export type ComponentCalls<
     };
 };
 
+/** @category Component */
 export type AnyComponentCalls = ComponentCalls<ComponentId, ComponentCallDeclarations>;
 
+/** @category Component */
 export type CallFrom<TCalls extends AnyComponentCalls> = ValueOf<TCalls["calls"]>;
 
+/** @category Component */
 export type CallInput<TCall extends AnyComponentCallReference> = TCall["input"]["inferIn"];
 
+/** @category Component */
 export type CallOutput<TCall extends AnyComponentCallReference> = TCall["output"]["infer"];
 
+/** @category Component */
 export type StateFactory<TState> = () => TState;
 
 type ConfigOf<T> = T extends ConfigSchema ? T["infer"] : undefined;
@@ -91,6 +106,8 @@ type ConfigOf<T> = T extends ConfigSchema ? T["infer"] : undefined;
  * Component definition with a public call surface, declared dependencies, and
  * one handler per exposed call. Stateful components include a state factory.
  * Components with a config schema receive validated config through context.
+ *
+ * @category Component
  */
 export type Component<
     TCalls extends AnyComponentCalls,
@@ -114,6 +131,7 @@ export type Component<
     };
 } & ([TState] extends [undefined] ? unknown : {readonly state: StateFactory<TState>});
 
+/** @category Component */
 export interface AnyComponent {
     readonly calls: AnyComponentCalls;
     readonly uses: readonly AnyComponentCalls[];
