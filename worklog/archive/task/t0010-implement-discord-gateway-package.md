@@ -1,7 +1,7 @@
 +++
 id = "t0010"
 title = "Implement Discord gateway package"
-status = "active"
+status = "done"
 tags = ["gateway", "discord", "application", "examples"]
 modifies = ["s0001", "s0004", "s0017"]
 blocked_by = []
