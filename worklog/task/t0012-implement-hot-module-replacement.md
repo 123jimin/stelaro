@@ -4,7 +4,7 @@ title = "Implement Hot Module Replacement"
 status = "pending"
 tags = ["hmr", "application", "component", "lifecycle", "gateway"]
 modifies = ["s0001", "s0002", "s0003", "s0006"]
-blocked_by = ["t0011"]
+blocked_by = []
 +++
 
 ## Scope
