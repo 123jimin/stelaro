@@ -23,16 +23,16 @@ paths = []
 ### Layout
 
 - `config.toml` — application-level configuration.
-- UNIMPLEMENTED `secrets.toml` — application-level secrets. Must not be committed to version control.
+- `secrets.toml` — application-level secrets. Must not be committed to version control.
 - UNIMPLEMENTED `data/` — application-level templates and text data.
-- UNIMPLEMENTED `config.{env}.toml` — environment-specific configuration overlay, deep-merged onto `config.toml`.
-- UNIMPLEMENTED `secrets.{env}.toml` — environment-specific secrets overlay, deep-merged onto `secrets.toml`.
+- `config.{env}.toml` — environment-specific configuration overlay, deep-merged onto `config.toml`.
+- `secrets.{env}.toml` — environment-specific secrets overlay, deep-merged onto `secrets.toml`.
 - `{component_id}/` — per-component subdirectory.
 - `{component_id}/config.toml` — component-level configuration.
-- UNIMPLEMENTED `{component_id}/secrets.toml` — component-level secrets.
+- `{component_id}/secrets.toml` — component-level secrets.
 - UNIMPLEMENTED `{component_id}/data/` — component-level templates and text data.
-- UNIMPLEMENTED `{component_id}/config.{env}.toml` — component environment-specific configuration overlay.
-- UNIMPLEMENTED `{component_id}/secrets.{env}.toml` — component environment-specific secrets overlay.
+- `{component_id}/config.{env}.toml` — component environment-specific configuration overlay.
+- `{component_id}/secrets.{env}.toml` — component environment-specific secrets overlay.
 
 ### Initialization
 
@@ -40,9 +40,9 @@ paths = []
 
 ### Environment Overlays
 
-- UNIMPLEMENTED Environment overlay files (`config.{env}.toml`, `secrets.{env}.toml`) contain only fields that differ from the base file.
-- UNIMPLEMENTED Overlay values are deep-merged onto the base file. Overlay fields take precedence.
-- UNIMPLEMENTED Implementing environment overlays requires partial config loading and merge semantics.
+- Environment overlay files (`config.{env}.toml`, `secrets.{env}.toml`) contain only fields that differ from the base file.
+- Overlay values are deep-merged onto the base file. Overlay fields take precedence.
+- Missing overlay files are silently skipped.
 
 ## Constraints
 

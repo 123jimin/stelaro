@@ -13,7 +13,7 @@ import type {
     CallOutput,
     ComponentId,
 } from "../component/types.ts";
-import {loadTomlConfig} from "../config/loader.ts";
+import {loadTomlConfig, loadTomlSecrets} from "../config/loader.ts";
 import type {ConfigSchema} from "../config/types.ts";
 import {TopologicalCycleError, topologicalSort} from "../util/topological-sort.ts";
 import {
@@ -28,26 +28,32 @@ import {
 } from "./error.ts";
 import {createLifecycleMachine, type LifecycleMachine} from "./lifecycle.ts";
 
+export const FRAMEWORK_NAME = "stelaro";
+
 /** @category Application */
 export type ApplicationDefinition<
     TComponents extends readonly AnyComponent[],
     TAppConfig extends ConfigSchema | undefined = undefined,
+    TAppSecrets extends ConfigSchema | undefined = undefined,
 > = {
     readonly components: TComponents;
     readonly logger?: LoggerFactory;
     readonly config?: TAppConfig;
+    readonly secrets?: TAppSecrets;
     readonly onConfigReload?: () => Promisable<void>;
 };
 
 /** @category Application */
 export type ApplicationOptions = {
     readonly base_dir?: string;
+    readonly env?: string | null;
 };
 
 /** @category Application */
 export type Application<
     TComponents extends readonly AnyComponent[],
     TAppConfig extends ConfigSchema | undefined = undefined,
+    TAppSecrets extends ConfigSchema | undefined = undefined,
 > = {
     start(): Promise<void>;
     stop(): Promise<void>;
@@ -60,6 +66,7 @@ export type Application<
         component_id: TComponents[number]["calls"]["id"],
     ): Promise<void>;
     readonly config: TAppConfig extends ConfigSchema ? TAppConfig["infer"] : null;
+    readonly secrets: TAppSecrets extends ConfigSchema ? TAppSecrets["infer"] : null;
 };
 
 type ComponentRuntime = {
@@ -70,6 +77,7 @@ type ComponentRuntime = {
     readonly callable_references: ReadonlySet<AnyComponentCallReference>;
     readonly state: unknown;
     config: unknown;
+    secrets: unknown;
 };
 
 type DispatchFn = (reference: AnyComponentCallReference, input: unknown) => Promise<unknown>;
@@ -83,18 +91,33 @@ type DispatchEntry = {
 export function defineApplication<
     const TComponents extends readonly AnyComponent[],
     const TAppConfig extends ConfigSchema | undefined = undefined,
->(definition: ApplicationDefinition<TComponents, TAppConfig>): ApplicationDefinition<TComponents, TAppConfig> {
+    const TAppSecrets extends ConfigSchema | undefined = undefined,
+>(definition: ApplicationDefinition<TComponents, TAppConfig, TAppSecrets>): ApplicationDefinition<TComponents, TAppConfig, TAppSecrets> {
     return definition;
+}
+
+function tomlPaths(
+    dir: string,
+    stem: string,
+    env: string | null,
+): {base: string; overlay: string | null} {
+    return {
+        base: join(dir, `${stem}.toml`),
+        overlay: env != null ? join(dir, `${stem}.${env}.toml`) : null,
+    };
 }
 
 /** @category Application */
 export function createApplication<
     const TComponents extends readonly AnyComponent[],
     const TAppConfig extends ConfigSchema | undefined = undefined,
->(definition: ApplicationDefinition<TComponents, TAppConfig>, options?: ApplicationOptions): Application<TComponents, TAppConfig> {
+    const TAppSecrets extends ConfigSchema | undefined = undefined,
+>(definition: ApplicationDefinition<TComponents, TAppConfig, TAppSecrets>, options?: ApplicationOptions): Application<TComponents, TAppConfig, TAppSecrets> {
     const lifecycle = createLifecycleMachine();
     const base_dir = options?.base_dir ?? ".";
+    const env = options?.env ?? null;
     const loggerFactory = definition.logger ?? consoleLoggerFactory;
+    const framework_log = loggerFactory(FRAMEWORK_NAME);
 
     const ordered_components = validateAndSort(definition.components);
     const {runtimes, id_to_runtime, dispatchers} = buildRuntimes(ordered_components, loggerFactory);
@@ -114,30 +137,63 @@ export function createApplication<
     };
 
     let app_config: unknown = null;
+    let app_secrets: unknown = null;
 
-    const app: Application<TComponents, TAppConfig> = {
-        get config() { return app_config as Application<TComponents, TAppConfig>["config"]; },
+    const app: Application<TComponents, TAppConfig, TAppSecrets> = {
+        get config() { return app_config as Application<TComponents, TAppConfig, TAppSecrets>["config"]; },
+        get secrets() { return app_secrets as Application<TComponents, TAppConfig, TAppSecrets>["secrets"]; },
         async start(): Promise<void> {
             lifecycle.require("idle", "start");
             lifecycle.enter("starting");
 
             try {
-                const config_loads: Promise<void>[] = [];
+                const loads: Promise<void>[] = [];
+
                 if(definition.config != null) {
-                    config_loads.push(
-                        loadTomlConfig(join(base_dir, "config.toml"), definition.config)
+                    const {base, overlay} = tomlPaths(base_dir, "config", env);
+                    loads.push(
+                        loadTomlConfig(base, definition.config, null, overlay)
                             .then((config) => { app_config = config; }),
                     );
                 }
+
+                if(definition.secrets != null) {
+                    const {base, overlay} = tomlPaths(base_dir, "secrets", env);
+                    loads.push(
+                        loadTomlSecrets(base, definition.secrets, null, overlay)
+                            .then(({value, base_found}) => {
+                                if(!base_found) {
+                                    framework_log.warn(`No secrets file found for application: ${base}`);
+                                }
+                                app_secrets = value;
+                            }),
+                    );
+                }
+
                 for(const runtime of runtimes) {
+                    const component_dir = join(base_dir, runtime.id);
                     if(runtime.component.config != null) {
-                        config_loads.push(
-                            loadTomlConfig(join(base_dir, runtime.id, "config.toml"), runtime.component.config, runtime.id)
+                        const {base, overlay} = tomlPaths(component_dir, "config", env);
+                        loads.push(
+                            loadTomlConfig(base, runtime.component.config, runtime.id, overlay)
                                 .then((config) => { runtime.config = config; }),
                         );
                     }
+                    if(runtime.component.secrets != null) {
+                        const {base, overlay} = tomlPaths(component_dir, "secrets", env);
+                        loads.push(
+                            loadTomlSecrets(base, runtime.component.secrets, runtime.id, overlay)
+                                .then(({value, base_found}) => {
+                                    if(!base_found) {
+                                        runtime.log.warn(`No secrets file found: ${base}`);
+                                    }
+                                    runtime.secrets = value;
+                                }),
+                        );
+                    }
                 }
-                await Promise.all(config_loads);
+
+                await Promise.all(loads);
 
                 for(const runtime of runtimes) {
                     runtime.lifecycle.enter("starting");
@@ -206,15 +262,17 @@ export function createApplication<
             try {
                 const config_loads: Promise<void>[] = [];
                 if(definition.config != null) {
+                    const {base, overlay} = tomlPaths(base_dir, "config", env);
                     config_loads.push(
-                        loadTomlConfig(join(base_dir, "config.toml"), definition.config)
+                        loadTomlConfig(base, definition.config, null, overlay)
                             .then((config) => { pending_app_config = config; }),
                     );
                 }
                 for(const runtime of runtimes) {
                     if(runtime.component.config != null) {
+                        const {base, overlay} = tomlPaths(join(base_dir, runtime.id), "config", env);
                         config_loads.push(
-                            loadTomlConfig(join(base_dir, runtime.id, "config.toml"), runtime.component.config, runtime.id)
+                            loadTomlConfig(base, runtime.component.config, runtime.id, overlay)
                                 .then((config) => { pending_component_configs.set(runtime, config); }),
                         );
                     }
@@ -268,10 +326,12 @@ export function createApplication<
 
             let pending_config: unknown;
             try {
+                const {base, overlay} = tomlPaths(join(base_dir, runtime.id), "config", env);
                 pending_config = await loadTomlConfig(
-                    join(base_dir, runtime.id, "config.toml"),
+                    base,
                     runtime.component.config,
                     runtime.id,
+                    overlay,
                 );
             } catch (error) {
                 lifecycle.enter("active");
@@ -324,6 +384,7 @@ function buildRuntimes(
             callable_references,
             state: component.state != null ? component.state() : null,
             config: null,
+            secrets: null,
         };
 
         runtimes.push(runtime);
@@ -363,6 +424,7 @@ function buildContext(
         },
         ...(runtime.component.state != null ? {state: runtime.state} : null),
         ...(runtime.component.config != null ? {config: runtime.config} : null),
+        ...(runtime.component.secrets != null ? {secrets: runtime.secrets} : null),
     };
 }
 

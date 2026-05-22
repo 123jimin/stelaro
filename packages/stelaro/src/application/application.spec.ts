@@ -15,6 +15,7 @@ import {StelaroError} from "../error.ts";
 import {
     createApplication,
     defineApplication,
+    FRAMEWORK_NAME,
 } from "./application.ts";
 import {
     CircularDependencyError,
@@ -329,8 +330,8 @@ describe("@jiminp/stelaro application core", () => {
         await app.call(CounterCalls.calls.current, {});
         await app.call(PageCalls.calls.render, {});
 
-        assert.deepStrictEqual(new Set(factory_component_ids), new Set(["counter", "page"]));
-        assert.deepStrictEqual(factory_component_ids.length, 2);
+        assert.deepStrictEqual(new Set(factory_component_ids), new Set([FRAMEWORK_NAME, "counter", "page"]));
+        assert.deepStrictEqual(factory_component_ids.length, 3);
         assert.deepStrictEqual(
             received_logger_by_component_id.get("counter"),
             logger_by_component_id.get("counter"),

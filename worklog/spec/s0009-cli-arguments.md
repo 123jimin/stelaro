@@ -24,6 +24,7 @@ paths = ["packages/stelaro/src/cli/**"]
 | Argument | Type | Default | Purpose |
 |----------|------|---------|---------|
 | `--base-dir` | string | `undefined` | Override base directory path |
+| `--env` | string | `null` | Set the active environment name |
 
 ## Constraints
 

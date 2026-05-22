@@ -101,6 +101,7 @@ export type CallOutput<TCall extends AnyComponentCallReference> = TCall["output"
 export type StateFactory<TState> = () => TState;
 
 type ConfigOf<T> = T extends ConfigSchema ? T["infer"] : undefined;
+type SecretsOf<T> = T extends ConfigSchema ? T["infer"] : undefined;
 
 /**
  * Component definition with a public call surface, declared dependencies, and
@@ -114,17 +115,19 @@ export type Component<
     TUses extends readonly AnyComponentCalls[],
     TState = undefined,
     TConfigSchema extends ConfigSchema | undefined = undefined,
+    TSecretsSchema extends ConfigSchema | undefined = undefined,
 > = {
     readonly calls: TCalls;
     readonly uses: TUses;
     readonly config?: TConfigSchema;
-    readonly start?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>>) => Promisable<void>;
-    readonly stop?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>>) => Promisable<void>;
-    readonly onConfigReload?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>>) => Promisable<void>;
+    readonly secrets?: TSecretsSchema;
+    readonly start?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>) => Promisable<void>;
+    readonly stop?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>) => Promisable<void>;
+    readonly onConfigReload?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>) => Promisable<void>;
     readonly handlers: {
         readonly [TCallName in keyof TCalls["calls"] & ComponentCallName]: {
             handle(
-                context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>>,
+                context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>,
                 input: CallInput<TCalls["calls"][TCallName]>,
             ): Promisable<CallOutput<TCalls["calls"][TCallName]>>;
         };
@@ -137,6 +140,7 @@ export interface AnyComponent {
     readonly uses: readonly AnyComponentCalls[];
     readonly state?: StateFactory<unknown> | undefined;
     readonly config?: ConfigSchema | undefined;
+    readonly secrets?: ConfigSchema | undefined;
     start?(context: AnyComponentContext): Promisable<void>;
     stop?(context: AnyComponentContext): Promisable<void>;
     onConfigReload?(context: AnyComponentContext): Promisable<void>;

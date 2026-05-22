@@ -27,12 +27,15 @@ export type ComponentContext<
     TUses extends readonly AnyComponentCalls[],
     TState = undefined,
     TConfig = undefined,
+    TSecrets = undefined,
 > = BaseComponentContext<TUses>
     & ([TState] extends [undefined] ? unknown : {readonly state: TState})
-    & ([TConfig] extends [undefined] ? unknown : {readonly config: TConfig});
+    & ([TConfig] extends [undefined] ? unknown : {readonly config: TConfig})
+    & ([TSecrets] extends [undefined] ? unknown : {readonly secrets: TSecrets});
 
 /** @category Component */
 export type AnyComponentContext = ComponentContext<readonly AnyComponentCalls[]> & {
     readonly state?: unknown;
     readonly config?: unknown;
+    readonly secrets?: unknown;
 };

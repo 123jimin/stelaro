@@ -4,6 +4,7 @@ import {parseArgs as nodeParseArgs} from "node:util";
 /** @category Application */
 export type ParsedArgs = {
     readonly base_dir: string | undefined;
+    readonly env: string | null;
 };
 
 function resolvePath(value: string | undefined): string | undefined {
@@ -17,6 +18,9 @@ export function parseArgs(argv?: string[]): ParsedArgs {
             "base-dir": {
                 type: "string",
             },
+            "env": {
+                type: "string",
+            },
         },
         strict: true,
         allowPositionals: false,
@@ -24,5 +28,6 @@ export function parseArgs(argv?: string[]): ParsedArgs {
 
     return {
         base_dir: resolvePath(values["base-dir"]),
+        env: values["env"] ?? null,
     };
 }

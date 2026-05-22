@@ -1,7 +1,7 @@
 +++
 id = "t0011"
 title = "Implement environment config and secrets"
-status = "pending"
+status = "done"
 tags = ["config", "cli", "application"]
 modifies = ["s0008", "s0009", "s0019"]
 blocked_by = []

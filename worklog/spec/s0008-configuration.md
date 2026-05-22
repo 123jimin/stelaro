@@ -33,11 +33,34 @@ paths = ["packages/stelaro/src/config/**"]
 - Components without config schemas do not require a config file and are skipped during config loading.
 - Applications without a config schema do not require an application config file.
 
+### Environment Overlays
+
+- When an environment is set (via `--env` CLI argument or `ApplicationOptions.env`), environment overlay files are loaded after base files.
+- Overlay values are deep-merged onto the base file using `recursiveMerge`. Overlay fields take precedence.
+- Missing overlay files are silently skipped — the base file stands alone.
+- Schema validation runs against the merged result, not the individual files.
+- Environment overlays apply to both config and secrets, at both application and component levels.
+
+### Secrets
+
+- Applications may declare a secrets schema for application-level secrets.
+- Components may declare a secrets schema for component-level secrets.
+- Secrets schemas use Arktype (same interface as config schemas).
+- Secrets are loaded and validated during application start, before component start hooks run.
+- Secrets files (`secrets.toml`) are parsed as TOML and validated against declared schemas.
+- When a secrets file is missing for a component or application with a declared secrets schema, a warning is logged and an empty object is validated against the schema.
+- If secrets validation fails, application start fails and the application transitions to `failed`.
+- Components without secrets schemas are skipped during secrets loading.
+- Secrets are loaded once at start and are not affected by `reloadConfig` or `reloadComponentConfig`.
+
 ### Context Exposure
 
 - Validated component config is available through `context.config`, typed from the component's declared config schema.
+- Validated component secrets are available through `context.secrets`, typed from the component's declared secrets schema.
 - Components without config schemas do not receive config in context.
+- Components without secrets schemas do not receive secrets in context.
 - Validated application config is available on the application runtime.
+- Validated application secrets are available on the application runtime.
 
 ### Reload
 
@@ -62,14 +85,19 @@ paths = ["packages/stelaro/src/config/**"]
 
 - Config behavior belongs to the core package.
 - Config schemas must be Arktype schemas.
+- Secrets schemas must be Arktype schemas.
 - Config validation must occur before any component behavior receives config values.
+- Secrets validation must occur before any component behavior receives secrets values.
 - Core config loading must not depend on gateway-specific runtimes.
 - Component config is scoped to the declaring component; components must not access other components' config.
+- Component secrets are scoped to the declaring component; components must not access other components' secrets.
+- Secrets are not reloaded by `reloadConfig` or `reloadComponentConfig`.
 
 ## Anticipated Changes
 
 - Config file watching for automatic reload may be specified later.
 - Remote config providers may be specified later.
+- Secrets reloading may be specified separately from config reloading.
 
 ## Dangers
 
@@ -77,3 +105,4 @@ paths = ["packages/stelaro/src/config/**"]
 - Config reload without notification hooks leaves components with stale resources tied to old config values.
 - Implicit config sharing between components would create hidden coupling.
 - Config reload during lifecycle transitions could leave the application in an inconsistent state.
+- Secrets files must not be committed to version control.

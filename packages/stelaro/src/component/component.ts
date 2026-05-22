@@ -61,6 +61,7 @@ export function defineComponent<
     const TUses extends readonly AnyComponentCalls[],
     TState = undefined,
     TConfigSchema extends ConfigSchema | undefined = undefined,
->(definition: Component<TCalls, TUses, TState, TConfigSchema>): Component<TCalls, TUses, TState, TConfigSchema> {
+    TSecretsSchema extends ConfigSchema | undefined = undefined,
+>(definition: Component<TCalls, TUses, TState, TConfigSchema, TSecretsSchema>): Component<TCalls, TUses, TState, TConfigSchema, TSecretsSchema> {
     return definition;
 }
