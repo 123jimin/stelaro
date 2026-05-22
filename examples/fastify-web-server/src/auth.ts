@@ -1,5 +1,6 @@
 import {Authenticator} from "@fastify/passport";
 import fastifySecureSession from "@fastify/secure-session";
+import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
 import {defineFastifyRoutes, route} from "@jiminp/stelaro-fastify";
 import {type as schema} from "arktype";
 import type {FastifyInstance, FastifyReply, FastifyRequest} from "fastify";
@@ -20,52 +21,71 @@ declare module "fastify" {
     interface PassportUser extends SessionUser {}
 }
 
-export async function registerAuth(server: FastifyInstance): Promise<void> {
-    await server.register(fastifySecureSession, {
-        key: Buffer.alloc(32),
-        cookie: {path: "/"},
+const AuthCalls = defineComponentCalls({id: "auth", calls: {}});
+
+const AuthSecrets = schema({
+    google_client_id: "string",
+    google_client_secret: "string",
+    discord_client_id: "string",
+    discord_client_secret: "string",
+    session_key: "string",
+});
+
+export function createAuthComponent(server: FastifyInstance) {
+    return defineComponent({
+        calls: AuthCalls,
+        uses: [],
+        secrets: AuthSecrets,
+        handlers: {},
+
+        async start(context) {
+            await server.register(fastifySecureSession, {
+                key: Buffer.from(context.secrets.session_key, "hex"),
+                cookie: {path: "/"},
+            });
+
+            await server.register(fastifyPassport.initialize());
+            await server.register(fastifyPassport.secureSession());
+
+            fastifyPassport.registerUserSerializer<SessionUser, SessionUser>(
+                async (user) => user,
+            );
+            fastifyPassport.registerUserDeserializer<SessionUser, SessionUser>(
+                async (user) => user,
+            );
+
+            fastifyPassport.use("google", new GoogleStrategy(
+                {
+                    clientID: context.secrets.google_client_id,
+                    clientSecret: context.secrets.google_client_secret,
+                    callbackURL: "/login/google/callback",
+                },
+                (_access_token, _refresh_token, profile, done) => {
+                    done(null, {
+                        provider: "google",
+                        provider_account_id: profile.id,
+                        display_name: profile.displayName,
+                    } satisfies SessionUser);
+                },
+            ));
+
+            fastifyPassport.use("discord", new DiscordStrategy(
+                {
+                    clientID: context.secrets.discord_client_id,
+                    clientSecret: context.secrets.discord_client_secret,
+                    callbackURL: "/login/discord/callback",
+                    scope: ["identify"],
+                },
+                (_access_token, _refresh_token, profile, done) => {
+                    done(null, {
+                        provider: "discord",
+                        provider_account_id: profile.id,
+                        display_name: profile.username,
+                    } satisfies SessionUser);
+                },
+            ));
+        },
     });
-
-    await server.register(fastifyPassport.initialize());
-    await server.register(fastifyPassport.secureSession());
-
-    fastifyPassport.registerUserSerializer<SessionUser, SessionUser>(
-        async (user) => user,
-    );
-    fastifyPassport.registerUserDeserializer<SessionUser, SessionUser>(
-        async (user) => user,
-    );
-
-    fastifyPassport.use("google", new GoogleStrategy(
-        {
-            clientID: "mock-google-client-id",
-            clientSecret: "mock-google-client-secret",
-            callbackURL: "/login/google/callback",
-        },
-        (_access_token, _refresh_token, profile, done) => {
-            done(null, {
-                provider: "google",
-                provider_account_id: profile.id,
-                display_name: profile.displayName,
-            } satisfies SessionUser);
-        },
-    ));
-
-    fastifyPassport.use("discord", new DiscordStrategy(
-        {
-            clientID: "mock-discord-client-id",
-            clientSecret: "mock-discord-client-secret",
-            callbackURL: "/login/discord/callback",
-            scope: ["identify"],
-        },
-        (_access_token, _refresh_token, profile, done) => {
-            done(null, {
-                provider: "discord",
-                provider_account_id: profile.id,
-                display_name: profile.username,
-            } satisfies SessionUser);
-        },
-    ));
 }
 
 const _authenticateGoogle = fastifyPassport.authenticate("google", {scope: ["profile", "email"]});

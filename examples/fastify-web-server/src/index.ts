@@ -2,7 +2,7 @@ import fastifyFormbody from "@fastify/formbody";
 import {createApplication, defineApplication} from "@jiminp/stelaro";
 import Fastify from "fastify";
 
-import {registerAuth} from "./auth.ts";
+import {createAuthComponent} from "./auth.ts";
 import {CommentsComponent} from "./comments.ts";
 import {createGateway} from "./gateway.ts";
 import {ThreadsComponent} from "./threads.ts";
@@ -11,8 +11,8 @@ import {UsersComponent} from "./users.ts";
 // eslint-disable-next-line new-cap -- Fastify's public API
 const server = Fastify();
 await server.register(fastifyFormbody);
-await registerAuth(server);
 
+const AuthComponent = createAuthComponent(server);
 const HttpGateway = createGateway(server);
 
 const BbsApp = defineApplication({
@@ -20,9 +20,10 @@ const BbsApp = defineApplication({
         UsersComponent,
         ThreadsComponent,
         CommentsComponent,
+        AuthComponent,
         HttpGateway,
     ],
 });
 
-const app = createApplication(BbsApp);
+const app = createApplication(BbsApp, {base_dir: "app"});
 await app.start();

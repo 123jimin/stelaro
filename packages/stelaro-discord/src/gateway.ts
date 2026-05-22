@@ -34,9 +34,12 @@ import {
 import type {DiscordMountGroup} from "./mount.ts";
 
 const DiscordGatewayConfig = schema({
-    "token": "string",
     "application_id": "string",
     "guild_id?": "string",
+});
+
+const DiscordGatewaySecrets = schema({
+    "token": "string",
 });
 
 /** @category Gateway */
@@ -83,11 +86,12 @@ export function defineDiscordGateway<
         calls: gateway_calls,
         uses: all_uses,
         config: DiscordGatewayConfig,
+        secrets: DiscordGatewaySecrets,
         handlers: {},
 
         async start(context) {
             const client = definition.client;
-            const rest = new REST({version: "10"}).setToken(context.config.token);
+            const rest = new REST({version: "10"}).setToken(context.secrets.token);
 
             const command_data = all_commands.map((cmd) => cmd.data.toJSON());
             const route = context.config.guild_id != null
@@ -124,7 +128,7 @@ export function defineDiscordGateway<
                 });
             }
 
-            await client.login(context.config.token);
+            await client.login(context.secrets.token);
             context.log.info("Discord client logged in.");
 
             async function dispatchCommand(
