@@ -17,7 +17,7 @@ paths = ["packages/stelaro/src/cli/**"]
 - CLI argument parsing occurs before config file loading.
 - Parsed CLI arguments are available on the application runtime.
 - CLI arguments are immutable after application creation.
-- UNIMPLEMENTED CLI arguments are not affected by config reload.
+- CLI arguments are not affected by config reload.
 
 ### Fixed Arguments
 

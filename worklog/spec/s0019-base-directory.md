@@ -2,7 +2,7 @@
 id = "s0019"
 title = "Base Directory"
 tags = ["application", "config"]
-paths = []
+paths = ["packages/stelaro/src/application/application.ts", "packages/stelaro/src/cli/args.ts"]
 +++
 
 ## Related Specs

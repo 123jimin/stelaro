@@ -22,15 +22,18 @@ type ApplicationDefinition = {
     readonly components: readonly AnyComponent[];
     readonly logger?: LoggerFactory;        // default: consoleLoggerFactory
     readonly config?: ConfigSchema;
+    readonly secrets?: ConfigSchema;
     readonly onConfigReload?: () => Promisable<void>;
 };
 
 type ApplicationOptions = {
     readonly base_dir?: string;
+    readonly env?: string | null;
 };
 
 type Application = {
     readonly config: unknown;               // null when definition has no config schema
+    readonly secrets: unknown;              // null when definition has no secrets schema
     readonly logger: LoggerFactory;
     start(): Promise<void>;
     stop(): Promise<void>;
@@ -70,6 +73,8 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
 - `app.call()` only works in `active` or `reloading` states. All other states throw `LifecycleStateError`.
 - `app.start()` only works in `idle`. All other states throw `LifecycleStateError`.
 - `app.stop()` only works in `active` or `failed`. All other states throw `LifecycleStateError`.
+- `app.reloadConfig()` only works in `active`. All other states throw `LifecycleStateError`.
+- `app.reloadComponentConfig()` only works in `active`. All other states throw `LifecycleStateError`.
 
 ## Constraints
 

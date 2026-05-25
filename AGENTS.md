@@ -1,3 +1,7 @@
+## Project
+
+- Use `pnpm test` to test.
+
 ## Naming Convention
 
 - Variables: `snake_case`

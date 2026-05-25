@@ -29,6 +29,7 @@ type ComponentContext = {
     call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
     readonly state?: unknown;       // present iff component declares a state factory
     readonly config?: unknown;      // present iff component declares a config schema
+    readonly secrets?: unknown;     // present iff component declares a secrets schema
 };
 ```
 

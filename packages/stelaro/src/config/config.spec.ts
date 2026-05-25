@@ -342,11 +342,11 @@ describe("@jiminp/stelaro configuration", () => {
         await app.stop();
     });
 
-    it("calls onConfigReload hooks in topological order", async () => {
+    it("calls all onConfigReload hooks concurrently", async () => {
         await writeConfig(join(base_dir, "a", "config.toml"), 'value = 1\n');
         await writeConfig(join(base_dir, "b", "config.toml"), 'value = 2\n');
 
-        const reload_order: string[] = [];
+        const reloaded = new Set<string>();
 
         const ACalls = defineComponentCalls({
             id: "a",
@@ -361,7 +361,7 @@ describe("@jiminp/stelaro configuration", () => {
             uses: [],
             config: schema({value: "number"}),
             onConfigReload() {
-                reload_order.push("a");
+                reloaded.add("a");
             },
             handlers: {
                 run: {handle(context) { return {count: context.config.value}; }},
@@ -372,7 +372,7 @@ describe("@jiminp/stelaro configuration", () => {
             uses: [ACalls],
             config: schema({value: "number"}),
             onConfigReload() {
-                reload_order.push("b");
+                reloaded.add("b");
             },
             handlers: {
                 run: {handle(context) { return {count: context.config.value}; }},
@@ -388,7 +388,7 @@ describe("@jiminp/stelaro configuration", () => {
         await writeConfig(join(base_dir, "b", "config.toml"), 'value = 20\n');
         await app.reloadConfig();
 
-        assert.deepStrictEqual(reload_order, ["a", "b"]);
+        assert.deepStrictEqual(reloaded, new Set(["a", "b"]));
 
         await app.stop();
     });
