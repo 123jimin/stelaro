@@ -39,7 +39,7 @@ const DiscordGatewayConfig = schema({
 });
 
 const DiscordGatewaySecrets = schema({
-    "token": "string",
+    token: "string",
 });
 
 /** @category Gateway */

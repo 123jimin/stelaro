@@ -14,7 +14,7 @@ export function attachSignalHandlers(
     const log = options?.logger
         ?? app.logger?.("signal")
         ?? consoleLoggerFactory("signal");
-    const timeout = options?.timeout === undefined ? 10_000 : options.timeout;
+    const timeout = options != null && "timeout" in options ? options.timeout : 10_000;
     let stopping = false;
     let timeout_id: ReturnType<typeof setTimeout> | null = null;
 
