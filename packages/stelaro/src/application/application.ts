@@ -67,6 +67,7 @@ export type Application<
     ): Promise<void>;
     readonly config: TAppConfig extends ConfigSchema ? TAppConfig["infer"] : null;
     readonly secrets: TAppSecrets extends ConfigSchema ? TAppSecrets["infer"] : null;
+    readonly logger: LoggerFactory;
 };
 
 type ComponentRuntime = {
@@ -142,6 +143,7 @@ export function createApplication<
     const app: Application<TComponents, TAppConfig, TAppSecrets> = {
         get config() { return app_config as Application<TComponents, TAppConfig, TAppSecrets>["config"]; },
         get secrets() { return app_secrets as Application<TComponents, TAppConfig, TAppSecrets>["secrets"]; },
+        logger: loggerFactory,
         async start(): Promise<void> {
             lifecycle.require("idle", "start");
             lifecycle.enter("starting");

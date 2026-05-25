@@ -31,6 +31,7 @@ type ApplicationOptions = {
 
 type Application = {
     readonly config: unknown;               // null when definition has no config schema
+    readonly logger: LoggerFactory;
     start(): Promise<void>;
     stop(): Promise<void>;
     call(reference: AnyComponentCallReference, input: unknown): Promise<unknown>;
