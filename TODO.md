@@ -1,12 +1,9 @@
 # TODO
 
-1. Signal handling
-   - Opt-in helper that wires OS signals to `app.stop()` (double-signal, timeout, concurrent stop).
-   - Part of: base stelaro (small utility).
+1. ~~Signal handling~~ (`s0020`, `t0027`) — Done.
 
-2. Data directory / resource access
-   - Component-scoped file loading from base directory (`{component_id}/data/`).
-   - Already has `UNIMPLEMENTED` marker in s0019.
+2. Data directory / resource access (`s0021`, `t0028`)
+   - `DataAccess` with `dir` and `resolve(subpath)` on `context.data` and `app.data`.
    - Part of: base stelaro.
 
 3. Discord handler middleware and error handling (`t0025`)
