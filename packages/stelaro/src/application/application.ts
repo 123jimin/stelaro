@@ -292,13 +292,22 @@ export function createApplication<
                 runtime.config = config;
             }
 
+            const results = await Promise.allSettled(runtimes.map(async (runtime) => {
+                if(runtime.component.onConfigReload != null) {
+                    const context = buildContext(runtime, dispatchCall);
+                    await runtime.component.onConfigReload(context);
+                }
+            }));
+            const errors = results
+                .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+                .map((r) => r.reason);
+
+            if(errors.length > 0) {
+                lifecycle.enter("failed");
+                throw new AggregateError(errors, "One or more onConfigReload hooks failed.");
+            }
+
             try {
-                await Promise.all(runtimes.map(async (runtime) => {
-                    if(runtime.component.onConfigReload != null) {
-                        const context = buildContext(runtime, dispatchCall);
-                        await runtime.component.onConfigReload(context);
-                    }
-                }));
                 if(definition.onConfigReload != null) {
                     await definition.onConfigReload();
                 }

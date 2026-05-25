@@ -581,7 +581,7 @@ describe("@jiminp/stelaro configuration", () => {
         await app.stop();
     });
 
-    it("transitions to failed when onConfigReload hook throws", async () => {
+    it("transitions to failed with AggregateError when onConfigReload hook throws", async () => {
         await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
@@ -612,9 +612,61 @@ describe("@jiminp/stelaro configuration", () => {
         await app.start();
 
         await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 99\n');
-        await assert.rejects(() => app.reloadConfig());
+        await assert.rejects(() => app.reloadConfig(), AggregateError);
 
         await assert.rejects(() => app.reloadConfig(), LifecycleStateError);
+    });
+
+    it("runs all onConfigReload hooks even when one throws", async () => {
+        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 1\n');
+        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 2\n');
+
+        const reloaded = new Set<string>();
+
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {run: {input: EmptyInput, output: CounterOutput}},
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {run: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            config: schema({value: "number"}),
+            onConfigReload() {
+                reloaded.add("a");
+                throw new Error("a failed");
+            },
+            handlers: {
+                run: {handle(context) { return {count: context.config.value}; }},
+            },
+        });
+        const BComponent = defineComponent({
+            calls: BCalls,
+            uses: [ACalls],
+            config: schema({value: "number"}),
+            onConfigReload() {
+                reloaded.add("b");
+            },
+            handlers: {
+                run: {handle(context) { return {count: context.config.value}; }},
+            },
+        });
+        const app = createApplication(
+            defineApplication({components: [BComponent, AComponent]}),
+            {base_dir},
+        );
+        await app.start();
+
+        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 10\n');
+        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 20\n');
+        await assert.rejects(() => app.reloadConfig(), AggregateError);
+
+        assert.deepStrictEqual(reloaded, new Set(["a", "b"]));
+
+        await app.stop();
     });
 
     it("calls application onConfigReload hook after all component hooks", async () => {
