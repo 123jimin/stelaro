@@ -1,7 +1,7 @@
 +++
 id = "t0027"
 title = "Implement signal handling utility"
-status = "pending"
+status = "done"
 tags = ["application", "lifecycle", "util"]
 modifies = ["s0020"]
 blocked_by = []
