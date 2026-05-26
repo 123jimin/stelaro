@@ -37,7 +37,7 @@
   },
   "homepage": "https://github.com/123jimin/stelaro/tree/main/packages/stelaro",
   "dependencies": {
-    "@jiminp/tooltool": "^0.3.2",
+    "@jiminp/tooltool": "^0.3.3",
     "arktype": "^2.2.0",
     "smol-toml": "^1.6.1"
   }
