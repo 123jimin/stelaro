@@ -2,9 +2,10 @@
 
 1. ~~Signal handling~~ (`s0020`, `t0027`) — Done.
 
-2. Data directory / resource access (`s0021`, `t0028`)
-   - `DataAccess` with `dir` and `resolve(subpath)` on `context.data` and `app.data`.
-   - Part of: base stelaro.
+2. ~~Data directory / resource access~~ (`s0021`, `t0028`, `s0022`, `t0029`) — Done.
+   - `DataAccess` with `dir`, `resolve`, `read`, `write` on `context.data` and `app.data`.
+   - Fluent FS util (`s0022`): `FluentPath` with `join`/`confine`, `FileReader` with `optional()` + schema validation, `FileWriter` with auto-mkdir.
+   - Shared `Schema` base type extracted to `src/schema.ts`.
 
 3. Discord handler middleware and error handling (`t0025`)
    - Guards, rate limiting, error classification, partial fetching, concurrency control.
