@@ -24,13 +24,13 @@ paths = ["packages/stelaro/src/application/application.ts", "packages/stelaro/sr
 
 - `config.toml` — application-level configuration.
 - `secrets.toml` — application-level secrets. Must not be committed to version control.
-- UNIMPLEMENTED `data/` — application-level templates and text data.
+- `data/` — application-level templates and text data.
 - `config.{env}.toml` — environment-specific configuration overlay, deep-merged onto `config.toml`.
 - `secrets.{env}.toml` — environment-specific secrets overlay, deep-merged onto `secrets.toml`.
 - `{component_id}/` — per-component subdirectory.
 - `{component_id}/config.toml` — component-level configuration.
 - `{component_id}/secrets.toml` — component-level secrets.
-- UNIMPLEMENTED `{component_id}/data/` — component-level templates and text data.
+- `{component_id}/data/` — component-level templates and text data.
 - `{component_id}/config.{env}.toml` — component environment-specific configuration overlay.
 - `{component_id}/secrets.{env}.toml` — component environment-specific secrets overlay.
 

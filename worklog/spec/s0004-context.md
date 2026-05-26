@@ -26,6 +26,7 @@ type LoggerFactory = (component_id: ComponentId) => Logger;
 
 type ComponentContext = {
     readonly log: Logger;
+    readonly data: DataAccess;      // always present; see s0021
     call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
     readonly state?: unknown;       // present iff component declares a state factory
     readonly config?: unknown;      // present iff component declares a config schema
@@ -48,7 +49,6 @@ type ComponentContext = {
 
 - Gateway-specific contexts may extend core context in gateway packages.
 - Lifecycle-specific context extensions may be specified separately.
-- Resource and template access through context may be specified separately.
 - Per-request and per-session state may be represented through context capabilities.
 
 ## Dangers

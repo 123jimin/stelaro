@@ -4,7 +4,8 @@
       "Bash(git mv *)",
       "Bash(pnpm build *)",
       "Bash(pnpm build-docs *)",
-      "Bash(pnpm lint *)"
+      "Bash(pnpm lint *)",
+      "Bash(pnpm test *)"
     ]
   }
 }

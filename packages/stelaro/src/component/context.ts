@@ -1,3 +1,4 @@
+import type {DataAccess} from "../data/data.ts";
 import type {Logger} from "./logger.ts";
 import type {
     AnyComponentCalls,
@@ -8,6 +9,7 @@ import type {
 
 type BaseComponentContext<TUses extends readonly AnyComponentCalls[]> = {
     readonly log: Logger;
+    readonly data: DataAccess;
     call<TCall extends CallFrom<TUses[number]>>(
         reference: TCall,
         input: CallInput<TCall>,
@@ -35,6 +37,7 @@ export type ComponentContext<
 
 /** @category Component */
 export type AnyComponentContext = ComponentContext<readonly AnyComponentCalls[]> & {
+    readonly data: DataAccess;
     readonly state?: unknown;
     readonly config?: unknown;
     readonly secrets?: unknown;

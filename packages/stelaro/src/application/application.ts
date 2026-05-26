@@ -4,6 +4,7 @@ import type {Promisable} from "@jiminp/tooltool";
 
 import type {AnyComponentContext} from "../component/context.ts";
 import {consoleLoggerFactory, type Logger, type LoggerFactory} from "../component/logger.ts";
+import {createDataAccess, type DataAccess} from "../data/data.ts";
 import type {
     AnyComponent,
     AnyComponentCallReference,
@@ -67,6 +68,7 @@ export type Application<
     ): Promise<void>;
     readonly config: TAppConfig extends ConfigSchema ? TAppConfig["infer"] : null;
     readonly secrets: TAppSecrets extends ConfigSchema ? TAppSecrets["infer"] : null;
+    readonly data: DataAccess;
     readonly logger: LoggerFactory;
 };
 
@@ -132,7 +134,7 @@ export function createApplication<
         }
         entry.runtime.lifecycle.require(["active", "reloading"], "call");
 
-        const context = buildContext(entry.runtime, dispatchCall);
+        const context = buildContext(entry.runtime, dispatchCall, base_dir);
         const result = await entry.handle(context, reference.input.assert(input));
         return reference.output.assert(result);
     };
@@ -143,6 +145,7 @@ export function createApplication<
     const app: Application<TComponents, TAppConfig, TAppSecrets> = {
         get config() { return app_config as Application<TComponents, TAppConfig, TAppSecrets>["config"]; },
         get secrets() { return app_secrets as Application<TComponents, TAppConfig, TAppSecrets>["secrets"]; },
+        data: createDataAccess(join(base_dir, "data")),
         logger: loggerFactory,
         async start(): Promise<void> {
             lifecycle.require("idle", "start");
@@ -201,7 +204,7 @@ export function createApplication<
                     runtime.lifecycle.enter("starting");
                     try {
                         if(runtime.component.start != null) {
-                            const context = buildContext(runtime, dispatchCall);
+                            const context = buildContext(runtime, dispatchCall, base_dir);
                             await runtime.component.start(context);
                         }
                         runtime.lifecycle.enter("active");
@@ -231,7 +234,7 @@ export function createApplication<
                 runtime.lifecycle.enter("stopping");
                 if(runtime.component.stop != null) {
                     try {
-                        const context = buildContext(runtime, dispatchCall);
+                        const context = buildContext(runtime, dispatchCall, base_dir);
                         await runtime.component.stop(context);
                     } catch (error) {
                         errors.push(error);
@@ -294,7 +297,7 @@ export function createApplication<
 
             const results = await Promise.allSettled(runtimes.map(async (runtime) => {
                 if(runtime.component.onConfigReload != null) {
-                    const context = buildContext(runtime, dispatchCall);
+                    const context = buildContext(runtime, dispatchCall, base_dir);
                     await runtime.component.onConfigReload(context);
                 }
             }));
@@ -352,7 +355,7 @@ export function createApplication<
 
             try {
                 if(runtime.component.onConfigReload != null) {
-                    const context = buildContext(runtime, dispatchCall);
+                    const context = buildContext(runtime, dispatchCall, base_dir);
                     await runtime.component.onConfigReload(context);
                 }
             } catch (error) {
@@ -420,9 +423,11 @@ function buildRuntimes(
 function buildContext(
     runtime: ComponentRuntime,
     dispatchCall: DispatchFn,
+    base_dir: string,
 ): AnyComponentContext {
     return {
         log: runtime.log,
+        data: createDataAccess(join(base_dir, runtime.id, "data")),
         call(reference: AnyComponentCallReference, input: unknown) {
             if(!runtime.callable_references.has(reference)) {
                 throw new UndeclaredCallError(

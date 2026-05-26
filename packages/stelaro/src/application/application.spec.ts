@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {join, resolve} from "node:path";
 import {describe, it} from "node:test";
 
 import {type as schema} from "arktype";
@@ -1320,6 +1321,108 @@ describe("@jiminp/stelaro application core", () => {
             () => app.start(),
             {message: "start failed"},
         );
+    });
+
+    it("exposes application-level data access rooted at base_dir/data", () => {
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            handlers: {
+                get: {handle() { return {count: 0}; }},
+            },
+        });
+        const base_dir = resolve("test-base");
+        const app = createApplication(defineApplication({
+            components: [AComponent],
+        }), {base_dir});
+
+        assert.strictEqual(app.data.dir, join(base_dir, "data"));
+        assert.strictEqual(
+            app.data.resolve("templates"),
+            join(base_dir, "data", "templates"),
+        );
+    });
+
+    it("provides component-scoped data access in context", async () => {
+        let received_dir = "";
+        let received_resolved = "";
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            handlers: {
+                get: {
+                    handle({data}) {
+                        received_dir = data.dir;
+                        received_resolved = data.resolve("file.txt");
+                        return {count: 0};
+                    },
+                },
+            },
+        });
+        const base_dir = resolve("test-base");
+        const app = createApplication(defineApplication({
+            components: [AComponent],
+        }), {base_dir});
+        await app.start();
+        await app.call(ACalls.calls.get, {});
+
+        assert.strictEqual(received_dir, join(base_dir, "a", "data"));
+        assert.strictEqual(received_resolved, join(base_dir, "a", "data", "file.txt"));
+    });
+
+    it("provides different data directories per component", async () => {
+        const received_dirs: Record<string, string> = {};
+        const ACalls = defineComponentCalls({
+            id: "a",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const BCalls = defineComponentCalls({
+            id: "b",
+            calls: {get: {input: EmptyInput, output: CounterOutput}},
+        });
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            handlers: {
+                get: {
+                    handle({data}) {
+                        received_dirs["a"] = data.dir;
+                        return {count: 0};
+                    },
+                },
+            },
+        });
+        const BComponent = defineComponent({
+            calls: BCalls,
+            uses: [],
+            handlers: {
+                get: {
+                    handle({data}) {
+                        received_dirs["b"] = data.dir;
+                        return {count: 0};
+                    },
+                },
+            },
+        });
+        const base_dir = resolve("test-base");
+        const app = createApplication(defineApplication({
+            components: [AComponent, BComponent],
+        }), {base_dir});
+        await app.start();
+        await app.call(ACalls.calls.get, {});
+        await app.call(BCalls.calls.get, {});
+
+        assert.strictEqual(received_dirs["a"], join(base_dir, "a", "data"));
+        assert.strictEqual(received_dirs["b"], join(base_dir, "b", "data"));
+        assert.notStrictEqual(received_dirs["a"], received_dirs["b"]);
     });
 
     it("throws errors that are instanceof StelaroError", () => {

@@ -1,7 +1,7 @@
 +++
 id = "t0028"
 title = "Implement data directory access"
-status = "pending"
+status = "done"
 tags = ["application", "component", "context", "data"]
 modifies = ["s0021", "s0004", "s0019"]
 blocked_by = []
