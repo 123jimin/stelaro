@@ -1,24 +1,18 @@
 import assert from "node:assert/strict";
-import {mkdir, readFile, rm} from "node:fs/promises";
-import {tmpdir} from "node:os";
+import {readFile, rm} from "node:fs/promises";
 import {join} from "node:path";
 import {afterEach, beforeEach, describe, it} from "node:test";
 
 import {parse as parseToml} from "smol-toml";
 
+import {createTempDir} from "../test-util.ts";
 import {fluentPath} from "./path.ts";
 
 let test_dir: string;
 
-async function setupTestDir(): Promise<string> {
-    const dir = join(tmpdir(), `stelaro-writer-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    await mkdir(dir, {recursive: true});
-    return dir;
-}
-
 describe("@jiminp/stelaro fluent file writer", () => {
     beforeEach(async () => {
-        test_dir = await setupTestDir();
+        test_dir = await createTempDir("writer");
     });
 
     afterEach(async () => {

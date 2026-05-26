@@ -1,22 +1,16 @@
 import assert from "node:assert/strict";
-import {mkdir, rm, writeFile} from "node:fs/promises";
-import {tmpdir} from "node:os";
+import {rm, writeFile} from "node:fs/promises";
 import {join} from "node:path";
 import {afterEach, beforeEach, describe, it} from "node:test";
 
+import {createTempDir} from "../test-util.ts";
 import {fluentPath} from "./path.ts";
 
 let test_dir: string;
 
-async function setupTestDir(): Promise<string> {
-    const dir = join(tmpdir(), `stelaro-reader-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    await mkdir(dir, {recursive: true});
-    return dir;
-}
-
 describe("@jiminp/stelaro fluent file reader", () => {
     beforeEach(async () => {
-        test_dir = await setupTestDir();
+        test_dir = await createTempDir("reader");
     });
 
     afterEach(async () => {

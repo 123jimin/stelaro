@@ -2,13 +2,18 @@ import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 
 import {assertEqualType} from "@jiminp/tooltool";
-import {type as schema} from "arktype";
 
 import {InvalidComponentIdError} from "../error.ts";
 import {
     consoleLoggerFactory,
     type Logger,
 } from "../index.ts";
+import {
+    CounterOutput,
+    EmptyInput,
+    RenderOutput,
+    SetCounterInput,
+} from "../test-util.ts";
 import {
     type AnyComponent,
     type AnyComponentContext,
@@ -18,17 +23,6 @@ import {
     defineComponent,
     defineComponentCalls,
 } from "./component.ts";
-
-const EmptyInput = schema({});
-const CounterOutput = schema({
-    count: "number",
-});
-const SetCounterInput = schema({
-    count: "number",
-});
-const RenderOutput = schema({
-    html: "string",
-});
 
 describe("@jiminp/stelaro component core", () => {
     it("defines component call references with stable public component ids and names", () => {

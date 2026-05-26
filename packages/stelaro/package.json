@@ -14,7 +14,8 @@
   },
   "files": [
     "dist",
-    "!dist/**/*.spec.*"
+    "!dist/**/*.spec.*",
+    "!dist/test-util.*"
   ],
   "scripts": {
     "clean": "rimraf dist tsconfig.tsbuildinfo",

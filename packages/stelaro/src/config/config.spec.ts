@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import {mkdir, mkdtemp, rm, writeFile} from "node:fs/promises";
-import {tmpdir} from "node:os";
-import {dirname, join} from "node:path";
+import {rm} from "node:fs/promises";
+import {join} from "node:path";
 import {afterEach, beforeEach, describe, it} from "node:test";
 
 import {type as schema} from "arktype";
@@ -17,29 +16,27 @@ import {
 } from "../component/component.ts";
 import type {Logger} from "../component/logger.ts";
 import {StelaroError} from "../error.ts";
+import {
+    CounterOutput,
+    EmptyInput,
+    createTempDir,
+    writeTestFile,
+} from "../test-util.ts";
 import {ConfigFileError, ConfigValidationError, SecretsValidationError} from "./error.ts";
-
-const EmptyInput = schema({});
-const CounterOutput = schema({count: "number"});
 
 describe("@jiminp/stelaro configuration", () => {
     let base_dir: string;
 
     beforeEach(async () => {
-        base_dir = await mkdtemp(join(tmpdir(), "stelaro-config-"));
+        base_dir = await createTempDir("config");
     });
 
     afterEach(async () => {
         await rm(base_dir, {recursive: true});
     });
 
-    async function writeConfig(file_path: string, content: string): Promise<void> {
-        await mkdir(dirname(file_path), {recursive: true});
-        await writeFile(file_path, content);
-    }
-
     it("provides validated config to component handlers after start", async () => {
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -102,7 +99,7 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("exposes validated application config on the runtime after start", async () => {
-        await writeConfig(join(base_dir, "config.toml"), 'env = "dev"\n');
+        await writeTestFile(join(base_dir, "config.toml"), 'env = "dev"\n');
 
         const ACalls = defineComponentCalls({
             id: "a",
@@ -130,7 +127,7 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("makes config available in component start hooks", async () => {
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 42\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 42\n');
 
         let start_config_value: number | undefined;
         const CounterCalls = defineComponentCalls({
@@ -200,7 +197,7 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("throws ConfigValidationError when config fails schema validation", async () => {
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = "not a number"\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = "not a number"\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -271,7 +268,7 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("reloads all config with reloadConfig", async () => {
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -299,7 +296,7 @@ describe("@jiminp/stelaro configuration", () => {
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 10});
 
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 99\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 99\n');
         await app.reloadConfig();
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 99});
@@ -308,7 +305,7 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("rejects reloadConfig on validation failure and preserves old config", async () => {
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -334,7 +331,7 @@ describe("@jiminp/stelaro configuration", () => {
         );
         await app.start();
 
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = "bad"\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = "bad"\n');
         await assert.rejects(() => app.reloadConfig(), ConfigValidationError);
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 10});
@@ -343,8 +340,8 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("calls all onConfigReload hooks concurrently", async () => {
-        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 1\n');
-        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 2\n');
+        await writeTestFile(join(base_dir, "a", "config.toml"), 'value = 1\n');
+        await writeTestFile(join(base_dir, "b", "config.toml"), 'value = 2\n');
 
         const reloaded = new Set<string>();
 
@@ -384,8 +381,8 @@ describe("@jiminp/stelaro configuration", () => {
         );
         await app.start();
 
-        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 10\n');
-        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 20\n');
+        await writeTestFile(join(base_dir, "a", "config.toml"), 'value = 10\n');
+        await writeTestFile(join(base_dir, "b", "config.toml"), 'value = 20\n');
         await app.reloadConfig();
 
         assert.deepStrictEqual(reloaded, new Set(["a", "b"]));
@@ -414,8 +411,8 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("reloads a single component config with reloadComponentConfig", async () => {
-        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 1\n');
-        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 2\n');
+        await writeTestFile(join(base_dir, "a", "config.toml"), 'value = 1\n');
+        await writeTestFile(join(base_dir, "b", "config.toml"), 'value = 2\n');
 
         const ACalls = defineComponentCalls({
             id: "a",
@@ -447,7 +444,7 @@ describe("@jiminp/stelaro configuration", () => {
         );
         await app.start();
 
-        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 99\n');
+        await writeTestFile(join(base_dir, "a", "config.toml"), 'value = 99\n');
         await app.reloadComponentConfig("a");
 
         assert.deepStrictEqual(await app.call(ACalls.calls.run, {}), {count: 99});
@@ -457,8 +454,8 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("calls only the target component onConfigReload hook for reloadComponentConfig", async () => {
-        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 1\n');
-        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 2\n');
+        await writeTestFile(join(base_dir, "a", "config.toml"), 'value = 1\n');
+        await writeTestFile(join(base_dir, "b", "config.toml"), 'value = 2\n');
 
         const reload_calls: string[] = [];
 
@@ -494,7 +491,7 @@ describe("@jiminp/stelaro configuration", () => {
         );
         await app.start();
 
-        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 99\n');
+        await writeTestFile(join(base_dir, "a", "config.toml"), 'value = 99\n');
         await app.reloadComponentConfig("a");
 
         assert.deepStrictEqual(reload_calls, ["a"]);
@@ -503,7 +500,7 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("rejects reloadComponentConfig on validation failure and preserves old config", async () => {
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -529,7 +526,7 @@ describe("@jiminp/stelaro configuration", () => {
         );
         await app.start();
 
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = "bad"\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = "bad"\n');
         await assert.rejects(() => app.reloadComponentConfig("counter"), ConfigValidationError);
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 10});
@@ -582,7 +579,7 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("transitions to failed with AggregateError when onConfigReload hook throws", async () => {
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -611,15 +608,15 @@ describe("@jiminp/stelaro configuration", () => {
         );
         await app.start();
 
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 99\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 99\n');
         await assert.rejects(() => app.reloadConfig(), AggregateError);
 
         await assert.rejects(() => app.reloadConfig(), LifecycleStateError);
     });
 
     it("runs all onConfigReload hooks even when one throws", async () => {
-        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 1\n');
-        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 2\n');
+        await writeTestFile(join(base_dir, "a", "config.toml"), 'value = 1\n');
+        await writeTestFile(join(base_dir, "b", "config.toml"), 'value = 2\n');
 
         const reloaded = new Set<string>();
 
@@ -660,8 +657,8 @@ describe("@jiminp/stelaro configuration", () => {
         );
         await app.start();
 
-        await writeConfig(join(base_dir, "a", "config.toml"), 'value = 10\n');
-        await writeConfig(join(base_dir, "b", "config.toml"), 'value = 20\n');
+        await writeTestFile(join(base_dir, "a", "config.toml"), 'value = 10\n');
+        await writeTestFile(join(base_dir, "b", "config.toml"), 'value = 20\n');
         await assert.rejects(() => app.reloadConfig(), AggregateError);
 
         assert.deepStrictEqual(reloaded, new Set(["a", "b"]));
@@ -670,8 +667,8 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("calls application onConfigReload hook after all component hooks", async () => {
-        await writeConfig(join(base_dir, "config.toml"), 'env = "dev"\n');
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
+        await writeTestFile(join(base_dir, "config.toml"), 'env = "dev"\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const hook_order: string[] = [];
 
@@ -708,8 +705,8 @@ describe("@jiminp/stelaro configuration", () => {
         );
         await app.start();
 
-        await writeConfig(join(base_dir, "config.toml"), 'env = "prod"\n');
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 99\n');
+        await writeTestFile(join(base_dir, "config.toml"), 'env = "prod"\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 99\n');
         await app.reloadConfig();
 
         assert.deepStrictEqual(hook_order, ["component", "application"]);
@@ -755,21 +752,16 @@ describe("@jiminp/stelaro environment config", () => {
     let base_dir: string;
 
     beforeEach(async () => {
-        base_dir = await mkdtemp(join(tmpdir(), "stelaro-env-config-"));
+        base_dir = await createTempDir("env-config");
     });
 
     afterEach(async () => {
         await rm(base_dir, {recursive: true});
     });
 
-    async function writeConfig(file_path: string, content: string): Promise<void> {
-        await mkdir(dirname(file_path), {recursive: true});
-        await writeFile(file_path, content);
-    }
-
     it("deep-merges env overlay onto base component config", async () => {
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\nstep = 1\n');
-        await writeConfig(join(base_dir, "counter", "config.prod.toml"), 'initial = 100\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\nstep = 1\n');
+        await writeTestFile(join(base_dir, "counter", "config.prod.toml"), 'initial = 100\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -800,8 +792,8 @@ describe("@jiminp/stelaro environment config", () => {
     });
 
     it("deep-merges env overlay onto base application config", async () => {
-        await writeConfig(join(base_dir, "config.toml"), 'env = "dev"\nport = 3000\n');
-        await writeConfig(join(base_dir, "config.staging.toml"), 'env = "staging"\n');
+        await writeTestFile(join(base_dir, "config.toml"), 'env = "dev"\nport = 3000\n');
+        await writeTestFile(join(base_dir, "config.staging.toml"), 'env = "staging"\n');
 
         const ACalls = defineComponentCalls({
             id: "a",
@@ -828,7 +820,7 @@ describe("@jiminp/stelaro environment config", () => {
     });
 
     it("uses base config alone when env overlay file is missing", async () => {
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -856,7 +848,7 @@ describe("@jiminp/stelaro environment config", () => {
     });
 
     it("uses base config alone when env is null", async () => {
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 5\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 5\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -884,8 +876,8 @@ describe("@jiminp/stelaro environment config", () => {
     });
 
     it("reloadConfig applies env overlay", async () => {
-        await writeConfig(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
-        await writeConfig(join(base_dir, "counter", "config.prod.toml"), 'initial = 100\n');
+        await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
+        await writeTestFile(join(base_dir, "counter", "config.prod.toml"), 'initial = 100\n');
 
         const CounterCalls = defineComponentCalls({
             id: "counter",
@@ -909,7 +901,7 @@ describe("@jiminp/stelaro environment config", () => {
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 100});
 
-        await writeConfig(join(base_dir, "counter", "config.prod.toml"), 'initial = 200\n');
+        await writeTestFile(join(base_dir, "counter", "config.prod.toml"), 'initial = 200\n');
         await app.reloadConfig();
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 200});
@@ -922,17 +914,12 @@ describe("@jiminp/stelaro secrets", () => {
     let base_dir: string;
 
     beforeEach(async () => {
-        base_dir = await mkdtemp(join(tmpdir(), "stelaro-secrets-"));
+        base_dir = await createTempDir("secrets");
     });
 
     afterEach(async () => {
         await rm(base_dir, {recursive: true});
     });
-
-    async function writeConfig(file_path: string, content: string): Promise<void> {
-        await mkdir(dirname(file_path), {recursive: true});
-        await writeFile(file_path, content);
-    }
 
     function createCapturingLogger(): {logger: Logger; warnings: string[]} {
         const warnings: string[] = [];
@@ -947,7 +934,7 @@ describe("@jiminp/stelaro secrets", () => {
     }
 
     it("provides validated secrets to component handlers", async () => {
-        await writeConfig(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-123"\n');
+        await writeTestFile(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-123"\n');
 
         const VaultCalls = defineComponentCalls({
             id: "vault",
@@ -1045,7 +1032,7 @@ describe("@jiminp/stelaro secrets", () => {
     });
 
     it("exposes validated application secrets on the runtime", async () => {
-        await writeConfig(join(base_dir, "secrets.toml"), 'master_key = "mk-abc"\n');
+        await writeTestFile(join(base_dir, "secrets.toml"), 'master_key = "mk-abc"\n');
 
         const ACalls = defineComponentCalls({
             id: "a",
@@ -1071,7 +1058,7 @@ describe("@jiminp/stelaro secrets", () => {
     });
 
     it("makes secrets available in component start hooks", async () => {
-        await writeConfig(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-start"\n');
+        await writeTestFile(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-start"\n');
 
         let start_secret: string | undefined;
         const VaultCalls = defineComponentCalls({
@@ -1101,8 +1088,8 @@ describe("@jiminp/stelaro secrets", () => {
     });
 
     it("deep-merges env overlay onto base secrets", async () => {
-        await writeConfig(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-dev"\ndb_pass = "local"\n');
-        await writeConfig(join(base_dir, "vault", "secrets.prod.toml"), 'db_pass = "prod-secret"\n');
+        await writeTestFile(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-dev"\ndb_pass = "local"\n');
+        await writeTestFile(join(base_dir, "vault", "secrets.prod.toml"), 'db_pass = "prod-secret"\n');
 
         const VaultCalls = defineComponentCalls({
             id: "vault",
@@ -1135,8 +1122,8 @@ describe("@jiminp/stelaro secrets", () => {
     });
 
     it("does not reload secrets during reloadConfig", async () => {
-        await writeConfig(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-original"\n');
-        await writeConfig(join(base_dir, "vault", "config.toml"), 'label = "v1"\n');
+        await writeTestFile(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-original"\n');
+        await writeTestFile(join(base_dir, "vault", "config.toml"), 'label = "v1"\n');
 
         const VaultCalls = defineComponentCalls({
             id: "vault",
@@ -1163,8 +1150,8 @@ describe("@jiminp/stelaro secrets", () => {
         );
         await app.start();
 
-        await writeConfig(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-changed"\n');
-        await writeConfig(join(base_dir, "vault", "config.toml"), 'label = "v2"\n');
+        await writeTestFile(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-changed"\n');
+        await writeTestFile(join(base_dir, "vault", "config.toml"), 'label = "v2"\n');
         await app.reloadConfig();
 
         const result = await app.call(VaultCalls.calls.get, {});
@@ -1175,7 +1162,7 @@ describe("@jiminp/stelaro secrets", () => {
     });
 
     it("throws SecretsValidationError when secrets fail schema validation", async () => {
-        await writeConfig(join(base_dir, "vault", "secrets.toml"), 'api_key = 42\n');
+        await writeTestFile(join(base_dir, "vault", "secrets.toml"), 'api_key = 42\n');
 
         const VaultCalls = defineComponentCalls({
             id: "vault",

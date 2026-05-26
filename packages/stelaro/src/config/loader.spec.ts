@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import {mkdtemp, rm, writeFile} from "node:fs/promises";
-import {tmpdir} from "node:os";
+import {rm, writeFile} from "node:fs/promises";
 import {join} from "node:path";
 import {afterEach, beforeEach, describe, it} from "node:test";
 
 import {type as schema} from "arktype";
 
+import {createTempDir} from "../test-util.ts";
 import {ConfigFileError, ConfigValidationError, SecretsFileError, SecretsValidationError} from "./error.ts";
 import {loadTomlConfig, loadTomlSecrets} from "./loader.ts";
 
@@ -13,7 +13,7 @@ describe("@jiminp/stelaro config loader", () => {
     let temp_dir: string;
 
     beforeEach(async () => {
-        temp_dir = await mkdtemp(join(tmpdir(), "stelaro-config-"));
+        temp_dir = await createTempDir("config-loader");
     });
 
     afterEach(async () => {
@@ -164,7 +164,7 @@ describe("@jiminp/stelaro secrets loader", () => {
     let temp_dir: string;
 
     beforeEach(async () => {
-        temp_dir = await mkdtemp(join(tmpdir(), "stelaro-secrets-"));
+        temp_dir = await createTempDir("secrets-loader");
     });
 
     afterEach(async () => {

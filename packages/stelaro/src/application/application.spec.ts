@@ -14,6 +14,12 @@ import {
 import type {Logger} from "../component/logger.ts";
 import {StelaroError} from "../error.ts";
 import {
+    CounterOutput,
+    EmptyInput,
+    RenderOutput,
+    SetCounterInput,
+} from "../test-util.ts";
+import {
     createApplication,
     defineApplication,
     FRAMEWORK_NAME,
@@ -27,17 +33,6 @@ import {
     UnregisteredCallError,
 } from "./error.ts";
 import {LifecycleStateError} from "./lifecycle.ts";
-
-const EmptyInput = schema({});
-const CounterOutput = schema({
-    count: "number",
-});
-const SetCounterInput = schema({
-    count: "number",
-});
-const RenderOutput = schema({
-    html: "string",
-});
 
 type LoggerMethodName = "debug" | "info" | "warn" | "error";
 
