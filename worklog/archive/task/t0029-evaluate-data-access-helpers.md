@@ -1,7 +1,7 @@
 +++
 id = "t0029"
 title = "Evaluate read/write helpers for DataAccess"
-status = "pending"
+status = "done"
 tags = ["data", "fs", "investigation"]
 modifies = ["s0021", "s0022"]
 blocked_by = []

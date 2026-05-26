@@ -1,6 +1,6 @@
 ## Project
 
-- Use `pnpm test` to test.
+Following `pnpm` commands are available (non-exhaustive list): build, lint, test
 
 ## Naming Convention
 

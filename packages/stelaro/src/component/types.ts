@@ -12,18 +12,18 @@ export type ComponentId = string;
 /** @category Component */
 export type ComponentCallName = string;
 
+import type {Schema} from "../schema.ts";
+
 /**
- * Minimal schema contract Stelaro needs from ArkType-compatible schemas.
+ * Schema contract for component call boundaries.
  *
  * `inferIn` is the input accepted at a call boundary, `infer` is the
  * validated output, and `assert` performs runtime validation.
  *
  * @category Component
  */
-export interface ComponentCallSchema {
+export interface ComponentCallSchema extends Schema {
     readonly inferIn: unknown;
-    readonly infer: unknown;
-    assert(input: unknown): this["infer"];
 }
 
 type ValueOf<T extends object> = T extends unknown ? T[keyof T] : never;

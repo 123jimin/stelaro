@@ -88,7 +88,7 @@ function fluentPath(base: string): FluentPath;
 - `buffer(data)` writes a `Buffer` to the file.
 - `json(value)` serializes the value as JSON and writes it as UTF-8.
 - `toml(value)` serializes the value as TOML and writes it as UTF-8.
-- UNIMPLEMENTED All write methods create parent directories if they do not exist.
+- All write methods create parent directories if they do not exist.
 - All write methods overwrite the file if it already exists.
 
 ## Constraints

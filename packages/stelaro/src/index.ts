@@ -4,4 +4,6 @@ export * from "./component/index.ts";
 export * from "./config/index.ts";
 export * from "./data/index.ts";
 export * from "./error.ts";
+export * from "./fs/index.ts";
+export * from "./schema.ts";
 export * from "./signal/index.ts";
