@@ -14,6 +14,16 @@ export function isValidComponentId(id: string): boolean {
 }
 
 /** @category Errors */
+export class UserFacingError extends StelaroError {
+    readonly user_message: string;
+
+    constructor(user_message: string) {
+        super(user_message);
+        this.user_message = user_message;
+    }
+}
+
+/** @category Errors */
 export class InvalidComponentIdError extends StelaroError {
     readonly component_id: string;
 

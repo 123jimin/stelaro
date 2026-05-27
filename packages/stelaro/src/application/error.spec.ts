@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 
-import {StelaroError} from "../error.ts";
+import {StelaroError, UserFacingError} from "../error.ts";
 import {
     CircularDependencyError,
     DuplicateCallError,
@@ -110,5 +110,15 @@ describe("@jiminp/stelaro errors", () => {
         assert.deepStrictEqual(error.operation, "call");
         assert.ok(error.message.includes("idle"));
         assert.ok(error.message.includes("call"));
+    });
+
+    it("UserFacingError extends StelaroError with user_message", () => {
+        const error = new UserFacingError("You don't have permission to do that.");
+
+        assert.ok(error instanceof StelaroError);
+        assert.ok(error instanceof Error);
+        assert.deepStrictEqual(error.name, "UserFacingError");
+        assert.deepStrictEqual(error.user_message, "You don't have permission to do that.");
+        assert.deepStrictEqual(error.message, "You don't have permission to do that.");
     });
 });

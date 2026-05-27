@@ -1,7 +1,7 @@
 +++
 id = "t0030"
 title = "Core middleware primitives"
-status = "pending"
+status = "done"
 tags = ["util", "errors", "application"]
 modifies = ["s0007"]
 blocked_by = []

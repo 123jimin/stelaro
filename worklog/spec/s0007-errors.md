@@ -33,6 +33,15 @@ paths = ["packages/stelaro/src/error.ts", "packages/stelaro/src/application/erro
 
 - `InvalidComponentIdError`: a component id does not match the required lowercase kebab-case format.
 
+### User-facing errors
+
+- `UserFacingError`: an error whose message is safe and intended to be shown to the end user. Each gateway decides presentation (Discord: ephemeral reply, Fastify: HTTP response body). `user_message` carries the display string.
+
+### Secrets errors
+
+- `SecretsFileError`: a secrets file could not be read from disk.
+- `SecretsValidationError`: a secrets file's parsed contents failed schema validation.
+
 ### Configuration errors
 
 - `ConfigFileError`: a config file could not be read from disk.
