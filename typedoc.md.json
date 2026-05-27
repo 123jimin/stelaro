@@ -1,0 +1,5 @@
+{
+    "extends": ["./typedoc.json"],
+    "out": "docs-md",
+    "plugin": ["typedoc-plugin-markdown"]
+}

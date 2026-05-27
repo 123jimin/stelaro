@@ -7,6 +7,7 @@
         "packages/stelaro-pino"
     ],
     "entryPointStrategy": "packages",
+    "projectDocuments": ["guide/*.md"],
     "out": "docs",
     "exclude": ["**/*.spec.ts"],
     "useFirstParagraphOfCommentAsSummary": true,
