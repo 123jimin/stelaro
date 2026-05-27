@@ -7,3 +7,4 @@ export * from "./error.ts";
 export * from "./fs/index.ts";
 export * from "./schema.ts";
 export * from "./signal/index.ts";
+export * from "./util/index.ts";

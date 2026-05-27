@@ -10,6 +10,9 @@ import type {
     SlashCommandSubcommandsOnlyBuilder,
 } from "discord.js";
 
+import type {ConcurrencyOptions} from "./middleware/concurrency.ts";
+import type {Guard} from "./middleware/guard.ts";
+import type {RateLimitOptions} from "./middleware/rate-limit.ts";
 import type {BaseHandlerContext, CallFn, SchemaOutput} from "./types.ts";
 
 type AnySlashCommandData = SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder;
@@ -115,6 +118,12 @@ export type CommandDefinition<
     handle(context: CommandHandlerContext<TUses, TData, TOptions>): Promisable<void>;
     /** Per-option autocomplete map or a single fallback handler */
     readonly autocomplete?: AutocompleteMap<TUses> | AutocompleteFallback<TUses>;
+    /** Pre-handler guards executed after gateway and mount guards */
+    readonly guards?: readonly Guard[];
+    /** Sliding-window rate limit for this command */
+    readonly rate_limit?: RateLimitOptions;
+    /** Per-key concurrency limit for this command */
+    readonly concurrency?: ConcurrencyOptions;
 };
 
 /**

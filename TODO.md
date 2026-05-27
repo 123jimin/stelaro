@@ -7,9 +7,10 @@
    - Fluent FS util (`s0022`): `FluentPath` with `join`/`confine`, `FileReader` with `optional()` + schema validation, `FileWriter` with auto-mkdir.
    - Shared `Schema` base type extracted to `src/schema.ts`.
 
-3. Discord handler middleware and error handling (`t0025`)
-   - Guards, rate limiting, error classification, partial fetching, concurrency control.
-   - Depends on: Discord gateway.
+3. ~~Discord handler middleware and error handling~~ (`s0017`, `t0025`) — Done.
+   - Guards (gateway/mount/handler levels), rate limiting, concurrency limiting, auto-fetch partials.
+   - `UserFacingError` → ephemeral reply. Event handler isolation via `Promise.allSettled`.
+   - Key extractors: `perUser`, `perGuild`, `perChannel`.
 
 4. Discord widget system (`t0024`)
    - Pagination, confirmation dialogs, streaming messages, rate-limited edits as opt-in helpers.

@@ -2,6 +2,7 @@
   "permissions": {
     "allow": [
       "Bash(git mv *)",
+      "Bash(git rm *)",
       "Bash(npx tsc *)",
       "Bash(pnpm build *)",
       "Bash(pnpm build-docs *)",

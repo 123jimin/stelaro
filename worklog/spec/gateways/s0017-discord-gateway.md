@@ -41,16 +41,41 @@ type AutocompleteHandler = (context: AutocompleteHandlerContext) => Promisable<A
 type AutocompleteMap = Record<string, AutocompleteHandler>;
 type AutocompleteFallback = (context: { readonly interaction: AutocompleteInteraction; call: CallFn; }) => Promisable<void>;
 
+type GuardContext = {
+    readonly interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction
+        | ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction;
+    readonly client: Client;
+};
+
+type Guard = (context: GuardContext) => Promisable<void>;
+
+type KeyExtractor = (interaction: BaseInteraction) => string;
+
+type RateLimitOptions = {
+    readonly limit: number;
+    readonly window_ms: number;
+    readonly key?: KeyExtractor;
+};
+
+type ConcurrencyOptions = {
+    readonly max: number;
+    readonly key?: KeyExtractor;
+};
+
 type CommandDefinition = {
     readonly data: AnySlashCommandData | ContextMenuCommandBuilder;
     readonly options?: ComponentCallSchema;
     handle(context: CommandHandlerContext): Promisable<void>;
     readonly autocomplete?: AutocompleteMap | AutocompleteFallback;
+    readonly guards?: readonly Guard[];
+    readonly rate_limit?: RateLimitOptions;
+    readonly concurrency?: ConcurrencyOptions;
 };
 
 type EventDefinition = {
     readonly type: string;
     handle(context: EventHandlerContext): Promisable<void>;
+    readonly fetch_partials?: boolean;
 };
 
 type EventHandlerContext = {
@@ -62,6 +87,9 @@ type EventHandlerContext = {
 type InteractionDefinition = {
     readonly pattern: string;
     handle(context: InteractionHandlerContext): Promisable<void>;
+    readonly guards?: readonly Guard[];
+    readonly rate_limit?: RateLimitOptions;
+    readonly concurrency?: ConcurrencyOptions;
 };
 
 type InteractionHandlerContext = {
@@ -76,6 +104,7 @@ type DiscordMountGroup = {
     readonly commands?: readonly CommandDefinition[];
     readonly events?: readonly EventDefinition[];
     readonly interactions?: readonly InteractionDefinition[];
+    readonly guards?: readonly Guard[];
 };
 
 type DiscordGatewayDefinition = {
@@ -83,6 +112,7 @@ type DiscordGatewayDefinition = {
     readonly client: Client;
     readonly uses: readonly ComponentCalls[];
     readonly mounts?: readonly DiscordMountGroup[];
+    readonly guards?: readonly Guard[];
 };
 
 function defineDiscordGateway(definition: DiscordGatewayDefinition): Component;
@@ -90,6 +120,10 @@ function defineDiscordMounts(definition: DiscordMountGroup): DiscordMountGroup;
 function command(definition: CommandDefinition): CommandDefinition;
 function event(definition: EventDefinition): EventDefinition;
 function interaction(definition: InteractionDefinition): InteractionDefinition;
+
+function perUser(interaction: BaseInteraction): string;
+function perGuild(interaction: BaseInteraction): string;
+function perChannel(interaction: BaseInteraction): string;
 ```
 
 ## Behavior
@@ -127,6 +161,46 @@ function interaction(definition: InteractionDefinition): InteractionDefinition;
 - Interaction handlers also receive `client` and `call()`.
 - Transient interactions (created and awaited within one handler via discord.js collectors) remain the handler's responsibility.
 
+### Error dispatch
+
+- When a command or interaction handler throws `UserFacingError`, the gateway replies ephemerally with `user_message`. If the interaction was already replied or deferred (`interaction.replied || interaction.deferred`), `followUp` is used instead of `reply` so the error is always ephemeral.
+- Non-`UserFacingError` throws are logged without replying.
+- Error dispatch does not apply to autocomplete interactions (no ephemeral reply channel).
+
+### Guards
+
+- A guard is a function that receives a `GuardContext` and either returns (pass) or throws `UserFacingError` (reject). The thrown error is caught by error dispatch.
+- Guards attach at three levels, executed outer-to-inner: gateway → mount → handler. The first throw aborts the pipeline.
+- Guards apply to commands, component interactions, and autocomplete. Events are not guarded.
+- For autocomplete, a guard rejection responds with empty choices instead of an ephemeral reply.
+
+### Rate limiting
+
+- Commands and interaction handlers may declare a `rate_limit` with `limit`, `window_ms`, and an optional `key` extractor (default: `perUser`).
+- The gateway creates one sliding-window rate limiter per definition. When `check()` returns `false`, the gateway replies ephemerally with a rate limit message and skips the handler.
+- For commands with autocomplete, a separate rate limiter instance is created with the same configuration. Autocomplete and command invocations do not share quota. Rate-limited autocomplete responds with empty choices.
+- Built-in key extractors: `perUser` (user id), `perGuild` (guild id or `"dm"`), `perChannel` (channel id or `"unknown"`).
+
+### Concurrency limiting
+
+- Commands and interaction handlers may declare a `concurrency` with `max` and optional `key` extractor (default: `perUser`).
+- The gateway acquires a slot before handler execution and releases it in a `finally` block.
+- One keyed concurrency limiter per definition.
+
+### Handler execution order
+
+For commands and interactions: guards → rate limit check → concurrency acquire → handler → concurrency release → error dispatch.
+
+For autocomplete: guards → rate limit check → handler. On guard rejection or rate limit, respond with empty choices. No concurrency limiting.
+
+### Auto-fetch partials
+
+- Event definitions may set `fetch_partials: true`. When enabled, the gateway resolves any partial event arguments (objects with `partial === true` and a `fetch()` method) before the handler runs.
+
+### Event isolation
+
+- Event handlers sharing the same event type run concurrently and independently. One handler's rejection does not prevent siblings from executing. Errors are collected and logged after all handlers for that event type complete.
+
 ### Lifecycle
 
 - Start: log in client via token from config, register commands with Discord API (guild-scoped if `guild_id` set, otherwise global), attach event and interaction listeners.
@@ -140,7 +214,8 @@ function interaction(definition: InteractionDefinition): InteractionDefinition;
 
 ## Anticipated Changes
 
-- Additional helper functions may be introduced if common patterns emerge across examples.
+- Guard composition utilities (`allOf`, `anyOf`) may be added as plain functions.
+- Mount-level or gateway-level rate limiting and concurrency (currently per-handler only).
 
 ## Dangers
 

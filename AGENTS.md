@@ -1,6 +1,6 @@
 ## Project
 
-Following `pnpm` commands are available (non-exhaustive list): build, lint, test
+`pnpm build`, `pnpm lint`, `pnpm test` are preferred over ones using `npx`.
 
 ## Naming Convention
 

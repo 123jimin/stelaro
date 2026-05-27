@@ -6,6 +6,9 @@ import type {
     StringSelectMenuInteraction,
 } from "discord.js";
 
+import type {ConcurrencyOptions} from "./middleware/concurrency.ts";
+import type {Guard} from "./middleware/guard.ts";
+import type {RateLimitOptions} from "./middleware/rate-limit.ts";
 import type {BaseHandlerContext} from "./types.ts";
 
 type ParamKeys<P extends string> =
@@ -57,6 +60,12 @@ export type InteractionDefinition<
     readonly pattern: TPattern;
     /** Handles the matched interaction */
     handle(context: InteractionHandlerContext<TUses, TPattern>): Promisable<void>;
+    /** Pre-handler guards executed after gateway and mount guards */
+    readonly guards?: readonly Guard[];
+    /** Sliding-window rate limit for this interaction handler */
+    readonly rate_limit?: RateLimitOptions;
+    /** Per-key concurrency limit for this interaction handler */
+    readonly concurrency?: ConcurrencyOptions;
 };
 
 /**
@@ -72,7 +81,7 @@ export function interaction<
     return definition as InteractionDefinition;
 }
 
-type CompiledPattern = {
+export type CompiledPattern = {
     readonly segments: readonly string[];
     readonly param_indices: ReadonlyMap<number, string>;
 };

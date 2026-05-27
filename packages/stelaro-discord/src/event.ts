@@ -34,6 +34,8 @@ export type EventDefinition<
     readonly type: TEvent;
     /** Handles the event */
     handle(context: EventHandlerContext<TUses, TEvent>): Promisable<void>;
+    /** Resolves partial event arguments before the handler runs */
+    readonly fetch_partials?: boolean;
 };
 
 /**

@@ -23,6 +23,7 @@ export type {
     InteractionParams,
 } from "./interaction.ts";
 export {interaction} from "./interaction.ts";
+export * from "./middleware/index.ts";
 export type {DiscordMountGroup} from "./mount.ts";
 export {defineDiscordMounts} from "./mount.ts";
 export type {BaseHandlerContext, CallFn, SchemaOutput} from "./types.ts";

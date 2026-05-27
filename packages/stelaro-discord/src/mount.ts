@@ -3,6 +3,7 @@ import type {AnyComponentCalls} from "@jiminp/stelaro";
 import type {CommandDefinition} from "./command.ts";
 import type {EventDefinition} from "./event.ts";
 import type {InteractionDefinition} from "./interaction.ts";
+import type {Guard} from "./middleware/guard.ts";
 
 /**
  * Groups commands, events, and interactions that share the same `uses` dependencies.
@@ -21,6 +22,8 @@ export type DiscordMountGroup<
     readonly events?: readonly EventDefinition<TUses>[];
     /** Component interaction handlers (buttons, selects, modals) */
     readonly interactions?: readonly InteractionDefinition<TUses>[];
+    /** Guards applied to all commands and interactions in this mount */
+    readonly guards?: readonly Guard[];
 };
 
 /**
