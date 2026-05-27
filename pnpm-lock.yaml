@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@jiminp/tooltool':
-        specifier: ^0.3.2
-        version: 0.3.2
+        specifier: ^0.3.3
+        version: 0.3.3
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -55,8 +55,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/stelaro-discord
       '@jiminp/tooltool':
-        specifier: ^0.3.2
-        version: 0.3.2
+        specifier: ^0.3.3
+        version: 0.3.3
       arktype:
         specifier: ^2.2.0
         version: 2.2.0
@@ -82,8 +82,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/stelaro-fastify
       '@jiminp/tooltool':
-        specifier: ^0.3.2
-        version: 0.3.2
+        specifier: ^0.3.3
+        version: 0.3.3
       arktype:
         specifier: ^2.2.0
         version: 2.2.0
@@ -107,8 +107,8 @@ importers:
   packages/stelaro:
     dependencies:
       '@jiminp/tooltool':
-        specifier: ^0.3.2
-        version: 0.3.2
+        specifier: ^0.3.3
+        version: 0.3.3
       arktype:
         specifier: ^2.2.0
         version: 2.2.0
@@ -122,8 +122,8 @@ importers:
         specifier: workspace:*
         version: link:../stelaro
       '@jiminp/tooltool':
-        specifier: ^0.3.2
-        version: 0.3.2
+        specifier: ^0.3.3
+        version: 0.3.3
       arktype:
         specifier: ^2.2.0
         version: 2.2.0
@@ -138,8 +138,8 @@ importers:
         specifier: workspace:*
         version: link:../stelaro
       '@jiminp/tooltool':
-        specifier: ^0.3.2
-        version: 0.3.2
+        specifier: ^0.3.3
+        version: 0.3.3
       arktype:
         specifier: ^2.2.0
         version: 2.2.0
@@ -303,8 +303,8 @@ packages:
       typescript-eslint:
         optional: true
 
-  '@jiminp/tooltool@0.3.2':
-    resolution: {integrity: sha512-5pnygKOvnuHGtHt8GymBGxJjwyS7BWqlIhJFly6i9dHpeKUVvC22OrL5SdkKlEh5diFRWDPlU/npzr12NKTQdA==}
+  '@jiminp/tooltool@0.3.3':
+    resolution: {integrity: sha512-jMaFUJDK4KKLHurCNrB9niY+c2OwrQ/YDA6yBZRJeVUa9nn+9t0+v3Ir3RdkPcfniTv+jgIOaR+fvm+GHneBag==}
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -1310,7 +1310,7 @@ snapshots:
       eslint-plugin-simple-import-sort: 13.0.0(eslint@10.4.0)
       typescript-eslint: 8.59.4(eslint@10.4.0)(typescript@6.0.3)
 
-  '@jiminp/tooltool@0.3.2': {}
+  '@jiminp/tooltool@0.3.3': {}
 
   '@pinojs/redact@0.4.0': {}
 
