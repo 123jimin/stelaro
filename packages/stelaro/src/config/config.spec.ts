@@ -18,8 +18,8 @@ import type {Logger} from "../component/logger.ts";
 import {StelaroError} from "../error.ts";
 import {
     CounterOutput,
-    EmptyInput,
     createTempDir,
+    EmptyInput,
     writeTestFile,
 } from "../test-util.ts";
 import {ConfigFileError, ConfigValidationError, SecretsValidationError} from "./error.ts";

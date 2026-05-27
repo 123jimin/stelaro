@@ -4,7 +4,6 @@ import type {Promisable} from "@jiminp/tooltool";
 
 import type {AnyComponentContext} from "../component/context.ts";
 import {consoleLoggerFactory, type Logger, type LoggerFactory} from "../component/logger.ts";
-import {createDataAccess, type DataAccess} from "../data/data.ts";
 import type {
     AnyComponent,
     AnyComponentCallReference,
@@ -16,6 +15,7 @@ import type {
 } from "../component/types.ts";
 import {loadTomlConfig, loadTomlSecrets} from "../config/loader.ts";
 import type {ConfigSchema} from "../config/types.ts";
+import {createDataAccess, type DataAccess} from "../data/data.ts";
 import {TopologicalCycleError, topologicalSort} from "../util/topological-sort.ts";
 import {
     CircularDependencyError,

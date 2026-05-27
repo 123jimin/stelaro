@@ -10,8 +10,6 @@ describe("@jiminp/stelaro rate limiter", () => {
         current_time += ms;
     }
 
-    const original_now = performance.now;
-
     afterEach(() => {
         current_time = 0;
         mock.restoreAll();

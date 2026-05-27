@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import {join, resolve} from "node:path";
 import {describe, it} from "node:test";
 
-import {type as schema} from "arktype";
-
 import {
     type AnyComponentContext,
     type CallInput,
