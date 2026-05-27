@@ -154,6 +154,12 @@ importers:
         specifier: workspace:*
         version: link:../stelaro
 
+  packages/stelaro-vite:
+    dependencies:
+      '@jiminp/stelaro':
+        specifier: workspace:*
+        version: link:../stelaro
+
 packages:
 
   '@ark/schema@0.56.0':

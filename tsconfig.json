@@ -12,6 +12,9 @@
         },
         {
             "path": "./packages/stelaro-pino"
+        },
+        {
+            "path": "./packages/stelaro-vite"
         }
     ]
 }
