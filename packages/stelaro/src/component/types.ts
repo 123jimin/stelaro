@@ -6,10 +6,16 @@ import type {
     ComponentContext,
 } from "./context.ts";
 
-/** @category Component */
+/** A kebab-case string identifier for a component within an application.
+ *
+ * @category Component
+ */
 export type ComponentId = string;
 
-/** @category Component */
+/** A string name for a single call within a component's call surface.
+ *
+ * @category Component
+ */
 export type ComponentCallName = string;
 
 import type {Schema} from "../schema.ts";
@@ -42,13 +48,20 @@ export type ComponentCallReference<
     TInputSchema extends ComponentCallSchema,
     TOutputSchema extends ComponentCallSchema,
 > = {
+    /** Component id that owns this call */
     readonly component_id: TId;
+    /** Call name within the component */
     readonly name: TCallName;
+    /** Schema validating call input */
     readonly input: TInputSchema;
+    /** Schema validating call output */
     readonly output: TOutputSchema;
 };
 
-/** @category Component */
+/** Type-erased call reference used internally by the framework.
+ *
+ * @category Component
+ */
 export type AnyComponentCallReference = ComponentCallReference<
     ComponentId,
     ComponentCallName,
@@ -56,7 +69,10 @@ export type AnyComponentCallReference = ComponentCallReference<
     ComponentCallSchema
 >;
 
-/** @category Component */
+/** Record of call names to their input/output schema pairs.
+ *
+ * @category Component
+ */
 export type ComponentCallDeclarations = Record<
     ComponentCallName,
     {
@@ -85,19 +101,34 @@ export type ComponentCalls<
     };
 };
 
-/** @category Component */
+/** Type-erased component call surface.
+ *
+ * @category Component
+ */
 export type AnyComponentCalls = ComponentCalls<ComponentId, ComponentCallDeclarations>;
 
-/** @category Component */
+/** Extracts the union of call references from a component's call surface.
+ *
+ * @category Component
+ */
 export type CallFrom<TCalls extends AnyComponentCalls> = ValueOf<TCalls["calls"]>;
 
-/** @category Component */
+/** Extracts the input type accepted by a call reference.
+ *
+ * @category Component
+ */
 export type CallInput<TCall extends AnyComponentCallReference> = TCall["input"]["inferIn"];
 
-/** @category Component */
+/** Extracts the output type produced by a call reference.
+ *
+ * @category Component
+ */
 export type CallOutput<TCall extends AnyComponentCallReference> = TCall["output"]["infer"];
 
-/** @category Component */
+/** Factory function that creates fresh state for a component instance.
+ *
+ * @category Component
+ */
 export type StateFactory<TState> = () => TState;
 
 type ConfigOf<T> = T extends ConfigSchema ? T["infer"] : undefined;
@@ -117,13 +148,21 @@ export type Component<
     TConfigSchema extends ConfigSchema | undefined = undefined,
     TSecretsSchema extends ConfigSchema | undefined = undefined,
 > = {
+    /** This component's public call surface */
     readonly calls: TCalls;
+    /** Call surfaces of other components this component may invoke */
     readonly uses: TUses;
+    /** Config schema for this component */
     readonly config?: TConfigSchema;
+    /** Secrets schema for this component */
     readonly secrets?: TSecretsSchema;
+    /** Called during application startup after config and secrets are loaded */
     readonly start?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>) => Promisable<void>;
+    /** Called during application shutdown in reverse dependency order */
     readonly stop?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>) => Promisable<void>;
+    /** Called after this component's config is reloaded */
     readonly onConfigReload?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>) => Promisable<void>;
+    /** One handler per call in the call surface */
     readonly handlers: {
         readonly [TCallName in keyof TCalls["calls"] & ComponentCallName]: {
             handle(
@@ -134,7 +173,10 @@ export type Component<
     };
 } & ([TState] extends [undefined] ? unknown : {readonly state: StateFactory<TState>});
 
-/** @category Component */
+/** Type-erased component definition used internally by the framework.
+ *
+ * @category Component
+ */
 export interface AnyComponent {
     readonly calls: AnyComponentCalls;
     readonly uses: readonly AnyComponentCalls[];

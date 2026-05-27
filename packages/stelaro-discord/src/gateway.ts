@@ -42,18 +42,37 @@ const DiscordGatewaySecrets = schema({
     token: "string",
 });
 
-/** @category Gateway */
+/**
+ * Declares a Discord gateway component with its id, client, and mount groups.
+ *
+ * @typeParam TUses - Directly declared component call surfaces
+ * @typeParam TMounts - Mount groups contributing commands, events, and interactions
+ * @category Gateway
+ */
 export type DiscordGatewayDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TMounts extends readonly DiscordMountGroup[] = readonly DiscordMountGroup[],
 > = {
+    /** Component id for this gateway */
     readonly id: ComponentId;
+    /** Discord.js client instance */
     readonly client: Client;
+    /** Directly declared component call surfaces */
     readonly uses: TUses;
+    /** Mount groups providing commands, events, and interactions */
     readonly mounts?: TMounts;
 };
 
-/** @category Gateway */
+/**
+ * Creates a stelaro component from a Discord gateway definition.
+ *
+ * Registers all commands with the Discord API on start, wires up event and
+ * interaction dispatch, and logs in the client.
+ *
+ * @param definition - Gateway definition
+ * @returns A stelaro component definition
+ * @category Gateway
+ */
 export function defineDiscordGateway<
     const TUses extends readonly AnyComponentCalls[],
     const TMounts extends readonly DiscordMountGroup[],

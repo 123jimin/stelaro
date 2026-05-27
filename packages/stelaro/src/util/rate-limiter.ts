@@ -1,11 +1,28 @@
 import {Deque} from "@jiminp/tooltool";
 
-/** @category Utility */
+/**
+ * Keyed sliding-window rate limiter.
+ *
+ * @category Utility
+ */
 export type RateLimiter = {
+    /**
+     * Records a call for the given key and checks whether it is within the limit.
+     *
+     * @param key - Rate limiter bucket key
+     * @returns `true` if the call is within the limit
+     */
     check(key: string): boolean;
 };
 
-/** @category Utility */
+/**
+ * Creates a keyed sliding-window rate limiter using monotonic timestamps.
+ *
+ * @param limit - Maximum number of calls per key within the window
+ * @param window_ms - Sliding window duration in milliseconds
+ * @returns A new {@link RateLimiter}
+ * @category Utility
+ */
 export function createRateLimiter(limit: number, window_ms: number): RateLimiter {
     const timestamps = new Map<string, Deque<number>>();
 

@@ -1,7 +1,17 @@
 import {Deque} from "@jiminp/tooltool";
 
-/** @category Utility */
+/**
+ * Keyed semaphore that limits concurrent operations per key.
+ *
+ * @category Utility
+ */
 export type ConcurrencyLimiter = {
+    /**
+     * Acquires a concurrency slot for the given key, waiting in FIFO order if full.
+     *
+     * @param key - Concurrency bucket key
+     * @returns A release function that frees the slot
+     */
     acquire(key: string): Promise<() => void>;
 };
 
@@ -10,7 +20,16 @@ type KeyState = {
     queue: Deque<() => void>;
 };
 
-/** @category Utility */
+/**
+ * Creates a keyed concurrency limiter backed by a FIFO queue per key.
+ *
+ * Key state is cleaned up automatically when all slots are released and the
+ * queue is empty.
+ *
+ * @param max_concurrent - Maximum concurrent acquires per key
+ * @returns A new {@link ConcurrencyLimiter}
+ * @category Utility
+ */
 export function createConcurrencyLimiter(max_concurrent: number): ConcurrencyLimiter {
     const keys = new Map<string, KeyState>();
 

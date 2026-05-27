@@ -8,8 +8,17 @@ import type {
 } from "./types.ts";
 
 type BaseComponentContext<TUses extends readonly AnyComponentCalls[]> = {
+    /** Logger scoped to this component */
     readonly log: Logger;
+    /** Component-scoped data directory access */
     readonly data: DataAccess;
+    /**
+     * Dispatches a typed call to another component.
+     *
+     * @param reference - Typed call reference from a declared `uses` surface
+     * @param input - Call input
+     * @returns The handler's validated output
+     */
     call<TCall extends CallFrom<TUses[number]>>(
         reference: TCall,
         input: CallInput<TCall>,
@@ -35,7 +44,10 @@ export type ComponentContext<
     & ([TConfig] extends [undefined] ? unknown : {readonly config: TConfig})
     & ([TSecrets] extends [undefined] ? unknown : {readonly secrets: TSecrets});
 
-/** @category Component */
+/** Type-erased component context used internally by the framework.
+ *
+ * @category Component
+ */
 export type AnyComponentContext = ComponentContext<readonly AnyComponentCalls[]> & {
     readonly data: DataAccess;
     readonly state?: unknown;

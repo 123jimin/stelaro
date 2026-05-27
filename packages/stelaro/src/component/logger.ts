@@ -1,19 +1,36 @@
 import type {ComponentId} from "./types.ts";
 
-/** @category Logging */
+/**
+ * Structured logger with leveled output methods.
+ *
+ * @category Logging
+ */
 export type Logger = {
+    /** Logs a debug-level message */
     debug(...args: unknown[]): void;
+    /** Logs an info-level message */
     info(...args: unknown[]): void;
+    /** Logs a warning-level message */
     warn(...args: unknown[]): void;
+    /** Logs an error-level message */
     error(...args: unknown[]): void;
 };
 
-/** @category Logging */
+/** Creates a {@link Logger} scoped to the given component id.
+ *
+ * @category Logging
+ */
 export type LoggerFactory = (component_id: ComponentId) => Logger;
 
 type ConsoleLogMethod = (...args: unknown[]) => void;
 
-/** @category Logging */
+/**
+ * Creates a logger that writes to the console with a `[component_id]` prefix.
+ *
+ * @param component_id - Identifier prepended to every log line
+ * @returns A console-backed {@link Logger}
+ * @category Logging
+ */
 export function consoleLoggerFactory(component_id: ComponentId): Logger {
     const debug = console.debug.bind(console);
     const info = console.info.bind(console);

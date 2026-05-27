@@ -1,12 +1,25 @@
 import {consoleLoggerFactory, type Logger, type LoggerFactory} from "../component/logger.ts";
 
-/** @category Signal */
+/**
+ * Options for {@link attachSignalHandlers}.
+ *
+ * @category Signal
+ */
 export type SignalHandlerOptions = {
+    /** Maximum time in ms to wait for graceful shutdown before force-exiting (default: `10000`, `null` to disable) */
     readonly timeout?: number | null;
+    /** Logger for shutdown messages (default: application's logger or console) */
     readonly logger?: Logger;
 };
 
-/** @category Signal */
+/**
+ * Registers `SIGINT` and `SIGTERM` handlers that gracefully stop the application.
+ *
+ * @param app - Object with a `stop` method and optional logger factory
+ * @param options - Signal handling options
+ * @returns A detach function that removes the signal listeners and clears any pending timeout
+ * @category Signal
+ */
 export function attachSignalHandlers(
     app: {stop(): Promise<void>; logger?: LoggerFactory},
     options?: SignalHandlerOptions,

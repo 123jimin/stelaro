@@ -18,34 +18,60 @@ type CommandInteractionOf<TData> =
     TData extends ContextMenuCommandBuilder ? ContextMenuCommandInteraction
         : ChatInputCommandInteraction;
 
-/** @category Commands */
+/**
+ * Context passed to a slash or context-menu command handler.
+ *
+ * @typeParam TUses - Declared component call surfaces
+ * @typeParam TData - Command builder type that determines the interaction type
+ * @typeParam TOptions - Optional schema for validated command options
+ * @category Commands
+ */
 export type CommandHandlerContext<
     TUses extends readonly AnyComponentCalls[],
     TData = SlashCommandBuilder | ContextMenuCommandBuilder,
     TOptions extends ComponentCallSchema | undefined = undefined,
 > = BaseHandlerContext<TUses> & {
+    /** The Discord interaction that triggered this command */
     readonly interaction: CommandInteractionOf<TData>;
+    /** Validated command options, or `null` if no schema was provided */
     readonly options: SchemaOutput<TOptions>;
 };
 
-/** @category Commands */
+/** A single autocomplete suggestion returned to Discord.
+ *
+ * @category Commands
+ */
 export type AutocompleteChoice = {
+    /** Display name shown to the user */
     readonly name: string;
+    /** Value sent back when selected */
     readonly value: string;
 };
 
-/** @category Commands */
+/** Autocomplete result: an array of strings or {@link AutocompleteChoice} objects.
+ *
+ * @category Commands
+ */
 export type AutocompleteResult = readonly string[] | readonly AutocompleteChoice[];
 
-/** @category Commands */
+/**
+ * Context passed to a per-option autocomplete handler.
+ *
+ * @typeParam TUses - Declared component call surfaces
+ * @category Commands
+ */
 export type AutocompleteHandlerContext<
     TUses extends readonly AnyComponentCalls[],
 > = {
+    /** Current value typed by the user */
     readonly value: string;
+    /** The autocomplete interaction */
     readonly interaction: AutocompleteInteraction;
+    /** Dispatches a typed call to a stelaro component */
     call: CallFn<TUses>;
 };
 
+/** Context passed to the autocomplete fallback handler. */
 export type AutocompleteFallbackContext<
     TUses extends readonly AnyComponentCalls[],
 > = {
@@ -53,29 +79,51 @@ export type AutocompleteFallbackContext<
     call: CallFn<TUses>;
 };
 
+/** An autocomplete handler for a single option. */
 export type AutocompleteHandler<TUses extends readonly AnyComponentCalls[]> =
     (context: AutocompleteHandlerContext<TUses>) => Promisable<AutocompleteResult>;
 
-/** @category Commands */
+/** Maps option names to their autocomplete handlers.
+ *
+ * @category Commands
+ */
 export type AutocompleteMap<TUses extends readonly AnyComponentCalls[]> =
     Record<string, AutocompleteHandler<TUses>>;
 
+/** Fallback handler invoked when no per-option autocomplete handler matches. */
 export type AutocompleteFallback<TUses extends readonly AnyComponentCalls[]> =
     (context: AutocompleteFallbackContext<TUses>) => Promisable<void>;
 
-/** @category Commands */
+/**
+ * Defines a slash or context-menu command with handler and optional autocomplete.
+ *
+ * @typeParam TUses - Declared component call surfaces
+ * @typeParam TData - Command builder type
+ * @typeParam TOptions - Optional schema for validated command options
+ * @category Commands
+ */
 export type CommandDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TData extends AnySlashCommandData | ContextMenuCommandBuilder = AnySlashCommandData | ContextMenuCommandBuilder,
     TOptions extends ComponentCallSchema | undefined = undefined,
 > = {
+    /** Discord.js command builder with name, description, and options */
     readonly data: TData;
+    /** Schema to validate extracted command options against */
     readonly options?: TOptions;
+    /** Handles the command interaction */
     handle(context: CommandHandlerContext<TUses, TData, TOptions>): Promisable<void>;
+    /** Per-option autocomplete map or a single fallback handler */
     readonly autocomplete?: AutocompleteMap<TUses> | AutocompleteFallback<TUses>;
 };
 
-/** @category Commands */
+/**
+ * Creates a type-erased {@link CommandDefinition} for use in mount groups.
+ *
+ * @param definition - Command definition
+ * @returns Type-erased command definition
+ * @category Commands
+ */
 export function command<
     TData extends AnySlashCommandData | ContextMenuCommandBuilder,
     TOptions extends ComponentCallSchema | undefined = undefined,
@@ -86,6 +134,12 @@ export function command<
 const MAX_AUTOCOMPLETE_NAME_LENGTH = 100;
 const MAX_AUTOCOMPLETE_CHOICES = 25;
 
+/**
+ * Normalizes autocomplete results into choices, truncating names and capping at 25 entries.
+ *
+ * @param result - Raw autocomplete result from a handler
+ * @returns Normalized choices safe to send to Discord
+ */
 export function normalizeAutocompleteResult(result: AutocompleteResult): AutocompleteChoice[] {
     const choices: AutocompleteChoice[] = [];
     for(const item of result) {
@@ -109,6 +163,14 @@ export function normalizeAutocompleteResult(result: AutocompleteResult): Autocom
     return choices;
 }
 
+/**
+ * Extracts command options from a chat input interaction into a flat record.
+ *
+ * Subcommand names are placed under the `"sub"` key.
+ *
+ * @param interaction - The chat input command interaction
+ * @returns Flat record of option names to values
+ */
 export function extractCommandOptions(
     interaction: ChatInputCommandInteraction,
 ): Record<string, unknown> {

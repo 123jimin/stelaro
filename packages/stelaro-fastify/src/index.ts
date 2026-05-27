@@ -21,7 +21,8 @@ import type {
 
 const FastifyGatewayConfig = schema({"port": "number", "host?": "string"});
 
-type SchemaOutput<T> = T extends ComponentCallSchema ? T["infer"] : null;
+/** Extracts the output type of a schema, or `null` if the schema is `undefined`. */
+export type SchemaOutput<T> = T extends ComponentCallSchema ? T["infer"] : null;
 
 /** @category Routes */
 export type GatewayHandlerContext<

@@ -1,5 +1,8 @@
 export type {
     AutocompleteChoice,
+    AutocompleteFallback,
+    AutocompleteFallbackContext,
+    AutocompleteHandler,
     AutocompleteHandlerContext,
     AutocompleteMap,
     AutocompleteResult,
@@ -22,3 +25,4 @@ export type {
 export {interaction} from "./interaction.ts";
 export type {DiscordMountGroup} from "./mount.ts";
 export {defineDiscordMounts} from "./mount.ts";
+export type {BaseHandlerContext, CallFn, SchemaOutput} from "./types.ts";

@@ -1,20 +1,32 @@
+/**
+ * Binary min-heap ordered by a comparator function.
+ *
+ * @typeParam T - Element type
+ * @category Utility
+ */
 export class MinHeap<T> {
     readonly #compare: (a: T, b: T) => number;
     readonly #data: T[] = [];
 
+    /**
+     * @param compare - Comparator returning negative if `a` should be popped before `b`
+     */
     constructor(compare: (a: T, b: T) => number) {
         this.#compare = compare;
     }
 
+    /** Number of elements in the heap */
     get size(): number {
         return this.#data.length;
     }
 
+    /** Inserts a value into the heap */
     push(value: T): void {
         this.#data.push(value);
         this.#siftUp(this.#data.length - 1);
     }
 
+    /** Removes and returns the minimum element, or `null` if empty */
     pop(): T | null {
         if(this.#data.length === 0) return null;
 

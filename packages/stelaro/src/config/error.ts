@@ -1,8 +1,14 @@
 import {StelaroError} from "../error.ts";
 
-/** @category Errors */
+/**
+ * Thrown when a config TOML file cannot be read from disk.
+ *
+ * @category Errors
+ */
 export class ConfigFileError extends StelaroError {
+    /** Path of the file that failed to load */
     readonly file_path: string;
+    /** Owning component id, or `null` for application-level config */
     readonly component_id: string | null;
 
     constructor(file_path: string, component_id: string | null, cause: unknown) {
@@ -16,9 +22,15 @@ export class ConfigFileError extends StelaroError {
     }
 }
 
-/** @category Errors */
+/**
+ * Thrown when a parsed config object fails schema validation.
+ *
+ * @category Errors
+ */
 export class ConfigValidationError extends StelaroError {
+    /** Path of the validated config file */
     readonly file_path: string;
+    /** Owning component id, or `null` for application-level config */
     readonly component_id: string | null;
 
     constructor(file_path: string, component_id: string | null, cause: unknown) {
@@ -32,9 +44,15 @@ export class ConfigValidationError extends StelaroError {
     }
 }
 
-/** @category Errors */
+/**
+ * Thrown when a secrets TOML file cannot be read from disk.
+ *
+ * @category Errors
+ */
 export class SecretsFileError extends StelaroError {
+    /** Path of the file that failed to load */
     readonly file_path: string;
+    /** Owning component id, or `null` for application-level secrets */
     readonly component_id: string | null;
 
     constructor(file_path: string, component_id: string | null, cause: unknown) {
@@ -48,9 +66,15 @@ export class SecretsFileError extends StelaroError {
     }
 }
 
-/** @category Errors */
+/**
+ * Thrown when a parsed secrets object fails schema validation.
+ *
+ * @category Errors
+ */
 export class SecretsValidationError extends StelaroError {
+    /** Path of the validated secrets file */
     readonly file_path: string;
+    /** Owning component id, or `null` for application-level secrets */
     readonly component_id: string | null;
 
     constructor(file_path: string, component_id: string | null, cause: unknown) {

@@ -29,46 +29,94 @@ import {
 } from "./error.ts";
 import {createLifecycleMachine, type LifecycleMachine} from "./lifecycle.ts";
 
+/** Framework name used for the root logger.
+ *
+ * @category Application
+ */
 export const FRAMEWORK_NAME = "stelaro";
 
-/** @category Application */
+/**
+ * Declarative definition of an application's components, schemas, and hooks.
+ *
+ * @typeParam TComponents - Tuple of registered components
+ * @typeParam TAppConfig - Application-level config schema
+ * @typeParam TAppSecrets - Application-level secrets schema
+ * @category Application
+ */
 export type ApplicationDefinition<
     TComponents extends readonly AnyComponent[],
     TAppConfig extends ConfigSchema | undefined = undefined,
     TAppSecrets extends ConfigSchema | undefined = undefined,
 > = {
+    /** Components registered in this application */
     readonly components: TComponents;
+    /** Custom logger factory (default: console) */
     readonly logger?: LoggerFactory;
+    /** Application-level config schema */
     readonly config?: TAppConfig;
+    /** Application-level secrets schema */
     readonly secrets?: TAppSecrets;
+    /** Called after all component `onConfigReload` hooks complete */
     readonly onConfigReload?: () => Promisable<void>;
 };
 
-/** @category Application */
+/**
+ * Runtime options passed when creating an application instance.
+ *
+ * @category Application
+ */
 export type ApplicationOptions = {
+    /** Root directory for config, secrets, and data files (default: `"."`) */
     readonly base_dir?: string;
+    /** Environment name used to select config/secrets overlays */
     readonly env?: string | null;
 };
 
-/** @category Application */
+/**
+ * A running application that manages component lifecycles and dispatches calls.
+ *
+ * @typeParam TComponents - Tuple of registered components
+ * @typeParam TAppConfig - Application-level config schema
+ * @typeParam TAppSecrets - Application-level secrets schema
+ * @category Application
+ */
 export type Application<
     TComponents extends readonly AnyComponent[],
     TAppConfig extends ConfigSchema | undefined = undefined,
     TAppSecrets extends ConfigSchema | undefined = undefined,
 > = {
+    /** Loads config and secrets, then starts components in dependency order */
     start(): Promise<void>;
+    /** Stops active components in reverse dependency order */
     stop(): Promise<void>;
+    /**
+     * Dispatches a typed call to the owning component's handler.
+     *
+     * @param reference - Typed call reference
+     * @param input - Call input validated against the reference's input schema
+     * @returns The handler's output validated against the reference's output schema
+     */
     call<TCall extends CallFrom<TComponents[number]["calls"]>>(
         reference: TCall,
         input: CallInput<TCall>,
     ): Promise<CallOutput<TCall>>;
+    /** Reloads all config files and invokes `onConfigReload` hooks */
     reloadConfig(): Promise<void>;
+    /**
+     * Reloads config for a single component.
+     *
+     * @param component_id - Id of the component to reload
+     */
     reloadComponentConfig(
         component_id: TComponents[number]["calls"]["id"],
     ): Promise<void>;
+    /** Validated application-level config, or `null` if no schema was provided */
     readonly config: TAppConfig extends ConfigSchema ? TAppConfig["infer"] : null;
+    /** Validated application-level secrets, or `null` if no schema was provided */
     readonly secrets: TAppSecrets extends ConfigSchema ? TAppSecrets["infer"] : null;
+    /** Application-level data directory access */
     readonly data: DataAccess;
+    /** Logger factory used by this application */
     readonly logger: LoggerFactory;
 };
 
@@ -90,7 +138,13 @@ type DispatchEntry = {
     readonly handle: (context: AnyComponentContext, input: unknown) => Promisable<unknown>;
 };
 
-/** @category Application */
+/**
+ * Returns the given application definition unchanged, preserving generic inference.
+ *
+ * @param definition - Application definition to pass through
+ * @returns The same definition with preserved type parameters
+ * @category Application
+ */
 export function defineApplication<
     const TComponents extends readonly AnyComponent[],
     const TAppConfig extends ConfigSchema | undefined = undefined,
@@ -110,7 +164,14 @@ function tomlPaths(
     };
 }
 
-/** @category Application */
+/**
+ * Creates an application instance from a definition and optional runtime options.
+ *
+ * @param definition - Application definition describing components and schemas
+ * @param options - Runtime options for base directory and environment
+ * @returns An {@link Application} ready to be started
+ * @category Application
+ */
 export function createApplication<
     const TComponents extends readonly AnyComponent[],
     const TAppConfig extends ConfigSchema | undefined = undefined,

@@ -1,6 +1,13 @@
 import {MinHeap} from "./min-heap.ts";
 
+/**
+ * Thrown when a cycle prevents topological sort from completing.
+ *
+ * @typeParam T - Node type
+ * @category Utility
+ */
 export class TopologicalCycleError<T> extends Error {
+    /** Nodes that could not be placed due to the cycle */
     readonly remaining: readonly T[];
 
     constructor(remaining: readonly T[]) {

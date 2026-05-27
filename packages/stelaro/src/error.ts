@@ -1,4 +1,8 @@
-/** @category Errors */
+/**
+ * Base class for all framework-specific errors.
+ *
+ * @category Errors
+ */
 export abstract class StelaroError extends Error {
     constructor(message: string) {
         super(message);
@@ -8,13 +12,24 @@ export abstract class StelaroError extends Error {
 
 const COMPONENT_ID_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
-/** @category Component */
+/**
+ * Tests whether a string is a valid component id.
+ *
+ * @param id - Candidate identifier to test
+ * @returns `true` if the id matches the required kebab-case pattern
+ * @category Component
+ */
 export function isValidComponentId(id: string): boolean {
     return COMPONENT_ID_PATTERN.test(id);
 }
 
-/** @category Errors */
+/**
+ * Represents an error whose message is safe to display to end users.
+ *
+ * @category Errors
+ */
 export class UserFacingError extends StelaroError {
+    /** Message intended for the end user */
     readonly user_message: string;
 
     constructor(user_message: string) {
@@ -23,8 +38,13 @@ export class UserFacingError extends StelaroError {
     }
 }
 
-/** @category Errors */
+/**
+ * Thrown when a component id does not match the required kebab-case format.
+ *
+ * @category Errors
+ */
 export class InvalidComponentIdError extends StelaroError {
+    /** The invalid id that was provided */
     readonly component_id: string;
 
     constructor(component_id: string) {
