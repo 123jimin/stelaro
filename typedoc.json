@@ -33,6 +33,7 @@
         "includeFolders": false,
         "includeCategories": true
     },
+    "highlightLanguages": ["bash", "json", "ts", "toml"],
     "navigationLinks": {
         "GitHub": "https://github.com/123jimin/stelaro"
     }

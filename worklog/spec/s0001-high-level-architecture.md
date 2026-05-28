@@ -24,6 +24,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 ### Stelaro
 
 - Stelaro is an opinionated component system for applications that may include web servers, Discord bots, command-line entrypoints, and other external runtime entrypoints.
+- Stelaro's goal is maintainability: each part of an application can be understood and changed independently, even as the application grows. It achieves this through components with enforced boundaries — typed call schemas, explicit dependency declarations, and scoped configuration.
 
 ### Application
 
@@ -89,7 +90,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 
 - Over-unifying gateways can hide important differences between HTTP, Discord interactions, command-line execution, and future runtimes.
 - Adding gateway runtime dependencies to core would make unrelated applications pay for unused integrations.
-- Weak typing at call or gateway boundaries would undermine Stelaro's main design goal.
+- Weak typing at call or gateway boundaries would weaken component isolation.
 - Treating component ids as mutable labels would make logging and routing harder to reason about.
 - Centralizing all external routing in gateway components can make applications harder to compose.
 - Blocking typed access to gateway capabilities would make cross-gateway workflows harder to model.

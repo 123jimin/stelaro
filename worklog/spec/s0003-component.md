@@ -86,7 +86,7 @@ function defineComponent(definition: Component): Component;
 
 ## Dangers
 
-- Weak typing at component call boundaries would undermine Stelaro's main design goal.
+- Weak typing at component call boundaries would weaken component isolation.
 - Treating component ids as mutable labels would make logging and call routing harder to reason about.
 - Coupling component behavior to gateway protocols would make components harder to reuse.
 - Blocking typed calls to gateway components would make legitimate outbound gateway workflows harder to express.
