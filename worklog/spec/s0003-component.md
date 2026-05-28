@@ -54,7 +54,7 @@ type Component = {
     }>;
 };
 
-function defineComponentCalls(definition: { id: ComponentId; calls: ComponentCallDeclarations }): ComponentCalls;
+function defineComponentCalls(id: ComponentId, declarations: ComponentCallDeclarations): ComponentCalls;
 function defineComponent(definition: Component): Component;
 ```
 

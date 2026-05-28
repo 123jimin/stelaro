@@ -13,13 +13,10 @@ import { createApplication, defineComponent, defineComponentCalls } from "@jimin
 import { type as schema } from "arktype";
 
 // 1. Declare the call surface — typed input/output schemas.
-const GreeterCalls = defineComponentCalls({
-    id: "greeter",
-    calls: {
-        greet: {
-            input: schema({ name: "string" }),
-            output: schema({ message: "string" }),
-        },
+const GreeterCalls = defineComponentCalls("greeter", {
+    greet: {
+        input: schema({ name: "string" }),
+        output: schema({ message: "string" }),
     },
 });
 
