@@ -76,7 +76,7 @@ export const GreeterRoutes = defineFastifyRoutes({
 
 The route group declares `uses: [GreeterCalls]` — it can only call what it declares. The `params` schema validates the URL parameter before the handler runs.
 
-The gateway composes route groups from components — it doesn't define routes itself:
+Then define the gateway that mounts these route groups:
 
 ```ts
 // src/gateway.ts
@@ -112,20 +112,18 @@ const app = createApplication(App, {base_dir: "app"});
 await app.start();
 ```
 
-The Fastify gateway reads its port from config. Create `app/http/config.toml`:
+`base_dir` tells stelaro where to find configuration files. Each component loads config from `{base_dir}/{component_id}/config.toml` — so the gateway with id `"http"` reads from `app/http/config.toml`. The Fastify gateway requires a `port`:
 
 ```toml
 port = 3000
 ```
 
-Run the application and test:
+On startup, the application validates the component graph (no missing dependencies, no cycles) and starts components in dependency order.
 
 ```bash
 $ curl http://localhost:3000/greet/world
 {"message":"Hello, world!"}
 ```
-
-The application validates the component graph (no missing dependencies, no cycles), starts components in dependency order, and dispatches calls through validated boundaries.
 
 ## Add Configuration
 
