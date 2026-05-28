@@ -24,6 +24,7 @@
   },
   "keywords": [],
   "author": "Jimin Park (github.com/123jimin)",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/123jimin/stelaro.git",
