@@ -16,26 +16,24 @@ export type * from "./types.ts";
 /**
  * Defines the typed call references exposed by a component.
  *
- * @param definition - Component id plus per-call input/output schemas.
- * @returns A call surface containing typed reference values.
+ * @param id - Component id (lowercase kebab-case)
+ * @param declarations - Per-call input/output schemas
+ * @returns A call surface containing typed reference values
  * @category Component
  */
 export function defineComponentCalls<
     const TId extends ComponentId,
     const TDeclarations extends ComponentCallDeclarations,
->(definition: {
-    readonly id: TId;
-    readonly calls: TDeclarations;
-}): ComponentCalls<TId, TDeclarations> {
-    if(!isValidComponentId(definition.id)) {
-        throw new InvalidComponentIdError(definition.id);
+>(id: TId, declarations: TDeclarations): ComponentCalls<TId, TDeclarations> {
+    if(!isValidComponentId(id)) {
+        throw new InvalidComponentIdError(id);
     }
 
     const calls: Record<ComponentCallName, AnyComponentCallReference> = {};
 
-    for(const [name, declaration] of Object.entries(definition.calls)) {
+    for(const [name, declaration] of Object.entries(declarations)) {
         calls[name] = {
-            component_id: definition.id,
+            component_id: id,
             name,
             input: declaration.input,
             output: declaration.output,
@@ -43,7 +41,7 @@ export function defineComponentCalls<
     }
 
     return {
-        id: definition.id,
+        id,
         calls,
     } as ComponentCalls<TId, TDeclarations>;
 }

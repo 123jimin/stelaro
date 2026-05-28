@@ -19,9 +19,7 @@ const ThreadSchema = schema({
 
 type ThreadRecord = typeof ThreadSchema.infer;
 
-export const ThreadsCalls = defineComponentCalls({
-    id: "threads",
-    calls: {
+export const ThreadsCalls = defineComponentCalls("threads", {
         create: {
             input: schema({
                 author_user_id: "string",
@@ -40,8 +38,7 @@ export const ThreadsCalls = defineComponentCalls({
             input: schema({thread_id: "string"}),
             output: ThreadSchema.or("null"),
         },
-    },
-});
+    });
 
 export const ThreadsComponent = defineComponent({
     calls: ThreadsCalls,

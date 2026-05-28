@@ -18,9 +18,7 @@ const CommentSchema = schema({
 
 type CommentRecord = typeof CommentSchema.infer;
 
-export const CommentsCalls = defineComponentCalls({
-    id: "comments",
-    calls: {
+export const CommentsCalls = defineComponentCalls("comments", {
         create: {
             input: schema({
                 thread_id: "string",
@@ -35,8 +33,7 @@ export const CommentsCalls = defineComponentCalls({
                 comments: CommentSchema.array(),
             }),
         },
-    },
-});
+    });
 
 export const CommentsComponent = defineComponent({
     calls: CommentsCalls,

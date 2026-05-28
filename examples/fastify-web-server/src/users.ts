@@ -13,9 +13,7 @@ type UserRecord = {
     created_at: string;
 };
 
-export const UsersCalls = defineComponentCalls({
-    id: "users",
-    calls: {
+export const UsersCalls = defineComponentCalls("users", {
         resolve: {
             input: schema({
                 provider: "'google' | 'discord' | 'id'",
@@ -30,8 +28,7 @@ export const UsersCalls = defineComponentCalls({
                 created_at: "string",
             }),
         },
-    },
-});
+    });
 
 export const UsersComponent = defineComponent({
     calls: UsersCalls,

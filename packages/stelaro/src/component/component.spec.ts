@@ -26,13 +26,10 @@ import {
 
 describe("@jiminp/stelaro component core", () => {
     it("defines component call references with stable public component ids and names", () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
 
@@ -43,13 +40,10 @@ describe("@jiminp/stelaro component core", () => {
     });
 
     it("defines components from call surfaces, declared uses, and handlers", () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -72,13 +66,10 @@ describe("@jiminp/stelaro component core", () => {
     });
 
     it("defines a component with an optional state factory", () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -103,13 +94,10 @@ describe("@jiminp/stelaro component core", () => {
     });
 
     it("defines a component without state", () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -131,9 +119,8 @@ describe("@jiminp/stelaro component core", () => {
 
     it("accepts lowercase kebab-case component ids", () => {
         for(const id of ["a", "users", "http-gateway", "auth-v2", "a1b"]) {
-            const calls = defineComponentCalls({
-                id,
-                calls: {run: {input: EmptyInput, output: CounterOutput}},
+            const calls = defineComponentCalls(id, {
+                run: {input: EmptyInput, output: CounterOutput},
             });
             assert.strictEqual(calls.id, id);
         }
@@ -142,9 +129,8 @@ describe("@jiminp/stelaro component core", () => {
     it("throws InvalidComponentIdError for non-kebab-case component ids", () => {
         for(const id of ["", "A", "Users", "my_component", "123", "foo-", "-foo", "foo--bar", "FOO"]) {
             assert.throws(
-                () => defineComponentCalls({
-                    id,
-                    calls: {run: {input: EmptyInput, output: CounterOutput}},
+                () => defineComponentCalls(id, {
+                    run: {input: EmptyInput, output: CounterOutput},
                 }),
                 (error: unknown) => {
                     assert.ok(error instanceof InvalidComponentIdError);
@@ -166,26 +152,20 @@ describe("@jiminp/stelaro component core", () => {
 });
 
 function assertTypeBehavior() {
-    const CounterCalls = defineComponentCalls({
-        id: "counter",
-        calls: {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-            set: {
-                input: SetCounterInput,
-                output: CounterOutput,
-            },
+    const CounterCalls = defineComponentCalls("counter", {
+        current: {
+            input: EmptyInput,
+            output: CounterOutput,
+        },
+        set: {
+            input: SetCounterInput,
+            output: CounterOutput,
         },
     });
-    const PageCalls = defineComponentCalls({
-        id: "page",
-        calls: {
-            render: {
-                input: EmptyInput,
-                output: RenderOutput,
-            },
+    const PageCalls = defineComponentCalls("page", {
+        render: {
+            input: EmptyInput,
+            output: RenderOutput,
         },
     });
 

@@ -14,9 +14,7 @@ export const QuoteSchema = schema({
 
 export type QuoteRecord = typeof QuoteSchema.infer;
 
-export const QuotesCalls = defineComponentCalls({
-    id: "quotes",
-    calls: {
+export const QuotesCalls = defineComponentCalls("quotes", {
         "create": {
             input: schema({
                 content: "string",
@@ -52,5 +50,4 @@ export const QuotesCalls = defineComponentCalls({
             input: schema({"author_discord_user_id?": "string", "page": "number"}),
             output: schema({quotes: QuoteSchema.array(), total_pages: "number"}),
         },
-    },
-});
+    });

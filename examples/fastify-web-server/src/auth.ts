@@ -21,7 +21,7 @@ declare module "fastify" {
     interface PassportUser extends SessionUser {}
 }
 
-const AuthCalls = defineComponentCalls({id: "auth", calls: {}});
+const AuthCalls = defineComponentCalls("auth", {});
 
 const AuthSecrets = schema({
     google_client_id: "string",

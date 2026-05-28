@@ -38,13 +38,10 @@ const logger_method_names = ["debug", "info", "warn", "error"] as const satisfie
 
 describe("@jiminp/stelaro application core", () => {
     it("declares an application separately from creating the application runtime", () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -74,21 +71,18 @@ describe("@jiminp/stelaro application core", () => {
 
     it("dispatches typed component calls within one application", async () => {
         let count = 0;
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
-                increment: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
-                set: {
-                    input: SetCounterInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
+            },
+            increment: {
+                input: EmptyInput,
+                output: CounterOutput,
+            },
+            set: {
+                input: SetCounterInput,
+                output: CounterOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -144,22 +138,16 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("provides component behavior with context for declared typed calls", async () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
-        const PageCalls = defineComponentCalls({
-            id: "page",
-            calls: {
-                render: {
-                    input: EmptyInput,
-                    output: RenderOutput,
-                },
+        const PageCalls = defineComponentCalls("page", {
+            render: {
+                input: EmptyInput,
+                output: RenderOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -211,13 +199,10 @@ describe("@jiminp/stelaro application core", () => {
 
     it("provides component-scoped logging to handlers and lifecycle hooks", async () => {
         const observed_log_methods: LoggerMethodName[][] = [];
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -260,22 +245,16 @@ describe("@jiminp/stelaro application core", () => {
         const factory_component_ids: string[] = [];
         const logger_by_component_id = new Map<string, Logger>();
         const received_logger_by_component_id = new Map<string, Logger>();
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
-        const PageCalls = defineComponentCalls({
-            id: "page",
-            calls: {
-                render: {
-                    input: EmptyInput,
-                    output: RenderOutput,
-                },
+        const PageCalls = defineComponentCalls("page", {
+            render: {
+                input: EmptyInput,
+                output: RenderOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -353,13 +332,10 @@ describe("@jiminp/stelaro application core", () => {
             count: 1,
         };
         const extra_data = ["extra"];
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -417,17 +393,14 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("initializes component state from the state factory during createApplication", async () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
-                increment: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
+            },
+            increment: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -475,17 +448,14 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("provides independent state per application runtime for the same component definition", async () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
-                increment: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
+            },
+            increment: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -533,13 +503,10 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("does not provide state to stateless components", async () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
         let received_context: Record<string, unknown> = {};
@@ -568,26 +535,20 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("does not share state between different components", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {
-                get: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
-                increment: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const ACalls = defineComponentCalls("a", {
+            get: {
+                input: EmptyInput,
+                output: CounterOutput,
+            },
+            increment: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {
-                get: {
-                    input: EmptyInput,
-                    output: CounterOutput,
-                },
+        const BCalls = defineComponentCalls("b", {
+            get: {
+                input: EmptyInput,
+                output: CounterOutput,
             },
         });
         const AComponent = defineComponent({
@@ -637,13 +598,10 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("validates call inputs and outputs with the declared schemas", async () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                set: {
-                    input: SetCounterInput,
-                    output: CounterOutput,
-                },
+        const CounterCalls = defineComponentCalls("counter", {
+            set: {
+                input: SetCounterInput,
+                output: CounterOutput,
             },
         });
         const CounterComponent = defineComponent({
@@ -685,17 +643,11 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("throws MissingDependencyError when a component uses unregistered calls", () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {
-                run: {input: EmptyInput, output: CounterOutput},
-            },
+        const ACalls = defineComponentCalls("a", {
+            run: {input: EmptyInput, output: CounterOutput},
         });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {
-                get: {input: EmptyInput, output: CounterOutput},
-            },
+        const BCalls = defineComponentCalls("b", {
+            get: {input: EmptyInput, output: CounterOutput},
         });
         const AComponent = defineComponent({
             calls: ACalls,
@@ -718,12 +670,9 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("throws MissingHandlerError when a component is missing a handler", () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {
-                run: {input: EmptyInput, output: CounterOutput},
-                missing: {input: EmptyInput, output: CounterOutput},
-            },
+        const ACalls = defineComponentCalls("a", {
+            run: {input: EmptyInput, output: CounterOutput},
+            missing: {input: EmptyInput, output: CounterOutput},
         });
         const partial_handlers = {
             run: {
@@ -749,11 +698,8 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("throws DuplicateComponentIdError when components share the same id", () => {
-        const Calls = defineComponentCalls({
-            id: "shared",
-            calls: {
-                get: {input: EmptyInput, output: CounterOutput},
-            },
+        const Calls = defineComponentCalls("shared", {
+            get: {input: EmptyInput, output: CounterOutput},
         });
         const A = defineComponent({
             calls: Calls,
@@ -783,17 +729,11 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("throws UndeclaredCallError when a handler calls an undeclared reference", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {
-                run: {input: EmptyInput, output: CounterOutput},
-            },
+        const ACalls = defineComponentCalls("a", {
+            run: {input: EmptyInput, output: CounterOutput},
         });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {
-                get: {input: EmptyInput, output: CounterOutput},
-            },
+        const BCalls = defineComponentCalls("b", {
+            get: {input: EmptyInput, output: CounterOutput},
         });
         const AComponent = defineComponent({
             calls: ACalls,
@@ -832,17 +772,11 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("throws UnregisteredCallError when dispatching an unregistered call", async () => {
-        const RegisteredCalls = defineComponentCalls({
-            id: "registered",
-            calls: {
-                get: {input: EmptyInput, output: CounterOutput},
-            },
+        const RegisteredCalls = defineComponentCalls("registered", {
+            get: {input: EmptyInput, output: CounterOutput},
         });
-        const UnregisteredCalls = defineComponentCalls({
-            id: "unregistered",
-            calls: {
-                get: {input: EmptyInput, output: CounterOutput},
-            },
+        const UnregisteredCalls = defineComponentCalls("unregistered", {
+            get: {input: EmptyInput, output: CounterOutput},
         });
         const RegisteredComponent = defineComponent({
             calls: RegisteredCalls,
@@ -869,14 +803,8 @@ describe("@jiminp/stelaro application core", () => {
 
     it("starts components in topological dependency order", async () => {
         const start_order: string[] = [];
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [BCalls],
@@ -908,14 +836,8 @@ describe("@jiminp/stelaro application core", () => {
 
     it("stops components in reverse topological order", async () => {
         const stop_order: string[] = [];
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [BCalls],
@@ -947,14 +869,8 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("throws CircularDependencyError when the uses graph has a cycle", () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [BCalls],
@@ -984,10 +900,7 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("throws LifecycleStateError when calling before start", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1011,10 +924,7 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("throws LifecycleStateError when calling after stop", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1039,10 +949,7 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("throws LifecycleStateError when starting a non-idle application", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1067,10 +974,7 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("throws LifecycleStateError when stopping an idle application", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1096,10 +1000,7 @@ describe("@jiminp/stelaro application core", () => {
     it("provides lifecycle hooks with the same context as handlers", async () => {
         let start_state: {count: number} | null = null;
         let stop_state: {count: number} | null = null;
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1127,14 +1028,8 @@ describe("@jiminp/stelaro application core", () => {
 
     it("skips components without lifecycle hooks", async () => {
         const start_order: string[] = [];
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1163,14 +1058,8 @@ describe("@jiminp/stelaro application core", () => {
 
     it("transitions to failed on start hook error without rolling back", async () => {
         const stop_calls: string[] = [];
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1217,14 +1106,8 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("rejects stop with AggregateError when stop hooks throw", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1261,10 +1144,7 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("transitions to idle after stop even when stop hooks throw", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1287,10 +1167,7 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("allows stop from failed state to clean up", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1317,10 +1194,7 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("exposes application-level data access rooted at base_dir/data", () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1343,10 +1217,7 @@ describe("@jiminp/stelaro application core", () => {
     it("provides component-scoped data access in context", async () => {
         let received_dir = "";
         let received_resolved = "";
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1373,14 +1244,8 @@ describe("@jiminp/stelaro application core", () => {
 
     it("provides different data directories per component", async () => {
         const received_dirs: Record<string, string> = {};
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {get: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1419,17 +1284,11 @@ describe("@jiminp/stelaro application core", () => {
     });
 
     it("throws errors that are instanceof StelaroError", () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {
-                run: {input: EmptyInput, output: CounterOutput},
-            },
+        const ACalls = defineComponentCalls("a", {
+            run: {input: EmptyInput, output: CounterOutput},
         });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {
-                get: {input: EmptyInput, output: CounterOutput},
-            },
+        const BCalls = defineComponentCalls("b", {
+            get: {input: EmptyInput, output: CounterOutput},
         });
         const AComponent = defineComponent({
             calls: ACalls,
@@ -1456,17 +1315,14 @@ describe("@jiminp/stelaro application core", () => {
 });
 
 function assertTypeBehavior() {
-    const CounterCalls = defineComponentCalls({
-        id: "counter",
-        calls: {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-            set: {
-                input: SetCounterInput,
-                output: CounterOutput,
-            },
+    const CounterCalls = defineComponentCalls("counter", {
+        current: {
+            input: EmptyInput,
+            output: CounterOutput,
+        },
+        set: {
+            input: SetCounterInput,
+            output: CounterOutput,
         },
     });
     const CounterComponent = defineComponent({

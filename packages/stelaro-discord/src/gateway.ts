@@ -110,10 +110,7 @@ export function defineDiscordGateway<
     const TUses extends readonly AnyComponentCalls[],
     const TMounts extends readonly DiscordMountGroup[],
 >(definition: DiscordGatewayDefinition<TUses, TMounts>) {
-    const gateway_calls = defineComponentCalls({
-        id: definition.id,
-        calls: {},
-    });
+    const gateway_calls = defineComponentCalls(definition.id, {});
 
     const all_uses = [...new Set([
         ...definition.uses,

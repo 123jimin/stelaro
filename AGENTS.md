@@ -1,6 +1,6 @@
 ## Project
 
-`pnpm build`, `pnpm lint`, `pnpm test` are preferred over ones using `npx`.
+`pnpm build`, `pnpm lint`, `pnpm test` should be preferred over `npx *`.
 
 ## Naming Convention
 

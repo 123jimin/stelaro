@@ -105,10 +105,7 @@ export function defineFastifyGateway<
     const TUses extends readonly AnyComponentCalls[],
     const TContributions extends readonly FastifyRouteGroup[],
 >(definition: FastifyGatewayDefinition<TUses, TContributions>) {
-    const gateway_calls = defineComponentCalls({
-        id: definition.id,
-        calls: {},
-    });
+    const gateway_calls = defineComponentCalls(definition.id, {});
 
     const all_uses = [...new Set([
         ...definition.uses,

@@ -23,13 +23,10 @@ A component has two parts: a **call surface** (what it exposes) and a **definiti
 import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
 import {type as schema} from "arktype";
 
-export const GreeterCalls = defineComponentCalls({
-    id: "greeter",
-    calls: {
-        greet: {
-            input: schema({name: "string"}),
-            output: schema({message: "string"}),
-        },
+export const GreeterCalls = defineComponentCalls("greeter", {
+    greet: {
+        input: schema({name: "string"}),
+        output: schema({message: "string"}),
     },
 });
 
@@ -46,7 +43,7 @@ export const GreeterComponent = defineComponent({
 });
 ```
 
-`GreeterCalls` is the public surface — other components and gateways reference it to call `greet`. `GreeterComponent` provides the handler that runs when `greet` is called. Input and output are validated against the schemas automatically.
+`GreeterCalls` is the public surface that other components and gateways import to reference `greet`. The schemas validate input and output at every call boundary automatically.
 
 ## Add a Fastify Gateway
 
@@ -56,17 +53,13 @@ A gateway connects components to the outside world. Install the Fastify gateway 
 pnpm add @jiminp/stelaro-fastify fastify
 ```
 
+Route groups are co-located with the component they serve. Add `GreeterRoutes` to the component file:
+
 ```ts
-// src/gateway.ts
-import {defineFastifyGateway, defineFastifyRoutes, route} from "@jiminp/stelaro-fastify";
-import {type as schema} from "arktype";
-import Fastify from "fastify";
+// src/greeter.ts (add to the end)
+import {defineFastifyRoutes, route} from "@jiminp/stelaro-fastify";
 
-import {GreeterCalls} from "./greeter.ts";
-
-const server = Fastify();
-
-const Routes = defineFastifyRoutes({
+export const GreeterRoutes = defineFastifyRoutes({
     uses: [GreeterCalls],
     routes: [
         route({
@@ -79,16 +72,28 @@ const Routes = defineFastifyRoutes({
         }),
     ],
 });
+```
+
+The route group declares `uses: [GreeterCalls]` — it can only call what it declares. The `params` schema validates the URL parameter before the handler runs.
+
+The gateway composes route groups from components — it doesn't define routes itself:
+
+```ts
+// src/gateway.ts
+import {defineFastifyGateway} from "@jiminp/stelaro-fastify";
+import Fastify from "fastify";
+
+import {GreeterRoutes} from "./greeter.ts";
+
+const server = Fastify();
 
 export const Gateway = defineFastifyGateway({
     id: "http",
     server,
     uses: [],
-    mounts: [Routes],
+    mounts: [GreeterRoutes],
 });
 ```
-
-The route declares `uses: [GreeterCalls]` — it can only call what it declares. The `params` schema validates the URL parameter before the handler runs.
 
 ## Create and Start the Application
 
@@ -127,17 +132,14 @@ The application validates the component graph (no missing dependencies, no cycle
 Components can declare a config schema. The framework loads and validates TOML config files on startup.
 
 ```ts
-// src/greeter.ts
+// src/greeter.ts (updated)
 import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
 import {type as schema} from "arktype";
 
-export const GreeterCalls = defineComponentCalls({
-    id: "greeter",
-    calls: {
-        greet: {
-            input: schema({name: "string"}),
-            output: schema({message: "string"}),
-        },
+export const GreeterCalls = defineComponentCalls("greeter", {
+    greet: {
+        input: schema({name: "string"}),
+        output: schema({message: "string"}),
     },
 });
 

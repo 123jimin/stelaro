@@ -38,11 +38,8 @@ describe("@jiminp/stelaro configuration", () => {
     it("provides validated config to component handlers after start", async () => {
         await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
@@ -69,11 +66,8 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("does not provide config to components without a config schema", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {
-                run: {input: EmptyInput, output: schema({has_config: "boolean"})},
-            },
+        const ACalls = defineComponentCalls("a", {
+            run: {input: EmptyInput, output: schema({has_config: "boolean"})},
         });
         const AComponent = defineComponent({
             calls: ACalls,
@@ -101,10 +95,7 @@ describe("@jiminp/stelaro configuration", () => {
     it("exposes validated application config on the runtime after start", async () => {
         await writeTestFile(join(base_dir, "config.toml"), 'env = "dev"\n');
 
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -130,11 +121,8 @@ describe("@jiminp/stelaro configuration", () => {
         await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 42\n');
 
         let start_config_value: number | undefined;
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
@@ -163,11 +151,8 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("throws ConfigFileError when a config file is missing for a component with a config schema", async () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
@@ -199,11 +184,8 @@ describe("@jiminp/stelaro configuration", () => {
     it("throws ConfigValidationError when config fails schema validation", async () => {
         await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = "not a number"\n');
 
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
@@ -233,11 +215,8 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("transitions to failed on config error during start", async () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
@@ -270,11 +249,8 @@ describe("@jiminp/stelaro configuration", () => {
     it("reloads all config with reloadConfig", async () => {
         await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
@@ -307,11 +283,8 @@ describe("@jiminp/stelaro configuration", () => {
     it("rejects reloadConfig on validation failure and preserves old config", async () => {
         await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
@@ -345,14 +318,8 @@ describe("@jiminp/stelaro configuration", () => {
 
         const reloaded = new Set<string>();
 
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {run: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -391,10 +358,7 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("throws LifecycleStateError when reloadConfig is called outside active state", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -414,14 +378,8 @@ describe("@jiminp/stelaro configuration", () => {
         await writeTestFile(join(base_dir, "a", "config.toml"), 'value = 1\n');
         await writeTestFile(join(base_dir, "b", "config.toml"), 'value = 2\n');
 
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {run: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -459,14 +417,8 @@ describe("@jiminp/stelaro configuration", () => {
 
         const reload_calls: string[] = [];
 
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {run: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -502,11 +454,8 @@ describe("@jiminp/stelaro configuration", () => {
     it("rejects reloadComponentConfig on validation failure and preserves old config", async () => {
         await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
@@ -535,10 +484,7 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("throws LifecycleStateError when reloadComponentConfig is called outside active state", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -556,10 +502,7 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("treats reloadComponentConfig as a no-op for a component without config schema", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -581,11 +524,8 @@ describe("@jiminp/stelaro configuration", () => {
     it("transitions to failed with AggregateError when onConfigReload hook throws", async () => {
         await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
@@ -620,14 +560,8 @@ describe("@jiminp/stelaro configuration", () => {
 
         const reloaded = new Set<string>();
 
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
-        const BCalls = defineComponentCalls({
-            id: "b",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {run: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -672,11 +606,8 @@ describe("@jiminp/stelaro configuration", () => {
 
         const hook_order: string[] = [];
 
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
@@ -715,11 +646,8 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("config errors extend StelaroError", async () => {
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {
-                current: {input: EmptyInput, output: CounterOutput},
-            },
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
@@ -763,10 +691,7 @@ describe("@jiminp/stelaro environment config", () => {
         await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\nstep = 1\n');
         await writeTestFile(join(base_dir, "counter", "config.prod.toml"), 'initial = 100\n');
 
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {current: {input: EmptyInput, output: CounterOutput}},
-        });
+        const CounterCalls = defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}});
         const CounterComponent = defineComponent({
             calls: CounterCalls,
             uses: [],
@@ -795,10 +720,7 @@ describe("@jiminp/stelaro environment config", () => {
         await writeTestFile(join(base_dir, "config.toml"), 'env = "dev"\nport = 3000\n');
         await writeTestFile(join(base_dir, "config.staging.toml"), 'env = "staging"\n');
 
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -822,10 +744,7 @@ describe("@jiminp/stelaro environment config", () => {
     it("uses base config alone when env overlay file is missing", async () => {
         await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
 
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {current: {input: EmptyInput, output: CounterOutput}},
-        });
+        const CounterCalls = defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}});
         const CounterComponent = defineComponent({
             calls: CounterCalls,
             uses: [],
@@ -850,10 +769,7 @@ describe("@jiminp/stelaro environment config", () => {
     it("uses base config alone when env is null", async () => {
         await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 5\n');
 
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {current: {input: EmptyInput, output: CounterOutput}},
-        });
+        const CounterCalls = defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}});
         const CounterComponent = defineComponent({
             calls: CounterCalls,
             uses: [],
@@ -879,10 +795,7 @@ describe("@jiminp/stelaro environment config", () => {
         await writeTestFile(join(base_dir, "counter", "config.toml"), 'initial = 10\n');
         await writeTestFile(join(base_dir, "counter", "config.prod.toml"), 'initial = 100\n');
 
-        const CounterCalls = defineComponentCalls({
-            id: "counter",
-            calls: {current: {input: EmptyInput, output: CounterOutput}},
-        });
+        const CounterCalls = defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}});
         const CounterComponent = defineComponent({
             calls: CounterCalls,
             uses: [],
@@ -936,11 +849,8 @@ describe("@jiminp/stelaro secrets", () => {
     it("provides validated secrets to component handlers", async () => {
         await writeTestFile(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-123"\n');
 
-        const VaultCalls = defineComponentCalls({
-            id: "vault",
-            calls: {
-                get_key: {input: EmptyInput, output: schema({key: "string"})},
-            },
+        const VaultCalls = defineComponentCalls("vault", {
+            get_key: {input: EmptyInput, output: schema({key: "string"})},
         });
         const VaultComponent = defineComponent({
             calls: VaultCalls,
@@ -967,10 +877,7 @@ describe("@jiminp/stelaro secrets", () => {
     });
 
     it("does not provide secrets to components without a secrets schema", async () => {
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {run: {input: EmptyInput, output: schema({has_secrets: "boolean"})}},
-        });
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: schema({has_secrets: "boolean"})}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -997,11 +904,8 @@ describe("@jiminp/stelaro secrets", () => {
     it("warns and uses empty defaults when secrets file is missing", async () => {
         const {logger, warnings} = createCapturingLogger();
 
-        const VaultCalls = defineComponentCalls({
-            id: "vault",
-            calls: {
-                get_key: {input: EmptyInput, output: schema({key: "string"})},
-            },
+        const VaultCalls = defineComponentCalls("vault", {
+            get_key: {input: EmptyInput, output: schema({key: "string"})},
         });
         const VaultComponent = defineComponent({
             calls: VaultCalls,
@@ -1034,10 +938,7 @@ describe("@jiminp/stelaro secrets", () => {
     it("exposes validated application secrets on the runtime", async () => {
         await writeTestFile(join(base_dir, "secrets.toml"), 'master_key = "mk-abc"\n');
 
-        const ACalls = defineComponentCalls({
-            id: "a",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
@@ -1061,10 +962,7 @@ describe("@jiminp/stelaro secrets", () => {
         await writeTestFile(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-start"\n');
 
         let start_secret: string | undefined;
-        const VaultCalls = defineComponentCalls({
-            id: "vault",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const VaultCalls = defineComponentCalls("vault", {run: {input: EmptyInput, output: CounterOutput}});
         const VaultComponent = defineComponent({
             calls: VaultCalls,
             uses: [],
@@ -1091,11 +989,8 @@ describe("@jiminp/stelaro secrets", () => {
         await writeTestFile(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-dev"\ndb_pass = "local"\n');
         await writeTestFile(join(base_dir, "vault", "secrets.prod.toml"), 'db_pass = "prod-secret"\n');
 
-        const VaultCalls = defineComponentCalls({
-            id: "vault",
-            calls: {
-                get: {input: EmptyInput, output: schema({api_key: "string", db_pass: "string"})},
-            },
+        const VaultCalls = defineComponentCalls("vault", {
+            get: {input: EmptyInput, output: schema({api_key: "string", db_pass: "string"})},
         });
         const VaultComponent = defineComponent({
             calls: VaultCalls,
@@ -1125,11 +1020,8 @@ describe("@jiminp/stelaro secrets", () => {
         await writeTestFile(join(base_dir, "vault", "secrets.toml"), 'api_key = "sk-original"\n');
         await writeTestFile(join(base_dir, "vault", "config.toml"), 'label = "v1"\n');
 
-        const VaultCalls = defineComponentCalls({
-            id: "vault",
-            calls: {
-                get: {input: EmptyInput, output: schema({key: "string", label: "string"})},
-            },
+        const VaultCalls = defineComponentCalls("vault", {
+            get: {input: EmptyInput, output: schema({key: "string", label: "string"})},
         });
         const VaultComponent = defineComponent({
             calls: VaultCalls,
@@ -1164,10 +1056,7 @@ describe("@jiminp/stelaro secrets", () => {
     it("throws SecretsValidationError when secrets fail schema validation", async () => {
         await writeTestFile(join(base_dir, "vault", "secrets.toml"), 'api_key = 42\n');
 
-        const VaultCalls = defineComponentCalls({
-            id: "vault",
-            calls: {run: {input: EmptyInput, output: CounterOutput}},
-        });
+        const VaultCalls = defineComponentCalls("vault", {run: {input: EmptyInput, output: CounterOutput}});
         const VaultComponent = defineComponent({
             calls: VaultCalls,
             uses: [],
