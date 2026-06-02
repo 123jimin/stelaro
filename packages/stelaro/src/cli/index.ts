@@ -1,1 +1,1 @@
-export type {ParsedArgs} from "./args.ts";
+export * from "./args.ts";
