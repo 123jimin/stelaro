@@ -85,6 +85,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - Component resource/template support is expected to be defined.
 - Component reloading is expected to be defined.
 - Gateway packages are expected to define protocol-native binding helpers.
+- Log output may be routed to pluggable transports — a file, an aggregation backend, or a database sink — without changing how behavior emits logs, so persistence and shipping stay additive.
 
 ## Dangers
 
