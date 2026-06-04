@@ -20,7 +20,9 @@
     "clean": "rimraf dist tsconfig.tsbuildinfo",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "pretest": "pnpm build",
+    "test": "node --test \"dist/**/*.spec.js\""
   },
   "keywords": [],
   "author": "Jimin Park (github.com/123jimin)",
@@ -36,5 +38,11 @@
   "homepage": "https://github.com/123jimin/stelaro/tree/main/packages/stelaro-pino",
   "dependencies": {
     "@jiminp/stelaro": "workspace:*"
+  },
+  "peerDependencies": {
+    "pino": "^10.0.0"
+  },
+  "devDependencies": {
+    "pino": "^10.3.1"
   }
 }
