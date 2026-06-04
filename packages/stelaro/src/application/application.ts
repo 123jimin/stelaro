@@ -571,14 +571,21 @@ async function stopComponent(
             await runtime.component.stop(context);
         } catch (error) {
             stop_error = error;
-            runtime.log.error({event: "component.failed", err: error}, "Component failed to stop.");
         }
     }
     runtime.lifecycle.enter("idle");
-    runtime.log.debug(
-        {event: "component.idle", ms: performance.now() - component_stopped_at},
-        "Component idle.",
-    );
+    const component_stop_ms = performance.now() - component_stopped_at;
+    if(stop_error != null) {
+        runtime.log.error(
+            {event: "component.idle", ms: component_stop_ms, err: stop_error},
+            "Component stop hook failed.",
+        );
+    } else {
+        runtime.log.debug(
+            {event: "component.idle", ms: component_stop_ms},
+            "Component idle.",
+        );
+    }
     return stop_error;
 }
 

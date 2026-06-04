@@ -156,4 +156,33 @@ describe("application lifecycle logging", () => {
         assert.ok(reloading, "expected an app.reloading record");
         assert.deepStrictEqual(fieldsOf(reloading)["component_id"], "counter");
     });
+
+    it("logs a stop-hook failure at error under the entered idle state", async () => {
+        const sink: CapturedRecord[] = [];
+        const boom = new Error("stop boom");
+        const Failing = defineComponent({
+            calls: defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}}),
+            uses: [],
+            handlers: {current: {handle() { return {count: 1}; }}},
+            stop() { throw boom; },
+        });
+        const app = createApplication(defineApplication({
+            components: [Failing],
+            logger: capturingLoggerFactory(sink),
+        }));
+
+        await app.start();
+        await assert.rejects(app.stop());
+
+        // The failed stop still enters idle, so it is logged at error under component.idle
+        // (carrying the error) rather than a separate component.failed event.
+        const idle_error = sink.find((record) =>
+            record.scope === "counter" && record.level === "error" && fieldsOf(record)["event"] === "component.idle");
+        assert.ok(idle_error, "expected a component.idle error record for the failed stop");
+        assert.deepStrictEqual(fieldsOf(idle_error)["err"], boom);
+
+        const failed_count = sink.filter((record) =>
+            record.scope === "counter" && fieldsOf(record)["event"] === "component.failed").length;
+        assert.deepStrictEqual(failed_count, 0);
+    });
 });
