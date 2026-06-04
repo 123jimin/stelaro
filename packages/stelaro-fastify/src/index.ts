@@ -171,10 +171,12 @@ export function defineFastifyGateway<
             if(context.config.host != null) {
                 listen_options.host = context.config.host;
             }
-            await definition.server.listen(listen_options);
+            const address = await definition.server.listen(listen_options);
+            context.log.info({event: "gateway.listening", address}, `Gateway listening at ${address}.`);
         },
-        async stop() {
+        async stop(context) {
             await definition.server.close();
+            context.log.info({event: "gateway.closed"}, "Gateway server closed.");
         },
     });
 }

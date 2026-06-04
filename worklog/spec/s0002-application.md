@@ -76,6 +76,14 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
 - `app.reloadConfig()` only works in `active`. All other states throw `LifecycleStateError`.
 - `app.reloadComponentConfig()` only works in `active`. All other states throw `LifecycleStateError`.
 
+### Lifecycle logging
+
+- The application logs each lifecycle transition through its logger factory: application-scoped transitions through a framework-scoped logger (scoped to the framework name), and each component's transitions through that component's scoped logger.
+- Application start and stop transitions are logged at info; component start and stop transitions at debug. A transition accompanied by an error is logged at error, carrying the error.
+- Config reloads (`reloadConfig`, `reloadComponentConfig`) log their application-scoped `active → reloading → active` transition at info; a single-component reload identifies the target component. Reload does not change component state and is not logged per component.
+- Each record carries an `event` field naming the entered transition by lifecycle state (e.g. `app.starting`, `app.active`, `component.stopping`, `app.reloading`, `component.failed`); start and stop records also carry an elapsed-time field. Component identity is supplied by the scoped logger.
+- The configured logger is used; with none provided, the default console logger applies. Verbosity follows the logger's level — there is no separate logging switch.
+
 ## Constraints
 
 - Application runtime state initialization must happen during `createApplication`, before any calls are dispatched.

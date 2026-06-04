@@ -378,17 +378,21 @@ describe("@jiminp/stelaro application core", () => {
         for(const method of logger_method_names) {
             const method_calls = console_calls[method];
 
-            assert.deepStrictEqual(method_calls.length, 1);
+            // Lifecycle logging now also routes through the default console logger, so locate the
+            // handler's own record (its message is the argument after the [id] prefix) rather than
+            // assuming it is the only call.
+            const handler_call = method_calls.find((args) => args[1] === `${method} message`);
+            assert.ok(handler_call, `expected a ${method} call from the handler`);
 
-            const [message, data] = method_calls[0]!;
+            const [message, data] = handler_call;
 
             assert.deepStrictEqual(typeof message, "string");
             const message_text = message as string;
 
             assert.match(message_text, /^\[counter\]/);
             assert.deepStrictEqual(data, `${method} message`);
-            assert.deepStrictEqual(method_calls[0]![2], structured_data);
-            assert.deepStrictEqual(method_calls[0]![3], extra_data);
+            assert.deepStrictEqual(handler_call[2], structured_data);
+            assert.deepStrictEqual(handler_call[3], extra_data);
         }
     });
 

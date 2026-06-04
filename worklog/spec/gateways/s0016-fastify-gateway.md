@@ -91,7 +91,9 @@ function route(definition: GatewayRoute): GatewayRoute;
 ### Lifecycle
 
 - The gateway registers routes during its component start hook and begins listening.
+- After it begins listening, the gateway logs its listening address (host and port) at info through its component logger.
 - The gateway closes the server during its component stop hook.
+- When it closes the server, the gateway logs the close at info.
 ## Constraints
 
 - The gateway must not define types that parallel Fastify's own types for requests, replies, route options, or hooks.

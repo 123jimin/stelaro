@@ -211,6 +211,8 @@ export function createApplication<
         async start(): Promise<void> {
             lifecycle.require("idle", "start");
             lifecycle.enter("starting");
+            framework_log.info({event: "app.starting"}, "Application starting.");
+            const started_at = performance.now();
 
             try {
                 const loads: Promise<void>[] = [];
@@ -262,29 +264,26 @@ export function createApplication<
                 await Promise.all(loads);
 
                 for(const runtime of runtimes) {
-                    runtime.lifecycle.enter("starting");
-                    try {
-                        if(runtime.component.start != null) {
-                            const context = buildContext(runtime, dispatchCall, base_dir);
-                            await runtime.component.start(context);
-                        }
-                        runtime.lifecycle.enter("active");
-                    } catch (error) {
-                        runtime.lifecycle.enter("failed");
-                        throw error;
-                    }
+                    await startComponent(runtime, dispatchCall, base_dir);
                 }
             } catch (error) {
                 lifecycle.enter("failed");
+                framework_log.error({event: "app.failed", err: error}, "Application failed to start.");
                 throw error;
             }
 
             lifecycle.enter("active");
+            framework_log.info(
+                {event: "app.active", ms: performance.now() - started_at},
+                "Application active.",
+            );
         },
 
         async stop(): Promise<void> {
             lifecycle.require(["active", "failed"], "stop");
             lifecycle.enter("stopping");
+            framework_log.info({event: "app.stopping"}, "Application stopping.");
+            const stopped_at = performance.now();
 
             const errors: unknown[] = [];
 
@@ -292,19 +291,17 @@ export function createApplication<
                 const runtime = runtimes[i]!;
                 if(runtime.lifecycle.state !== "active") continue;
 
-                runtime.lifecycle.enter("stopping");
-                if(runtime.component.stop != null) {
-                    try {
-                        const context = buildContext(runtime, dispatchCall, base_dir);
-                        await runtime.component.stop(context);
-                    } catch (error) {
-                        errors.push(error);
-                    }
+                const stop_error = await stopComponent(runtime, dispatchCall, base_dir);
+                if(stop_error != null) {
+                    errors.push(stop_error);
                 }
-                runtime.lifecycle.enter("idle");
             }
 
             lifecycle.enter("idle");
+            framework_log.info(
+                {event: "app.idle", ms: performance.now() - stopped_at},
+                "Application idle.",
+            );
 
             if(errors.length > 0) {
                 throw new AggregateError(errors, "One or more component stop hooks failed.");
@@ -321,6 +318,8 @@ export function createApplication<
         async reloadConfig(): Promise<void> {
             lifecycle.require("active", "reloadConfig");
             lifecycle.enter("reloading");
+            framework_log.info({event: "app.reloading"}, "Reloading configuration.");
+            const reloaded_at = performance.now();
 
             let pending_app_config: unknown = null;
             const pending_component_configs = new Map<ComponentRuntime, unknown>();
@@ -346,6 +345,7 @@ export function createApplication<
                 await Promise.all(config_loads);
             } catch (error) {
                 lifecycle.enter("active");
+                framework_log.error({event: "app.active", err: error}, "Configuration reload failed; configuration unchanged.");
                 throw error;
             }
 
@@ -368,7 +368,9 @@ export function createApplication<
 
             if(errors.length > 0) {
                 lifecycle.enter("failed");
-                throw new AggregateError(errors, "One or more onConfigReload hooks failed.");
+                const aggregate = new AggregateError(errors, "One or more onConfigReload hooks failed.");
+                framework_log.error({event: "app.failed", err: aggregate}, "Configuration reload failed.");
+                throw aggregate;
             }
 
             try {
@@ -377,10 +379,12 @@ export function createApplication<
                 }
             } catch (error) {
                 lifecycle.enter("failed");
+                framework_log.error({event: "app.failed", err: error}, "Configuration reload failed.");
                 throw error;
             }
 
             lifecycle.enter("active");
+            framework_log.info({event: "app.active", ms: performance.now() - reloaded_at}, "Configuration reloaded.");
         },
 
         async reloadComponentConfig(
@@ -388,14 +392,19 @@ export function createApplication<
         ): Promise<void> {
             lifecycle.require("active", "reloadComponentConfig");
             lifecycle.enter("reloading");
+            framework_log.info({event: "app.reloading", component_id}, "Reloading component configuration.");
+            const reloaded_at = performance.now();
 
             const runtime = id_to_runtime.get(component_id);
             if(runtime == null) {
                 lifecycle.enter("active");
-                throw new UnregisteredComponentError(component_id);
+                const error = new UnregisteredComponentError(component_id);
+                framework_log.error({event: "app.active", component_id, err: error}, "Component configuration reload failed; unknown component.");
+                throw error;
             }
             if(runtime.component.config == null) {
                 lifecycle.enter("active");
+                framework_log.info({event: "app.active", component_id, ms: performance.now() - reloaded_at}, "Component has no configuration to reload.");
                 return;
             }
 
@@ -410,6 +419,7 @@ export function createApplication<
                 );
             } catch (error) {
                 lifecycle.enter("active");
+                framework_log.error({event: "app.active", component_id, err: error}, "Component configuration reload failed; configuration unchanged.");
                 throw error;
             }
             runtime.config = pending_config;
@@ -421,10 +431,12 @@ export function createApplication<
                 }
             } catch (error) {
                 lifecycle.enter("failed");
+                framework_log.error({event: "app.failed", component_id, err: error}, "Component configuration reload failed.");
                 throw error;
             }
 
             lifecycle.enter("active");
+            framework_log.info({event: "app.active", component_id, ms: performance.now() - reloaded_at}, "Component configuration reloaded.");
         },
     };
 
@@ -503,6 +515,71 @@ function buildContext(
         ...(runtime.component.config != null ? {config: runtime.config} : null),
         ...(runtime.component.secrets != null ? {secrets: runtime.secrets} : null),
     };
+}
+
+/**
+ * Starts a single component: enters `starting`, runs its `start` hook (if any), then enters
+ * `active`, logging each transition. Throws — after entering `failed` and logging at error — if
+ * the hook rejects. Factored out so one component can be started independently, e.g. for HMR
+ * (s0006).
+ */
+async function startComponent(
+    runtime: ComponentRuntime,
+    dispatchCall: DispatchFn,
+    base_dir: string,
+): Promise<void> {
+    runtime.lifecycle.enter("starting");
+    runtime.log.debug({event: "component.starting"}, "Component starting.");
+    const component_started_at = performance.now();
+    try {
+        if(runtime.component.start != null) {
+            const context = buildContext(runtime, dispatchCall, base_dir);
+            await runtime.component.start(context);
+        }
+        runtime.lifecycle.enter("active");
+        runtime.log.debug(
+            {event: "component.active", ms: performance.now() - component_started_at},
+            "Component active.",
+        );
+    } catch (error) {
+        runtime.lifecycle.enter("failed");
+        runtime.log.error({event: "component.failed", err: error}, "Component failed to start.");
+        throw error;
+    }
+}
+
+/**
+ * Stops a single component: enters `stopping`, runs its `stop` hook (if any), then enters
+ * `idle`, logging each transition. A throwing stop hook is logged at error and returned rather
+ * than rethrown, so callers can continue best-effort. Factored out for reuse, e.g. for HMR
+ * (s0006).
+ *
+ * @returns The error thrown by the stop hook, or `null` if it completed.
+ */
+async function stopComponent(
+    runtime: ComponentRuntime,
+    dispatchCall: DispatchFn,
+    base_dir: string,
+): Promise<unknown> {
+    runtime.lifecycle.enter("stopping");
+    runtime.log.debug({event: "component.stopping"}, "Component stopping.");
+    const component_stopped_at = performance.now();
+    let stop_error: unknown = null;
+    if(runtime.component.stop != null) {
+        try {
+            const context = buildContext(runtime, dispatchCall, base_dir);
+            await runtime.component.stop(context);
+        } catch (error) {
+            stop_error = error;
+            runtime.log.error({event: "component.failed", err: error}, "Component failed to stop.");
+        }
+    }
+    runtime.lifecycle.enter("idle");
+    runtime.log.debug(
+        {event: "component.idle", ms: performance.now() - component_stopped_at},
+        "Component idle.",
+    );
+    return stop_error;
 }
 
 function validateAndSort(components: readonly AnyComponent[]): readonly AnyComponent[] {
