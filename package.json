@@ -4,6 +4,7 @@
   "description": "Opinionated Component System",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.5.1",
   "scripts": {
     "clean": "pnpm -r --if-present clean",
     "build": "pnpm -r --if-present build",
