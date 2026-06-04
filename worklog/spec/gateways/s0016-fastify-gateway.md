@@ -94,6 +94,8 @@ function route(definition: GatewayRoute): GatewayRoute;
 - After it begins listening, the gateway logs its listening address (host and port) at info through its component logger.
 - The gateway closes the server during its component stop hook.
 - When it closes the server, the gateway logs the close at info.
+- The gateway does not emit per-request access logs; request logging is delegated to Fastify's own logger. An application unifies request logs with the component-scoped stream by giving the Fastify instance a `loggerInstance` that is a child of the shared logger backend (e.g. the pino root behind the application's logger factory), tagged with the gateway's id (see d0003).
+
 ## Constraints
 
 - The gateway must not define types that parallel Fastify's own types for requests, replies, route options, or hooks.
