@@ -23,7 +23,9 @@ type Locale = string; // BCP-47 language tag, e.g. "en", "ko", "en-US"
 
 type MessageDescriptor = {
     readonly id: string;             // stable message key, unique within the component
-    readonly defaultMessage: string; // ICU MessageFormat source text — the final fallback
+    // ICU source text; the final fallback. Intentionally camelCase, not snake_case, to mirror
+    // FormatJS's own descriptor field so extraction/interop is 1:1 — see s0027.
+    readonly defaultMessage: string;
 };
 
 // Resolves one message for an explicit locale. Synchronous.
