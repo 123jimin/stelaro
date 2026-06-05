@@ -10,23 +10,15 @@ tags = ["context", "architecture", "component", "application", "logging", "confi
 - s0002: Application
 - s0003: Component
 - s0026: Localization
+- s0028: Logging
 
 ## Types
 
 Types are shown erased to their widest form for readability. Implementations must be as narrow as possible — e.g. `call` accepts only references from the component's `uses` declarations, with input/output types inferred from the reference.
 
 ```typescript
-type Logger = {
-    debug(...args: unknown[]): void;
-    info(...args: unknown[]): void;
-    warn(...args: unknown[]): void;
-    error(...args: unknown[]): void;
-};
-
-type LoggerFactory = (component_id: ComponentId) => Logger;
-
 type ComponentContext = {
-    readonly log: Logger;
+    readonly log: Logger;           // component-scoped logging; see s0028
     readonly data: DataAccess;      // always present; see s0021
     readonly t: Translator;         // component-scoped translation; see s0026
     call(reference: ComponentCallReference, input: unknown): Promise<unknown>;

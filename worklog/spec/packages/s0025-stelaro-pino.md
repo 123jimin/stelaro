@@ -7,9 +7,10 @@ paths = ["packages/stelaro-pino/**"]
 
 ## Related Specs
 
+- s0028: Logging (the core contract this package backs)
 - s0001: High-Level Architecture (logging, pluggable transports)
 - s0002: Application (logger factory)
-- s0004: Context (Logger / LoggerFactory contract)
+- s0004: Context (`context.log`)
 
 ## Types
 

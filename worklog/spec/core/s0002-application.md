@@ -10,6 +10,7 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 - s0003: Component
 - s0004: Context
 - s0006: Hot Module Replacement
+- s0028: Logging
 
 ## Types
 

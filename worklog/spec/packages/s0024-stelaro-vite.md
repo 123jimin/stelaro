@@ -1,7 +1,7 @@
 +++
 id = "s0024"
 title = "Vite Frontend Integration"
-tags = ["gateway", "vite", "frontend"]
+tags = ["vite", "frontend"]
 paths = ["packages/stelaro-vite/**"]
 +++
 

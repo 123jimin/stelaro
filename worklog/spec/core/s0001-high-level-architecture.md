@@ -12,6 +12,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - s0006: Hot Module Replacement
 - s0010: Examples (Common)
 - s0026: Localization
+- s0028: Logging
 
 ## Design Phase Note
 
