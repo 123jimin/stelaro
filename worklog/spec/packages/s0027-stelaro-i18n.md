@@ -23,8 +23,8 @@ and calls it from handlers. Core is untouched.
 ## Types
 
 Types are shown erased to their widest form for readability. `Locale` is a BCP-47 tag;
-`DataAccess` is from s0021. `ParamsOf<S>` infers interpolation parameters from an ICU source
-string.
+`DataAccess` is from s0021. `MessageValues<S>` is the values an ICU source `S` interpolates, and
+`OptionalIfVoid` (from `@jiminp/tooltool`) makes the values argument optional when there are none.
 
 ```typescript
 type Locale = string;
@@ -50,14 +50,14 @@ type I18n = {
     t<const D extends MessageDescriptor>(
         locale: Locale,
         message: D,
-        ...values: ParamsOf<D["defaultMessage"]>   // [] when the source has no placeholders
+        ...values: OptionalIfVoid<MessageValues<D["defaultMessage"]>>   // no values arg when S has none
     ): string;
 };
 
 // Synchronous holder constructor — safe to call inside a (synchronous) state factory.
 function createI18n(options: I18nOptions): I18n;
 
-// Declares typed source messages; preserves literals for ParamsOf inference and extraction.
+// Declares typed source messages; preserves literals for MessageValues inference and extraction.
 function defineMessages<const T extends Record<string, MessageDescriptor>>(messages: T): T;
 ```
 
@@ -86,8 +86,9 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
 - Messages use ICU MessageFormat (interpolation, plurals, select); plurals/number/date use the
   platform `Intl` (no CLDR bundle).
 - `t` is typed from the descriptor argument (declared via `defineMessages`), not from a core
-  context generic. `ParamsOf` infers simple `{placeholder}` parameters; complex ICU (plural /
-  select) may degrade to a loose value record.
+  context generic. `MessageValues<S>` types simple `{placeholder}` keys and degrades to a loose
+  record under ICU control syntax (plural / select); `OptionalIfVoid` makes the values argument
+  required iff `S` interpolates.
 
 ### Catalogs + pipeline
 
