@@ -21,6 +21,7 @@ type LifecycleState = "idle" | "starting" | "active" | "reloading" | "failed" | 
 type ApplicationDefinition = {
     readonly components: readonly AnyComponent[];
     readonly logger?: LoggerFactory;        // default: consoleLoggerFactory
+    readonly translator?: TranslatorFactory; // default: source translator; see s0026
     readonly config?: ConfigSchema;
     readonly secrets?: ConfigSchema;
     readonly onConfigReload?: () => Promisable<void>;
@@ -35,6 +36,7 @@ type Application = {
     readonly config: unknown;               // null when definition has no config schema
     readonly secrets: unknown;              // null when definition has no secrets schema
     readonly logger: LoggerFactory;
+    readonly translator: TranslatorFactory;
     start(): Promise<void>;
     stop(): Promise<void>;
     call(reference: AnyComponentCallReference, input: unknown): Promise<unknown>;

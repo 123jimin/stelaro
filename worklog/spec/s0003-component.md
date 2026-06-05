@@ -61,6 +61,7 @@ function defineComponent(definition: Component): Component;
 ## Behavior
 
 - Component call APIs support IPC-like usage without requiring cross-process transport.
+- Component behavior receives translation scoped to the component id (s0026), like its component-scoped logger and data access.
 - UNIMPLEMENTED Components may use gateway capabilities through typed component call APIs.
 - Component state must be scoped to a single application runtime. A component definition reused across multiple application runtimes must have independent state per runtime.
 - Component state must not be shared between different components within the same application runtime.

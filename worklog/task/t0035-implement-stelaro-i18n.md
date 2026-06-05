@@ -3,7 +3,7 @@ id = "t0035"
 title = "Implement stelaro-i18n: component-scoped localization"
 status = "active"
 tags = ["i18n", "localization", "component", "context"]
-modifies = ["s0001", "s0002", "s0003", "s0004"]
+modifies = ["s0001", "s0002", "s0003", "s0004", "s0026", "s0027"]
 blocked_by = []
 +++
 

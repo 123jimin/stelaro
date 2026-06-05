@@ -11,6 +11,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - s0004: Context
 - s0006: Hot Module Replacement
 - s0010: Examples (Common)
+- s0026: Localization
 
 ## Design Phase Note
 
@@ -63,6 +64,14 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - When no logger factory is provided, core uses a default console logger.
 - The default console logger prefixes output with the component id and maps debug, info, warn, and error messages to the matching console methods.
 
+### Localization
+
+- Localization supports component-scoped translation: each component owns its message catalog, keyed by its id.
+- Translation resolves a message for an explicit locale; the locale is always an explicit argument, never ambient, because components have no request context.
+- A translator falls back requested locale → default locale → the message's source text, so a missing translation always yields readable source.
+- Application definitions may provide a translator factory; when none is provided, core uses a default source translator that returns the source message.
+- Message catalogs are per-component and opt-in by presence; a component without catalogs uses source text. See s0026 and s0027.
+
 ### Validation
 
 - Arktype is a core validation and typing tool for Stelaro boundaries.
@@ -73,7 +82,7 @@ tags = ["architecture", "component", "gateway", "logging", "config"]
 - Gateway packages may depend on the core package and their own external runtime ecosystems.
 - Component ids must be stable enough to serve as public identity within an application.
 - Component call input and output definitions must be Arktype schemas.
-- The architecture must keep shared concerns in core: lifecycle, configuration, logging, component registration, and typed calls.
+- The architecture must keep shared concerns in core: lifecycle, configuration, logging, localization, component registration, and typed calls.
 - Protocol-specific concerns must stay with the relevant gateway package.
 - Non-gateway components must not require raw gateway-specific runtime objects.
 - Public design must not assume unprovided details for prompts, configuration, routes, commands, events, or component behavior.
