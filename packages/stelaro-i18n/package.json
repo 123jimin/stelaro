@@ -1,0 +1,44 @@
+{
+  "name": "@jiminp/stelaro-i18n",
+  "version": "0.0.1",
+  "description": "FormatJS-backed component-scoped localization for Stelaro",
+  "type": "module",
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.spec.*"
+  ],
+  "scripts": {
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "lint": "eslint src/",
+    "pretest": "pnpm build",
+    "test": "node --test \"dist/**/*.spec.js\""
+  },
+  "keywords": [],
+  "author": "Jimin Park (github.com/123jimin)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/123jimin/stelaro.git",
+    "directory": "packages/stelaro-i18n"
+  },
+  "bugs": {
+    "url": "https://github.com/123jimin/stelaro/issues"
+  },
+  "homepage": "https://github.com/123jimin/stelaro/tree/main/packages/stelaro-i18n",
+  "dependencies": {
+    "@jiminp/stelaro": "workspace:*",
+    "@jiminp/tooltool": "^0.3.2",
+    "@formatjs/intl": "^4.1.12"
+  }
+}

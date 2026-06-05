@@ -29,8 +29,8 @@ spec s0026) was backed out — see d0004.
   - `I18n.t(locale, message, ...values)` — synchronous; selects the locale's `@formatjs/intl`
     `IntlShape` and delegates to `formatMessage` (FormatJS-native fallback, ending at source
     `defaultMessage`); never blank.
-  - `defineMessages(...)` — typed, literal-preserving source descriptors for `ParamsOf` inference
-    and extraction.
+  - `defineMessages(...)` — typed, literal-preserving source descriptors for `MessageValues`
+    inference and extraction.
 - **Typed `t`** — infer keys/params from the descriptor argument (no core context generic); simple
   `{placeholder}` params typed, complex ICU degrades to a loose value record.
 - **Tooling** — dev-time `@formatjs/cli` extraction of `{id, defaultMessage}` from TS source (no
@@ -60,3 +60,12 @@ spec s0026) was backed out — see d0004.
   implementation (don't presume).
 - Spec-derived test: construct a component holding an `I18n` in state, drive `load` + `t`, and
   assert locale resolution, ICU plural/select output, and fallback-to-source (including pre-`load`).
+
+## Open Issues
+
+- **Logging bypass (to resolve).** `createI18n`'s FormatJS `onError` uses `console.error` for
+  non-fallback errors (malformed ICU, missing data), bypassing stelaro's logging system (the
+  component's `Logger`). It should route through a logger instead. Design tension: the holder is
+  created in the synchronous state factory, before `context.log` exists — so the logger must be
+  supplied later, e.g. an `onError`/logger hook on `I18nOptions`, or passing `context.log` to
+  `load(data, log?)`. Deferred from this implementation pass; do not archive t0035 until resolved.
