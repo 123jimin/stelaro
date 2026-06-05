@@ -9,7 +9,6 @@ tags = ["context", "architecture", "component", "application", "logging", "confi
 - s0001: High-Level Architecture
 - s0002: Application
 - s0003: Component
-- s0026: Localization
 - s0028: Logging
 
 ## Types
@@ -20,7 +19,6 @@ Types are shown erased to their widest form for readability. Implementations mus
 type ComponentContext = {
     readonly log: Logger;           // component-scoped logging; see s0028
     readonly data: DataAccess;      // always present; see s0021
-    readonly t: Translator;         // component-scoped translation; see s0026
     call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
     readonly state?: unknown;       // present iff component declares a state factory
     readonly config?: unknown;      // present iff component declares a config schema
@@ -36,7 +34,7 @@ type ComponentContext = {
 ## Constraints
 
 - Core context provides Stelaro-level capabilities, not raw gateway runtime objects.
-- Core context preserves the current component id for scoped capabilities such as logging, configuration, and translation.
+- Core context preserves the current component id for scoped capabilities such as logging and configuration.
 - Core context may access gateway capabilities only through typed component call APIs.
 
 ## Anticipated Changes

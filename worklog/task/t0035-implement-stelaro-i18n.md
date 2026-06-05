@@ -3,50 +3,38 @@ id = "t0035"
 title = "Implement stelaro-i18n: component-scoped localization"
 status = "active"
 tags = ["i18n", "localization", "component", "context"]
-modifies = ["s0001", "s0002", "s0003", "s0004", "s0026", "s0027"]
+modifies = ["s0027"]
 blocked_by = []
 +++
 
 ## Context
 
-Localization is a framework-level, gateway-agnostic concern: a web server, a Discord bot, and a
-CLI on stelaro all need to translate. stelaro has none today (s0021 only *anticipates*
-`data/{locale}/`, unbuilt). This adds localization as a component-scoped capability, mirroring
-how logging (t0007) is component-scoped — each component owns its messages, and the app injects
-the backend the way it injects the `LoggerFactory` (s0002), with the heavy runtime in a companion
-package (cf. stelaro-pino / s0025).
+Localization is a gateway-agnostic concern, but — unlike logging — it is optional, so it does NOT
+belong in the core context (d0004). `@jiminp/stelaro-i18n` is an optional companion package (cf.
+stelaro-pino / s0025). A component that needs translation wires an `I18n` holder into its own
+component state (s0003), loads catalogs in `start` via `DataAccess` (s0021), and calls it from
+handlers. Core — `ComponentContext`, `ApplicationDefinition` — is untouched.
 
-This task is larger than a typical single-session task and is intentionally kept whole (not
-split): designing the covering spec(s) is the first step of implementation, not a separate task.
+The covering spec is s0027 (the single home for the contract and the FormatJS backend). The earlier
+core-context design (`context.t`, a translator factory on `defineApplication`, a core localization
+spec s0026) was backed out — see d0004.
 
 ## Scope
 
-Ordered; the spec work gates the rest.
-
-- **Spec first.** Write the covering spec(s) before implementing: a core localization spec (the
-  context capability + injectable factory + fallback semantics) and a stelaro-i18n package spec
-  for the runtime backend (cf. s0025 for stelaro-pino). Settle the core-interface-vs-package split
-  here.
-- **Core contract.** A gateway-agnostic translation capability on the component context (e.g.
-  `context.t`), scoped to the component, resolving a message for a given locale + id with ICU
-  MessageFormat (plurals / select / interpolation). Components have no request context (s0002 /
-  s0004), so **locale is an explicit argument** (from call input), never ambient.
-- **Injectable backend.** A translator factory on `defineApplication` (like `logger` /
-  `LoggerFactory`), so the ICU runtime lives in the companion `stelaro-i18n` package and core
-  stays light — core ships at most a default source/identity translator (the i18n analogue of
-  `consoleLoggerFactory`).
-- **Per-component, opt-in catalogs by presence.** A component's catalog is its files under its own
-  data dir (namespace = component id); a component with no catalog files simply doesn't translate.
-  No declaration on the component (consistent with DataAccess, s0021) — at most a one-line
-  behavioral note in s0003.
-- **Fallback chain:** requested locale → default locale → source text. With FormatJS the source
-  travels as each message's `defaultMessage`, so a missing translation always yields readable
-  source text, never a blank or the bare id.
-- **Catalogs + pipeline.** JSON catalogs (FormatJS), loaded via `context.data.resolve(...)`
-  (s0021) — the backend owns its locale path layout (e.g. `i18n/{locale}.json`), so s0021's
-  anticipated `data/{locale}/` resolution is NOT required. Dev-time `extract → translate →
-  (pre)compile` via `@formatjs/cli`, which parses TS source as a standalone step (no Babel/SWC in
-  the tsc runtime build).
+- **Spec (done this session).** s0027 specifies the package; the core specs are untouched (d0004).
+- **Package `@jiminp/stelaro-i18n`** — implement against s0027:
+  - `createI18n(options): I18n` — synchronous holder (state-factory-safe).
+  - `I18n.load(data)` — async; loads per-component JSON catalogs from the component data dir
+    (`i18n/{locale}.json`) via `DataAccess`.
+  - `I18n.t(locale, message, ...values)` — synchronous; formats with `intl-messageformat`; fallback
+    requested → `default_locale` → source (`defaultMessage`); never blank.
+  - `defineMessages(...)` — typed, literal-preserving source descriptors for `ParamsOf` inference
+    and extraction.
+- **Typed `t`** — infer keys/params from the descriptor argument (no core context generic); simple
+  `{placeholder}` params typed, complex ICU degrades to a loose value record.
+- **Tooling** — dev-time `@formatjs/cli` extraction of `{id, defaultMessage}` from TS source (no
+  Babel/SWC in the tsc build).
+- **Wire the package build into the workspace; spec-derived tests.**
 
 ## Out of scope
 
@@ -54,28 +42,19 @@ Ordered; the spec work gates the rest.
   gateway/app-specific (the consuming app's i18n spec), not core.
 - Localized long-form content (article/wiki bodies) beyond UI message catalogs.
 - A CI pipeline syncing catalogs to a hosted translation platform.
+- Any core change — a generic context-extension mechanism is explicitly deferred (d0004).
 
 ## Notes
 
-- **Runtime: FormatJS** (`@formatjs/intl` + `intl-messageformat`), chosen over Lingui:
-  - It formats per `(locale, message)` with **no ambient active locale** (`createIntl({locale,
-    messages})` / `new IntlMessageFormat(msg, locale)`), fitting the explicit-per-call,
-    concurrency-safe requirement. Lingui's `i18n.activate()` is global mutable state — racy for a
-    server translating multiple locales at once.
-  - `@formatjs/cli` extracts `{id, defaultMessage}` descriptors directly from TS source as a
-    standalone dev step — no Babel/SWC macro transform in stelaro's tsc/type-stripping build
-    (Lingui's ergonomic macro extraction would have required one). Use explicit ids; skip the
-    optional `@formatjs/ts-transformer` (it needs a tsc plugin).
-  - Trade-off: JSON catalogs, not gettext `.po` (accepted — Crowdin/Weblate handle FormatJS/ICU
-    JSON; only Poedit is `.po`-bound). Record the runtime choice as a decision when implementing.
-  - ICU plurals/number/date use Node's built-in `Intl` (no CLDR bundle), keeping the companion
-    runtime light.
-- The backend caches one immutable `intl` per `(component, locale)`, selected by the call's locale
-  argument — no shared mutable locale state.
-- `modifies` mirrors t0007 (logging touched s0001–s0004); confirm each during spec work. s0003's
-  change should be minimal (catalogs are convention-based, not a declared field). s0021 is NOT
-  modified — the backend uses existing `DataAccess.resolve`.
+- **Runtime: FormatJS** (`@formatjs/intl` / `intl-messageformat`): per-`(locale, message)`
+  formatting, no ambient active locale (fits explicit-per-call, concurrency-safe), `@formatjs/cli`
+  extraction over TS source. JSON catalogs, not gettext `.po` (accepted). Runtime rationale lives
+  in s0027 and this task's history.
+- **No `state.i18n!`.** The holder is created synchronously in the state factory, so the state
+  field is non-null; `load` runs in `start`; `t` returns source before/without `load`. No assertion.
+- A `withI18n(options, definition)` wrapper may later inject the state + start wiring (s0027
+  Anticipated Changes).
 - Verify current `@formatjs/intl` / `intl-messageformat` / `@formatjs/cli` versions at
   implementation (don't presume).
-- Spec-derived test: drive translation through a component context (with the real FormatJS backend
-  injected) and assert locale resolution, ICU plural/select output, and fallback-to-source.
+- Spec-derived test: construct a component holding an `I18n` in state, drive `load` + `t`, and
+  assert locale resolution, ICU plural/select output, and fallback-to-source (including pre-`load`).
