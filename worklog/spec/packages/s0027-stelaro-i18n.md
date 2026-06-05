@@ -30,10 +30,11 @@ string.
 type Locale = string;
 
 type MessageDescriptor = {
-    readonly id: string;             // stable message key
+    readonly id: string;              // stable message key
     // ICU source text and the final fallback. Intentionally camelCase, not snake_case, to mirror
-    // FormatJS's own descriptor field so extraction is 1:1.
+    // FormatJS's own descriptor fields so extraction is 1:1.
     readonly defaultMessage: string;
+    readonly description?: string;    // translator context; carried through extraction
 };
 
 type I18nOptions = {
@@ -74,31 +75,45 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
 
 ### Translation
 
-- `t` resolves a message for the explicit `locale` argument. There is no ambient or active locale,
-  so concurrent calls for different locales are independent.
-- Fallback: requested locale → `default_locale` → the descriptor's `defaultMessage` (source). A
-  missing translation — or a `t` call made before `load` — yields readable source text, never a
-  blank or the bare id.
-- Messages use ICU MessageFormat (interpolation, plurals, select), formatted with
-  `intl-messageformat`; plurals/number/date use the platform `Intl` (no CLDR bundle).
+- Each locale is backed by an `@formatjs/intl` `IntlShape`, built once via
+  `createIntl({locale, defaultLocale: default_locale, messages})` (one shape per locale).
+  `t(locale, message, ...values)` selects the shape for the explicit `locale` and delegates to
+  `intl.formatMessage(message, values)`. There is no ambient or active locale, so concurrent calls
+  for different locales are independent.
+- Fallback is FormatJS's `formatMessage` chain: translated message at the id → the descriptor's
+  `defaultMessage` → … → the literal id. So a missing translation — or a `t` call made before
+  `load` (no shapes yet) — yields readable source text, never a blank.
+- Messages use ICU MessageFormat (interpolation, plurals, select); plurals/number/date use the
+  platform `Intl` (no CLDR bundle).
 - `t` is typed from the descriptor argument (declared via `defineMessages`), not from a core
   context generic. `ParamsOf` infers simple `{placeholder}` parameters; complex ICU (plural /
   select) may degrade to a loose value record.
 
 ### Catalogs + pipeline
 
-- Catalogs are per-component JSON loaded via `DataAccess` from the component's data directory
-  (default `{component data}/i18n/{locale}.json`). An absent catalog file is treated as empty.
-- Source messages are declared in code (`defineMessages`) — typed and extractable; translations
-  are JSON files. A dev-time `extract → translate → (pre)compile` pipeline uses `@formatjs/cli`
-  to extract `{id, defaultMessage}` descriptors directly from TypeScript source (no Babel/SWC in
-  the tsc build); ids are explicit.
+- Three shapes flow through the pipeline (keys below are message *ids*, e.g. `"home.greeting"`,
+  not a literal `id`):
+  - **Source**, from `@formatjs/cli` extract of the in-code `defineMessages` declarations:
+    `Record<MessageId, { defaultMessage: string; description?: string }>` — the default locale,
+    handed to translators.
+  - **Translations**, per locale: `Record<MessageId, string>` — id → translated string only; no
+    `defaultMessage` / `description`.
+  - **Runtime**: the per-locale `Record<MessageId, string>` is loaded as `createIntl`'s `messages`.
+    `@formatjs/cli compile --ast` is an optional perf step that precompiles a catalog to
+    `Record<MessageId, MessageFormatElement[]>` (an AST) to skip runtime parsing.
+- `I18n.load` reads the per-locale runtime catalog (strings or AST) from the component's data
+  directory via `DataAccess` (default `{component data}/i18n/{locale}.json`); an absent file is an
+  empty catalog (that locale falls back to source).
+- Extraction reads the `defineMessages` declarations (descriptor objects), **not** the locale-first
+  `t(locale, message, …)` calls — `@formatjs/cli`'s `--additional-function-names` assumes a
+  `formatMessage(descriptor, …)` shape (descriptor first), which `t` is not. Ids are explicit, so
+  no Babel/SWC transform is needed.
 
 ## Constraints
 
 - Core must not depend on this package, and this package must not require any change to the core
   `ComponentContext` — translation is reached through component state, never `context.t` (d0004).
-- No ambient/active locale: the explicit locale argument selects the formatter.
+- No ambient/active locale: the explicit locale argument selects the per-locale `IntlShape`.
 - Catalog loading goes through `DataAccess` (s0021); the package does not read files directly.
 - `createI18n` is synchronous (state-factory-safe); all I/O happens in `load`.
 

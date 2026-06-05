@@ -26,8 +26,9 @@ spec s0026) was backed out — see d0004.
   - `createI18n(options): I18n` — synchronous holder (state-factory-safe).
   - `I18n.load(data)` — async; loads per-component JSON catalogs from the component data dir
     (`i18n/{locale}.json`) via `DataAccess`.
-  - `I18n.t(locale, message, ...values)` — synchronous; formats with `intl-messageformat`; fallback
-    requested → `default_locale` → source (`defaultMessage`); never blank.
+  - `I18n.t(locale, message, ...values)` — synchronous; selects the locale's `@formatjs/intl`
+    `IntlShape` and delegates to `formatMessage` (FormatJS-native fallback, ending at source
+    `defaultMessage`); never blank.
   - `defineMessages(...)` — typed, literal-preserving source descriptors for `ParamsOf` inference
     and extraction.
 - **Typed `t`** — infer keys/params from the descriptor argument (no core context generic); simple
@@ -46,10 +47,11 @@ spec s0026) was backed out — see d0004.
 
 ## Notes
 
-- **Runtime: FormatJS** (`@formatjs/intl` / `intl-messageformat`): per-`(locale, message)`
-  formatting, no ambient active locale (fits explicit-per-call, concurrency-safe), `@formatjs/cli`
-  extraction over TS source. JSON catalogs, not gettext `.po` (accepted). Runtime rationale lives
-  in s0027 and this task's history.
+- **Runtime: FormatJS** — one `@formatjs/intl` `IntlShape` per locale (`createIntl`), `t`
+  delegating to `formatMessage` (FormatJS-native fallback to source); no ambient active locale
+  (fits explicit-per-call, concurrency-safe). `@formatjs/cli` extraction over TS source (from
+  `defineMessages`, not `t`). JSON catalogs, not gettext `.po` (accepted). Catalog shapes and
+  rationale in s0027.
 - **No `state.i18n!`.** The holder is created synchronously in the state factory, so the state
   field is non-null; `load` runs in `start`; `t` returns source before/without `load`. No assertion.
 - A `withI18n(options, definition)` wrapper may later inject the state + start wiring (s0027
