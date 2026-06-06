@@ -1,5 +1,5 @@
 import {createIntl, createIntlCache, IntlErrorCode, type IntlShape} from "@formatjs/intl";
-import type {DataAccess} from "@jiminp/stelaro";
+import type {DataAccess, Logger} from "@jiminp/stelaro";
 import type {OptionalIfVoid} from "@jiminp/tooltool";
 
 /** A BCP-47 language tag, e.g. `"en"`, `"ko"`, `"en-US"`.
@@ -64,8 +64,12 @@ type MessageValues<S extends string, Names extends string = never> =
  * @category i18n
  */
 export type I18n = {
-    /** Loads this component's catalogs. Call once, from the component's `start` hook. */
-    load(data: DataAccess): Promise<void>;
+    /**
+     * Loads this component's catalogs. Call once, from the component's `start` hook. The optional
+     * `log` routes non-fallback translation errors through the component's logger instead of the
+     * console.
+     */
+    load(data: DataAccess, log?: Logger): Promise<void>;
     /**
      * Translates `message` for an explicit `locale`. Synchronous; falls back to the message's
      * source (`defaultMessage`) when a translation is missing or before {@link I18n.load}.
@@ -97,6 +101,9 @@ export function createI18n(options: I18nOptions): I18n {
     const catalog_dir = options.catalog_dir ?? "i18n";
     const messages_by_locale = new Map<Locale, Catalog>();
     const shapes = new Map<Locale, IntlShape>();
+    // Set by `load`; read lazily by `onError` at error-time. Null before `load` (or when `load`
+    // ran without a logger), in which case reporting degrades to the console.
+    let logger: Logger | null = null;
 
     function shapeFor(locale: Locale): IntlShape {
         const cached = shapes.get(locale);
@@ -106,8 +113,10 @@ export function createI18n(options: I18nOptions): I18n {
             defaultLocale: options.default_locale,
             messages: messages_by_locale.get(locale) ?? {},
             onError(error) {
-                // A missing translation falls back to source by design; only surface real errors.
-                if(error.code !== IntlErrorCode.MISSING_TRANSLATION) console.error(error);
+                // A missing translation falls back to source by design; only surface real errors,
+                // through the component logger when one is set, else the console as a last resort.
+                if(error.code === IntlErrorCode.MISSING_TRANSLATION) return;
+                (logger ?? console).error(error);
             },
         }, cache);
         shapes.set(locale, shape);
@@ -119,13 +128,14 @@ export function createI18n(options: I18nOptions): I18n {
     }
 
     return {
-        async load(data: DataAccess): Promise<void> {
+        async load(data: DataAccess, log?: Logger): Promise<void> {
+            logger = log ?? null;
             const locales = options.locales ?? [options.default_locale];
             for(const locale of locales) {
                 const catalog = await readCatalog(data, `${catalog_dir}/${locale}.json`);
                 if(catalog != null) messages_by_locale.set(locale, catalog);
             }
-            shapes.clear(); // rebuild lazily with the loaded catalogs
+            shapes.clear(); // rebuild lazily with the loaded catalogs (and the supplied logger)
         },
         t(locale, message, ...[values]) {
             return translate(locale, message, values as Record<string, PrimitiveValue> | undefined);

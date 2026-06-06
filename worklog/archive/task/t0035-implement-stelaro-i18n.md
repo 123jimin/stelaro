@@ -1,7 +1,7 @@
 +++
 id = "t0035"
 title = "Implement stelaro-i18n: component-scoped localization"
-status = "active"
+status = "done"
 tags = ["i18n", "localization", "component", "context"]
 modifies = ["s0027"]
 blocked_by = []
@@ -33,9 +33,11 @@ spec s0026) was backed out — see d0004.
     inference and extraction.
 - **Typed `t`** — infer keys/params from the descriptor argument (no core context generic); simple
   `{placeholder}` params typed, complex ICU degrades to a loose value record.
-- **Tooling** — dev-time `@formatjs/cli` extraction of `{id, defaultMessage}` from TS source (no
-  Babel/SWC in the tsc build).
 - **Wire the package build into the workspace; spec-derived tests.**
+
+(Dev-time `@formatjs/cli` extraction needs no package tooling — the stock CLI extracts the
+`defineMessages` declarations as-is, which was the deliverable. The follow-up t0036 was cancelled
+once this was confirmed; s0027 documents extraction as a developer-run external step.)
 
 ## Out of scope
 
@@ -61,11 +63,15 @@ spec s0026) was backed out — see d0004.
 - Spec-derived test: construct a component holding an `I18n` in state, drive `load` + `t`, and
   assert locale resolution, ICU plural/select output, and fallback-to-source (including pre-`load`).
 
-## Open Issues
+## Resolved Issues
 
-- **Logging bypass (to resolve).** `createI18n`'s FormatJS `onError` uses `console.error` for
-  non-fallback errors (malformed ICU, missing data), bypassing stelaro's logging system (the
-  component's `Logger`). It should route through a logger instead. Design tension: the holder is
-  created in the synchronous state factory, before `context.log` exists — so the logger must be
-  supplied later, e.g. an `onError`/logger hook on `I18nOptions`, or passing `context.log` to
-  `load(data, log?)`. Deferred from this implementation pass; do not archive t0035 until resolved.
+- **Logging bypass (resolved).** `createI18n`'s FormatJS `onError` no longer hard-codes
+  `console.error` for non-fallback errors (malformed ICU, missing interpolation value). The holder
+  now accepts the component `Logger` through `load(data, log?)` — the one method already called
+  from `start(ctx)`, where `context.log` exists; the synchronous state factory takes no context
+  (`StateFactory<T> = () => T`), so the rejected alternative of a logger on `I18nOptions` could
+  never carry the real logger. `onError` reads the logger lazily at error-time and routes through
+  it, falling back to `console.error` only when none was supplied (no `load`, or pre-`load`).
+  `MISSING_TRANSLATION` stays silent (by-design fallback). s0027 updated (load signature, `Logger`
+  in Types, Translation error-reporting behavior); spec-derived tests cover logger routing,
+  silent missing-translation, and console degradation. No in-repo consumer needed updating.

@@ -23,7 +23,8 @@ and calls it from handlers. Core is untouched.
 ## Types
 
 Types are shown erased to their widest form for readability. `Locale` is a BCP-47 tag;
-`DataAccess` is from s0021. `MessageValues<S>` is the values an ICU source `S` interpolates, and
+`DataAccess` is from s0021 and `Logger` is the core component logger (leveled methods, reached as
+`context.log`). `MessageValues<S>` is the values an ICU source `S` interpolates, and
 `OptionalIfVoid` (from `@jiminp/tooltool`) makes the values argument optional when there are none.
 
 ```typescript
@@ -44,8 +45,9 @@ type I18nOptions = {
 };
 
 type I18n = {
-    // Loads this component's catalogs. Call once, from the component's start hook.
-    load(data: DataAccess): Promise<void>;
+    // Loads this component's catalogs. Call once, from the component's start hook. The optional
+    // `log` routes non-fallback translation errors through the component's logger (see Translation).
+    load(data: DataAccess, log?: Logger): Promise<void>;
     // Translates for an explicit locale. Synchronous; usable directly in handlers.
     t<const D extends MessageDescriptor>(
         locale: Locale,
@@ -85,6 +87,12 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
   `load` (no shapes yet) — yields readable source text, never a blank.
 - Messages use ICU MessageFormat (interpolation, plurals, select); plurals/number/date use the
   platform `Intl` (no CLDR bundle).
+- Non-fallback formatting errors — malformed ICU source, a missing interpolation value — are
+  reported through the `Logger` supplied to `load`, never directly to the console. A missing
+  translation is a by-design fallback (above), not an error, and is never reported. When no logger
+  was supplied — `load` was not called with one, or `t` runs before `load` — reporting degrades to
+  `console.error`; this is the only console path. Reporting never throws and never blanks the
+  result: `t` still returns the FormatJS fallback text.
 - `t` is typed from the descriptor argument (declared via `defineMessages`), not from a core
   context generic. `MessageValues<S>` types simple `{placeholder}` keys and degrades to a loose
   record under ICU control syntax (plural / select); `OptionalIfVoid` makes the values argument
@@ -108,7 +116,9 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
 - Extraction reads the `defineMessages` declarations (descriptor objects), **not** the locale-first
   `t(locale, message, …)` calls — `@formatjs/cli`'s `--additional-function-names` assumes a
   `formatMessage(descriptor, …)` shape (descriptor first), which `t` is not. Ids are explicit, so
-  no Babel/SWC transform is needed.
+  no Babel/SWC transform is needed. It is a developer-run, offline step requiring no package
+  tooling: stock `@formatjs/cli` recognizes the `defineMessages` name and the FormatJS-shaped
+  descriptors as-is (e.g. `formatjs extract 'src/**/*.ts'`).
 
 ## Constraints
 
