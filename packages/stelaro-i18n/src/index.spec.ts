@@ -1,22 +1,11 @@
 import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 
-import type {DataAccess, Logger} from "@jiminp/stelaro";
+import {type CatalogReader, createI18n, defineMessages, type Logger} from "./index.ts";
 
-import {createI18n, defineMessages} from "./index.ts";
-
-/** A DataAccess stand-in serving catalogs from memory (only `read().optional().json()` is used). */
-function fakeData(catalogs: Record<string, Record<string, string>>): DataAccess {
-    return {
-        dir: "/fake",
-        resolve: (subpath: string) => `/fake/${subpath}`,
-        read: (subpath: string) => ({
-            optional: () => ({
-                json: () => Promise.resolve(catalogs[subpath] ?? null),
-            }),
-        }),
-        write: () => { throw new Error("write is not used in these tests"); },
-    } as unknown as DataAccess;
+/** A CatalogReader stand-in serving catalogs from memory; an absent subpath resolves to null. */
+function fakeReader(catalogs: Record<string, Record<string, string>>): CatalogReader {
+    return (subpath: string) => Promise.resolve(catalogs[subpath] ?? null);
 }
 
 type SpyLogger = Logger & {readonly errors: unknown[][]};
@@ -58,7 +47,7 @@ describe("stelaro-i18n", () => {
 
     it("uses the loaded translation for the requested locale", async () => {
         const i18n = createI18n({default_locale: "en", locales: ["fr"]});
-        await i18n.load(fakeData({"i18n/fr.json": {greeting: "Bonjour {name}"}}));
+        await i18n.load(fakeReader({"i18n/fr.json": {greeting: "Bonjour {name}"}}));
         assert.equal(
             i18n.t("fr", {id: "greeting", defaultMessage: "Hi {name}"}, {name: "World"}),
             "Bonjour World",
@@ -67,7 +56,7 @@ describe("stelaro-i18n", () => {
 
     it("falls back to source for an unloaded locale", async () => {
         const i18n = createI18n({default_locale: "en", locales: ["fr"]});
-        await i18n.load(fakeData({"i18n/fr.json": {greeting: "Bonjour {name}"}}));
+        await i18n.load(fakeReader({"i18n/fr.json": {greeting: "Bonjour {name}"}}));
         assert.equal(
             i18n.t("de", {id: "greeting", defaultMessage: "Hi {name}"}, {name: "World"}),
             "Hi World",
@@ -76,7 +65,7 @@ describe("stelaro-i18n", () => {
 
     it("falls back to source when a catalog file is absent", async () => {
         const i18n = createI18n({default_locale: "en", locales: ["fr"]});
-        await i18n.load(fakeData({})); // no i18n/fr.json
+        await i18n.load(fakeReader({})); // no i18n/fr.json
         assert.equal(
             i18n.t("fr", {id: "greeting", defaultMessage: "Hi {name}"}, {name: "World"}),
             "Hi World",
@@ -90,7 +79,7 @@ describe("stelaro-i18n", () => {
         assert.equal(M.greeting.id, "greeting");
 
         const i18n = createI18n({default_locale: "en", locales: ["fr"]});
-        await i18n.load(fakeData({"i18n/fr.json": {greeting: "Salut {name}"}}));
+        await i18n.load(fakeReader({"i18n/fr.json": {greeting: "Salut {name}"}}));
         assert.equal(i18n.t("fr", M.greeting, {name: "World"}), "Salut World");
     });
 
@@ -99,7 +88,7 @@ describe("stelaro-i18n", () => {
         const log = spyLogger();
         // The source has no placeholder (values arg optional), but the translation introduces one;
         // formatting it without a value is a non-fallback error.
-        await i18n.load(fakeData({"i18n/fr.json": {greeting: "Bonjour {name}"}}), log);
+        await i18n.load(fakeReader({"i18n/fr.json": {greeting: "Bonjour {name}"}}), log);
         const out = i18n.t("fr", {id: "greeting", defaultMessage: "Hello"});
         assert.equal(typeof out, "string");
         assert.ok(out.length > 0); // never blanks
@@ -109,7 +98,7 @@ describe("stelaro-i18n", () => {
     it("does not report a missing translation (by-design fallback)", async () => {
         const i18n = createI18n({default_locale: "en", locales: ["fr"]});
         const log = spyLogger();
-        await i18n.load(fakeData({}), log); // no fr catalog → missing translation for the id
+        await i18n.load(fakeReader({}), log); // no fr catalog → missing translation for the id
         assert.equal(
             i18n.t("fr", {id: "greeting", defaultMessage: "Hi {name}"}, {name: "World"}),
             "Hi World",
@@ -130,5 +119,49 @@ describe("stelaro-i18n", () => {
         } finally {
             console.error = original;
         }
+    });
+
+    it("translates from an in-memory seeded catalog with no load (no DataAccess)", () => {
+        const i18n = createI18n({default_locale: "en", messages: {fr: {greeting: "Bonjour {name}"}}});
+        // Never calls load; no DataAccess exists in this test at all.
+        assert.equal(
+            i18n.t("fr", {id: "greeting", defaultMessage: "Hi {name}"}, {name: "World"}),
+            "Bonjour World",
+        );
+    });
+
+    it("falls back to source for an id absent from the seeded catalog", () => {
+        const i18n = createI18n({default_locale: "en", messages: {fr: {other: "Autre"}}});
+        assert.equal(
+            i18n.t("fr", {id: "greeting", defaultMessage: "Hi {name}"}, {name: "World"}),
+            "Hi World",
+        );
+    });
+
+    it("seeds a locale not listed in `locales` (seeding is independent of the load allow-list)", () => {
+        const i18n = createI18n({default_locale: "en", locales: ["de"], messages: {fr: {greeting: "Bonjour"}}});
+        assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: "Hi"}), "Bonjour");
+    });
+
+    it("overlays load over the seed at the id level", async () => {
+        const i18n = createI18n({
+            default_locale: "en",
+            locales: ["fr"],
+            messages: {fr: {greeting: "Bonjour", farewell: "Au revoir"}},
+        });
+        await i18n.load(fakeReader({"i18n/fr.json": {greeting: "Salut"}}));
+        assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: "Hi"}), "Salut"); // loaded id wins
+        assert.equal(i18n.t("fr", {id: "farewell", defaultMessage: "Bye"}), "Au revoir"); // seeded-only survives
+    });
+
+    it("bind(locale).t equals t(locale, …) across seeded, missing-id, and interpolated messages", () => {
+        const i18n = createI18n({default_locale: "en", messages: {fr: {greeting: "Bonjour {name}"}}});
+        const fr = i18n.bind("fr");
+        const seeded = {id: "greeting", defaultMessage: "Hi {name}"} as const;
+        assert.equal(fr.t(seeded, {name: "A"}), i18n.t("fr", seeded, {name: "A"}));
+        const missing = {id: "absent", defaultMessage: "Fallback"} as const;
+        assert.equal(fr.t(missing), i18n.t("fr", missing));
+        const interpolated = {id: "count", defaultMessage: "Count {n}"} as const;
+        assert.equal(fr.t(interpolated, {n: 3}), i18n.t("fr", interpolated, {n: 3}));
     });
 });

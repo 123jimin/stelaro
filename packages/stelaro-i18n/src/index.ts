@@ -1,5 +1,4 @@
 import {createIntl, createIntlCache, IntlErrorCode, type IntlShape} from "@formatjs/intl";
-import type {DataAccess, Logger} from "@jiminp/stelaro";
 import type {OptionalIfVoid} from "@jiminp/tooltool";
 
 /** A BCP-47 language tag, e.g. `"en"`, `"ko"`, `"en-US"`.
@@ -7,6 +6,32 @@ import type {OptionalIfVoid} from "@jiminp/tooltool";
  * @category i18n
  */
 export type Locale = string;
+
+/**
+ * A minimal structural logger. A component's `context.log` (`@jiminp/stelaro`) satisfies it, as does
+ * `console`. The package defines its own so it carries no server-framework dependency (d0005).
+ *
+ * @category i18n
+ */
+export type Logger = {
+    /** Logs a debug-level message */
+    debug(...args: unknown[]): void;
+    /** Logs an info-level message */
+    info(...args: unknown[]): void;
+    /** Logs a warning-level message */
+    warn(...args: unknown[]): void;
+    /** Logs an error-level message */
+    error(...args: unknown[]): void;
+};
+
+/**
+ * Reads a catalog by subpath, resolving to its parsed JSON (or null/absent for a missing catalog).
+ * The caller chooses the source: a component adapts its `DataAccess`, a browser uses `fetch`. This
+ * is the seam that keeps the package gateway-agnostic — no server-framework dependency (d0005).
+ *
+ * @category i18n
+ */
+export type CatalogReader = (subpath: string) => Promise<unknown>;
 
 /**
  * A source message: a stable id and its ICU MessageFormat source text.
@@ -26,6 +51,13 @@ export type MessageDescriptor = {
 };
 
 /**
+ * A locale's runtime catalog: message id → translated string.
+ *
+ * @category i18n
+ */
+export type Catalog = Record<string, string>;
+
+/**
  * Options for a component-scoped translator.
  *
  * @category i18n
@@ -33,10 +65,16 @@ export type MessageDescriptor = {
 export type I18nOptions = {
     /** Source / fallback locale */
     readonly default_locale: Locale;
-    /** Locales whose catalogs `load` should read (default: just `default_locale`) */
+    /** Locales whose catalogs `load` reads from files (default: just `default_locale`) */
     readonly locales?: readonly Locale[];
     /** Catalog subpath under the component data directory (default: `"i18n"`) */
     readonly catalog_dir?: string;
+    /**
+     * In-memory catalogs seeded at construction — a gateway-agnostic alternative to {@link I18n.load}
+     * for a consumer that already holds the catalog (e.g. a browser), with no `DataAccess`. A seeded
+     * locale is usable by `t`/`bind` immediately, with no `load`. Independent of `locales`.
+     */
+    readonly messages?: Readonly<Partial<Record<Locale, Catalog>>>;
 };
 
 /** A value an ICU placeholder can interpolate. */
@@ -65,11 +103,11 @@ type MessageValues<S extends string, Names extends string = never> =
  */
 export type I18n = {
     /**
-     * Loads this component's catalogs. Call once, from the component's `start` hook. The optional
-     * `log` routes non-fallback translation errors through the component's logger instead of the
-     * console.
+     * Loads catalogs via a caller-supplied `read` (a component adapts its `DataAccess`, a browser
+     * uses `fetch`). Call once. The optional `log` routes non-fallback translation errors through it
+     * instead of the console.
      */
-    load(data: DataAccess, log?: Logger): Promise<void>;
+    load(read: CatalogReader, log?: Logger): Promise<void>;
     /**
      * Translates `message` for an explicit `locale`. Synchronous; falls back to the message's
      * source (`defaultMessage`) when a translation is missing or before {@link I18n.load}.
@@ -79,13 +117,32 @@ export type I18n = {
         message: D,
         ...values: OptionalIfVoid<MessageValues<D["defaultMessage"]>>
     ): string;
+    /**
+     * Returns a translator with `locale` fixed: `bind(locale).t(message, …)` is
+     * `t(locale, message, …)`. Useful for a per-request or per-user-locale caller that should not
+     * repeat the locale on every call.
+     */
+    bind(locale: Locale): BoundI18n;
 };
 
-type Catalog = Record<string, string>;
+/**
+ * An {@link I18n} translator with the locale fixed by {@link I18n.bind}.
+ *
+ * @category i18n
+ */
+export type BoundI18n = {
+    /**
+     * Translates `message` for the bound locale. Same fallback chain and typing as {@link I18n.t}.
+     */
+    t<const D extends MessageDescriptor>(
+        message: D,
+        ...values: OptionalIfVoid<MessageValues<D["defaultMessage"]>>
+    ): string;
+};
 
-async function readCatalog(data: DataAccess, subpath: string): Promise<Catalog | null> {
-    const raw: unknown = await data.read(subpath).optional().json();
-    return raw as Catalog | null;
+async function readCatalog(read: CatalogReader, subpath: string): Promise<Catalog | null> {
+    const raw: unknown = await read(subpath);
+    return (raw as Catalog | null) ?? null;
 }
 
 /**
@@ -100,6 +157,12 @@ export function createI18n(options: I18nOptions): I18n {
     const cache = createIntlCache();
     const catalog_dir = options.catalog_dir ?? "i18n";
     const messages_by_locale = new Map<Locale, Catalog>();
+    // Seed in-memory catalogs (gateway-agnostic; usable by `t`/`bind` before/without `load`).
+    if(options.messages != null) {
+        for(const [locale, catalog] of Object.entries(options.messages)) {
+            if(catalog != null) messages_by_locale.set(locale, catalog);
+        }
+    }
     const shapes = new Map<Locale, IntlShape>();
     // Set by `load`; read lazily by `onError` at error-time. Null before `load` (or when `load`
     // ran without a logger), in which case reporting degrades to the console.
@@ -128,17 +191,28 @@ export function createI18n(options: I18nOptions): I18n {
     }
 
     return {
-        async load(data: DataAccess, log?: Logger): Promise<void> {
+        async load(read: CatalogReader, log?: Logger): Promise<void> {
             logger = log ?? null;
             const locales = options.locales ?? [options.default_locale];
             for(const locale of locales) {
-                const catalog = await readCatalog(data, `${catalog_dir}/${locale}.json`);
-                if(catalog != null) messages_by_locale.set(locale, catalog);
+                const catalog = await readCatalog(read, `${catalog_dir}/${locale}.json`);
+                if(catalog != null) {
+                    // `load` overlays the seed at the id level: loaded ids win, seeded-only survive.
+                    const seeded = messages_by_locale.get(locale);
+                    messages_by_locale.set(locale, seeded != null ? {...seeded, ...catalog} : catalog);
+                }
             }
             shapes.clear(); // rebuild lazily with the loaded catalogs (and the supplied logger)
         },
         t(locale, message, ...[values]) {
             return translate(locale, message, values as Record<string, PrimitiveValue> | undefined);
+        },
+        bind(locale: Locale): BoundI18n {
+            return {
+                t(message, ...[values]) {
+                    return translate(locale, message, values as Record<string, PrimitiveValue> | undefined);
+                },
+            };
         },
     };
 }

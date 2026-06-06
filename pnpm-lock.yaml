@@ -153,9 +153,6 @@ importers:
       '@formatjs/intl':
         specifier: ^4.1.12
         version: 4.1.12
-      '@jiminp/stelaro':
-        specifier: workspace:*
-        version: link:../stelaro
       '@jiminp/tooltool':
         specifier: ^0.3.2
         version: 0.3.2

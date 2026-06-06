@@ -8,24 +8,29 @@ paths = ["packages/stelaro-i18n/**"]
 ## Related Specs
 
 - s0003: Component (components wire i18n through their own state)
-- s0021: Data Access (catalog loading)
+- s0021: Data Access (a component adapts its `DataAccess` into the reader `load` takes)
 - s0025: Pino Logger (companion-package precedent)
 - d0004: i18n lives in a package, not the core context
+- d0005: loading goes through a caller-supplied reader, not `DataAccess` (no server-framework dep)
 
 ## Overview
 
 Localization is not a core concern: the core `ComponentContext` has no translation capability
 (d0004). `@jiminp/stelaro-i18n` is an optional companion package. A component that needs
 translation wires an `I18n` holder into its own component state (s0003): it constructs the holder
-in its (synchronous) state factory, loads catalogs in its `start` hook via `DataAccess` (s0021),
-and calls it from handlers. Core is untouched.
+in its (synchronous) state factory, loads catalogs in its `start` hook through a `DataAccess`-backed
+reader (s0021), and calls it from handlers. Core is untouched. Outside a component — a browser, or any gateway
+without a filesystem — the same holder is instead seeded with in-memory catalogs at construction (no
+`DataAccess`), so one runtime serves both server and client.
 
 ## Types
 
-Types are shown erased to their widest form for readability. `Locale` is a BCP-47 tag;
-`DataAccess` is from s0021 and `Logger` is the core component logger (leveled methods, reached as
-`context.log`). `MessageValues<S>` is the values an ICU source `S` interpolates, and
-`OptionalIfVoid` (from `@jiminp/tooltool`) makes the values argument optional when there are none.
+Types are shown erased to their widest form for readability. `Locale` is a BCP-47 tag.
+`CatalogReader` is a caller-supplied async catalog source and `Logger` a minimal structural logger
+(any object with leveled methods — a component's `context.log` satisfies it); neither is imported
+from the server framework, so the package carries no `@jiminp/stelaro` dependency (d0005).
+`MessageValues<S>` is the values an ICU source `S` interpolates, and `OptionalIfVoid` (from
+`@jiminp/tooltool`) makes the values argument optional when there are none.
 
 ```typescript
 type Locale = string;
@@ -38,21 +43,50 @@ type MessageDescriptor = {
     readonly description?: string;    // translator context; carried through extraction
 };
 
+// A locale's runtime catalog: message id → translated string.
+type Catalog = Record<string, string>;
+
+// A caller-supplied async catalog source — reads a subpath, resolving to parsed JSON (null/absent
+// ⇒ empty catalog). A component adapts its DataAccess; a browser uses fetch. No server-framework dep.
+type CatalogReader = (subpath: string) => Promise<unknown>;
+
+// A minimal structural logger; a component's `context.log` satisfies it.
+type Logger = {
+    debug(...args: unknown[]): void;
+    info(...args: unknown[]): void;
+    warn(...args: unknown[]): void;
+    error(...args: unknown[]): void;
+};
+
 type I18nOptions = {
     readonly default_locale: Locale;        // source / fallback locale
-    readonly locales?: readonly Locale[];    // optional allow-list of loadable locales
+    readonly locales?: readonly Locale[];    // locales `load` reads from files (default: default_locale)
     readonly catalog_dir?: string;           // subpath under the component data dir; default "i18n"
+    // In-memory catalogs seeded at construction — a gateway-agnostic alternative to `load` (no
+    // DataAccess), for a consumer that already holds the catalog (e.g. a browser). A seeded locale
+    // is usable immediately; independent of `locales`.
+    readonly messages?: Readonly<Partial<Record<Locale, Catalog>>>;
 };
 
 type I18n = {
-    // Loads this component's catalogs. Call once, from the component's start hook. The optional
-    // `log` routes non-fallback translation errors through the component's logger (see Translation).
-    load(data: DataAccess, log?: Logger): Promise<void>;
+    // Loads catalogs via a caller-supplied reader (a component adapts its DataAccess). Call once,
+    // e.g. from a component's start hook. Optional `log` routes non-fallback errors (see Translation).
+    load(read: CatalogReader, log?: Logger): Promise<void>;
     // Translates for an explicit locale. Synchronous; usable directly in handlers.
     t<const D extends MessageDescriptor>(
         locale: Locale,
         message: D,
         ...values: OptionalIfVoid<MessageValues<D["defaultMessage"]>>   // no values arg when S has none
+    ): string;
+    // A translator with the locale fixed: bind(locale).t(message, …) === t(locale, message, …).
+    bind(locale: Locale): BoundI18n;
+};
+
+type BoundI18n = {
+    // Translates for the locale captured by `bind`. Same fallback chain and typing as `t`.
+    t<const D extends MessageDescriptor>(
+        message: D,
+        ...values: OptionalIfVoid<MessageValues<D["defaultMessage"]>>
     ): string;
 };
 
@@ -70,7 +104,8 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
 - A component opts into translation by holding an `I18n` in its state:
   - `state: () => ({ i18n: createI18n(options) })` — synchronous; the holder always exists, so the
     state field is non-null (no `state.i18n!`).
-  - `start(ctx)` calls `await ctx.state.i18n.load(ctx.data)` — the one asynchronous step.
+  - `start(ctx)` calls `await ctx.state.i18n.load(p => ctx.data.read(p).optional().json(), ctx.log)`
+    — the one asynchronous step; the component adapts its `DataAccess` (s0021) to the reader.
   - handlers call `ctx.state.i18n.t(locale, message, ...values)` synchronously.
 - Created sync, loaded async, used sync. Catalog loading is the only I/O and happens in `start`,
   before any handler runs.
@@ -97,6 +132,10 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
   context generic. `MessageValues<S>` types simple `{placeholder}` keys and degrades to a loose
   record under ICU control syntax (plural / select); `OptionalIfVoid` makes the values argument
   required iff `S` interpolates.
+- `bind(locale)` returns a translator with the locale fixed: `bind(locale).t(message, ...values)`
+  is exactly `t(locale, message, ...values)` — same fallback chain and same typing. The locale is
+  captured per `bind` call (still no ambient locale); a per-request or per-user-locale caller binds
+  once instead of repeating the locale on every call.
 
 ### Catalogs + pipeline
 
@@ -110,9 +149,19 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
   - **Runtime**: the per-locale `Record<MessageId, string>` is loaded as `createIntl`'s `messages`.
     `@formatjs/cli compile --ast` is an optional perf step that precompiles a catalog to
     `Record<MessageId, MessageFormatElement[]>` (an AST) to skip runtime parsing.
-- `I18n.load` reads the per-locale runtime catalog (strings or AST) from the component's data
-  directory via `DataAccess` (default `{component data}/i18n/{locale}.json`); an absent file is an
-  empty catalog (that locale falls back to source).
+- `I18n.load` reads each locale's runtime catalog (strings or AST) through the supplied
+  `CatalogReader` at `{catalog_dir}/{locale}.json` (default dir `i18n`); a reader resolving to
+  null/absent yields an empty catalog (that locale falls back to source). The package reads no files
+  itself — a component supplies a `DataAccess`-backed reader (s0021), a browser a `fetch`-backed one.
+- Catalogs are populated by either path, both writing the same per-locale runtime catalogs:
+  **`load`** reads them through its `CatalogReader` (the server/component path above backs it with
+  `DataAccess`), and the **`messages`** option seeds them in memory at construction (gateway-agnostic
+  — a browser or any client that already holds the catalog, with no `DataAccess`). A seeded locale is
+  usable by `t` and `bind` immediately, with no `load`.
+- When both populate the same locale, `load` overlays the seed at the id level: `load`'s ids win and
+  seeded-only ids survive.
+- `locales` gates only what `load` reads from files; seeding via `messages` is independent — a
+  seeded locale formats even if it is not listed in `locales`.
 - Extraction reads the `defineMessages` declarations (descriptor objects), **not** the locale-first
   `t(locale, message, …)` calls — `@formatjs/cli`'s `--additional-function-names` assumes a
   `formatMessage(descriptor, …)` shape (descriptor first), which `t` is not. Ids are explicit, so
@@ -125,8 +174,17 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
 - Core must not depend on this package, and this package must not require any change to the core
   `ComponentContext` — translation is reached through component state, never `context.t` (d0004).
 - No ambient/active locale: the explicit locale argument selects the per-locale `IntlShape`.
-- Catalog loading goes through `DataAccess` (s0021); the package does not read files directly.
-- `createI18n` is synchronous (state-factory-safe); all I/O happens in `load`.
+- The package is gateway-agnostic (d0005): it imports nothing from the server framework (no
+  `@jiminp/stelaro` dependency) and reads no files itself. `load` takes a caller-supplied async
+  `CatalogReader`; a component adapts its `DataAccess` (s0021), a browser uses `fetch`. In-memory
+  seeding via `messages` needs no reader at all.
+- **This package is bundled into client code (the browser is a first-class runtime, not just the
+  server).** Client bundle size and client-safety are therefore primary constraints, not
+  afterthoughts: no server-framework dependency (d0005, above), and the runtime dependency surface
+  is kept as small as the ICU requirement allows (see Dangers / Anticipated Changes on the FormatJS
+  footprint).
+- `createI18n` is synchronous (state-factory-safe); all I/O happens in `load` (seeding is in-memory,
+  no I/O).
 
 ## Anticipated Changes
 
@@ -135,6 +193,11 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
 - Precompiled catalogs (`@formatjs/cli compile`) for faster runtime parsing.
 - Locale negotiation / best-match helpers.
 - A bounded cache for per-`(component, locale)` formatters if locale counts grow.
+- Shrinking the client bundle (the FormatJS footprint), in increasing payoff: bypass `createIntl`
+  (use `@formatjs/intl`'s lower-level `formatMessage`, or the ICU engine directly) so the unused
+  date/number/list/relative-time/display-name formatters tree-shake; and — once AST catalogs land —
+  a parser-free ICU build (no string-parser shipped), the largest single saving. Each trades code or
+  a pipeline step for a smaller footprint; weigh against the fallback-semantics already provided.
 
 ## Dangers
 
@@ -144,3 +207,8 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
   would never show translations.
 - Translator tools treat catalog ICU syntax as opaque; malformed plural/select is caught only if
   the pipeline validates it.
+- Since the package ships in client bundles, dependency weight is a danger, not just a server-side
+  detail. Building a translator via the FormatJS `IntlShape` (`createIntl`) binds every FormatJS
+  formatter (date / number / list / relative-time / display-name / plural), none of which this
+  package uses — so a bundler cannot tree-shake them and the whole `@formatjs/intl` wrapper ships
+  even though only the ICU message engine is needed.
