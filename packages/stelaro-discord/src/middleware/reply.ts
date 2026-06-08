@@ -1,9 +1,10 @@
-import type {
-    ButtonInteraction,
-    ChatInputCommandInteraction,
-    ContextMenuCommandInteraction,
-    ModalSubmitInteraction,
-    StringSelectMenuInteraction,
+import {
+    type ButtonInteraction,
+    type ChatInputCommandInteraction,
+    type ContextMenuCommandInteraction,
+    MessageFlags,
+    type ModalSubmitInteraction,
+    type StringSelectMenuInteraction,
 } from "discord.js";
 
 /** Union of interaction types that support `reply` and `followUp`. */
@@ -23,7 +24,7 @@ export async function replyUserError(
     interaction: RepliableInteraction,
     message: string,
 ): Promise<void> {
-    const payload = {content: message, ephemeral: true} as const;
+    const payload = {content: message, flags: MessageFlags.Ephemeral} as const;
     try {
         if(interaction.replied || interaction.deferred) {
             await interaction.followUp(payload);

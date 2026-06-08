@@ -12,6 +12,8 @@ import {
     ContextMenuCommandBuilder,
     EmbedBuilder,
     Events,
+    InteractionContextType,
+    MessageFlags,
     SlashCommandBuilder,
 } from "discord.js";
 
@@ -91,7 +93,7 @@ export const QuotesMounts = defineDiscordMounts({
                         ...(target_user != null ? {author_discord_user_id: target_user.id} : {}),
                     });
                     if(quote == null) {
-                        await interaction.reply({content: "No quotes found.", ephemeral: true});
+                        await interaction.reply({content: "No quotes found.", flags: MessageFlags.Ephemeral});
                         return;
                     }
                     await interaction.reply({
@@ -105,7 +107,7 @@ export const QuotesMounts = defineDiscordMounts({
                     const query = interaction.options.getString("query", true);
                     const {quotes} = await call(QuotesCalls.calls.search, {query});
                     if(quotes.length === 0) {
-                        await interaction.reply({content: "No quotes match that search.", ephemeral: true});
+                        await interaction.reply({content: "No quotes match that search.", flags: MessageFlags.Ephemeral});
                         return;
                     }
                     const embed = new EmbedBuilder()
@@ -123,7 +125,7 @@ export const QuotesMounts = defineDiscordMounts({
                         page: 0,
                     });
                     if(quotes.length === 0) {
-                        await interaction.reply({content: "No quotes found.", ephemeral: true});
+                        await interaction.reply({content: "No quotes found.", flags: MessageFlags.Ephemeral});
                         return;
                     }
                     const embed = new EmbedBuilder()
@@ -150,7 +152,7 @@ export const QuotesMounts = defineDiscordMounts({
             data: new ContextMenuCommandBuilder()
                 .setName("Save as Quote")
                 .setType(ApplicationCommandType.Message)
-                .setDMPermission(false),
+                .setContexts(InteractionContextType.Guild),
 
             async handle({interaction, call}) {
                 if(!interaction.isMessageContextMenuCommand()) return;
@@ -171,7 +173,7 @@ export const QuotesMounts = defineDiscordMounts({
                     content: "Quote saved!",
                     embeds: [buildQuoteEmbed(quote)],
                     components: [buildDeleteRow(quote.quote_id)],
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
             },
         }),
@@ -233,7 +235,7 @@ export const QuotesMounts = defineDiscordMounts({
                 if(deleted) {
                     await interaction.update({content: "Quote deleted.", embeds: [], components: []});
                 } else {
-                    await interaction.reply({content: "You can only delete quotes you saved.", ephemeral: true});
+                    await interaction.reply({content: "You can only delete quotes you saved.", flags: MessageFlags.Ephemeral});
                 }
             },
         }),
