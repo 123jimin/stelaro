@@ -9,6 +9,7 @@ paths = ["examples/discord-chatbot/**"]
 
 - s0010: Examples (Common)
 - s0017: Discord Gateway
+- s0021: Data Access
 
 ## Behavior
 
@@ -29,7 +30,7 @@ paths = ["examples/discord-chatbot/**"]
 - `users` resolves a Discord user ID to an internal user record, creating a record on first sight.- `quotes` provides create, delete, random, search, list, and get_reaction_config calls. Uses component config for board channel, reaction emoji, reaction threshold, and max quotes per user.- A Discord gateway composes mount groups from component files. The gateway file is a thin shell that lists mounts.- Mount groups are co-located with the component they primarily serve. Quote commands, events, and interactions live in the quotes module.- Gateway handlers receive raw discord.js interactions and events alongside typed Stelaro `call()`. Embeds and action rows are built with discord.js directly.
 ### Persistent storage
 
-- Components read and write JSONL files directly per request, without in-memory caching.- Persistence uses append-only JSONL files under `data/`.- `data/users.jsonl` stores one user record per line with fields `user_id`, `discord_user_id`, `display_name`, `created_at`.- `data/quotes.jsonl` stores one quote record per line with fields `quote_id`, `content`, `author_discord_user_id`, `author_display_name`, `saved_by_user_id`, `saved_by_discord_user_id`, `source_message_id`, `created_at`.
+- Components read and write JSONL files directly per request, without in-memory caching.- Persistence uses append-only JSONL files under each component's data directory, resolved through the component context's data access (s0021) rather than a process-relative path.- The `users` component stores user records in `users.jsonl`, one per line, with fields `user_id`, `discord_user_id`, `display_name`, `created_at`.- The `quotes` component stores quote records in `quotes.jsonl`, one per line, with fields `quote_id`, `content`, `author_discord_user_id`, `author_display_name`, `saved_by_user_id`, `saved_by_discord_user_id`, `source_message_id`, `created_at`.
 ### Configuration
 
 - Base directory is `app`.

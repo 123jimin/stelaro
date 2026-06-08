@@ -4,7 +4,7 @@ import {type as schema} from "arktype";
 import {appendJsonl, readJsonl, writeJsonl} from "../storage.ts";
 import {type QuoteRecord, QuotesCalls} from "./calls.ts";
 
-const DATA_PATH = "data/quotes.jsonl";
+const DATA_PATH = "quotes.jsonl";
 const QUOTES_PER_PAGE = 10;
 
 export const QuotesComponent = defineComponent({
@@ -18,7 +18,7 @@ export const QuotesComponent = defineComponent({
     }),
     handlers: {
         "create": {
-            async handle(_context, input) {
+            async handle(context, input) {
                 const record: QuoteRecord = {
                     quote_id: crypto.randomUUID(),
                     content: input.content,
@@ -29,25 +29,25 @@ export const QuotesComponent = defineComponent({
                     source_message_id: input.source_message_id,
                     created_at: new Date().toISOString(),
                 };
-                await appendJsonl(DATA_PATH, record);
+                await appendJsonl(context.data, DATA_PATH, record);
                 return record;
             },
         },
         "delete": {
-            async handle(_context, input) {
-                const quotes = await readJsonl<QuoteRecord>(DATA_PATH);
+            async handle(context, input) {
+                const quotes = await readJsonl<QuoteRecord>(context.data, DATA_PATH);
                 const quote = quotes.find((q) => q.quote_id === input.quote_id);
                 if(quote == null || quote.saved_by_discord_user_id !== input.deleted_by_discord_user_id) {
                     return {deleted: false};
                 }
                 const remaining = quotes.filter((q) => q.quote_id !== input.quote_id);
-                await writeJsonl(DATA_PATH, remaining);
+                await writeJsonl(context.data, DATA_PATH, remaining);
                 return {deleted: true};
             },
         },
         "random": {
-            async handle(_context, input) {
-                const quotes = await readJsonl<QuoteRecord>(DATA_PATH);
+            async handle(context, input) {
+                const quotes = await readJsonl<QuoteRecord>(context.data, DATA_PATH);
                 const filtered = input.author_discord_user_id != null
                     ? quotes.filter((q) => q.author_discord_user_id === input.author_discord_user_id)
                     : quotes;
@@ -56,8 +56,8 @@ export const QuotesComponent = defineComponent({
             },
         },
         "search": {
-            async handle(_context, input) {
-                const quotes = await readJsonl<QuoteRecord>(DATA_PATH);
+            async handle(context, input) {
+                const quotes = await readJsonl<QuoteRecord>(context.data, DATA_PATH);
                 const lower_query = input.query.toLowerCase();
                 const matches = quotes.filter(
                     (q) => q.content.toLowerCase().includes(lower_query)
@@ -76,8 +76,8 @@ export const QuotesComponent = defineComponent({
             },
         },
         "list": {
-            async handle(_context, input) {
-                const quotes = await readJsonl<QuoteRecord>(DATA_PATH);
+            async handle(context, input) {
+                const quotes = await readJsonl<QuoteRecord>(context.data, DATA_PATH);
                 const filtered = input.author_discord_user_id != null
                     ? quotes.filter((q) => q.author_discord_user_id === input.author_discord_user_id)
                     : quotes;

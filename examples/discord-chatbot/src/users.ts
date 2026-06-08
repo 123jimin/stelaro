@@ -3,7 +3,7 @@ import {type as schema} from "arktype";
 
 import {appendJsonl, readJsonl} from "./storage.ts";
 
-const DATA_PATH = "data/users.jsonl";
+const DATA_PATH = "users.jsonl";
 
 type UserRecord = {
     user_id: string;
@@ -32,8 +32,8 @@ export const UsersComponent = defineComponent({
     uses: [],
     handlers: {
         resolve: {
-            async handle(_context, input) {
-                const users = await readJsonl<UserRecord>(DATA_PATH);
+            async handle(context, input) {
+                const users = await readJsonl<UserRecord>(context.data, DATA_PATH);
                 const existing = users.find(
                     (u) => u.discord_user_id === input.discord_user_id,
                 );
@@ -46,7 +46,7 @@ export const UsersComponent = defineComponent({
                     display_name: input.display_name,
                     created_at: new Date().toISOString(),
                 };
-                await appendJsonl(DATA_PATH, record);
+                await appendJsonl(context.data, DATA_PATH, record);
                 return record;
             },
         },

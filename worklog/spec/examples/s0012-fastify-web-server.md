@@ -8,6 +8,7 @@ paths = ["examples/fastify-web-server/**"]
 ## Related Specs
 
 - s0010: Examples (Common)
+- s0021: Data Access
 
 ## Behavior
 
@@ -51,10 +52,10 @@ paths = ["examples/fastify-web-server/**"]
 ### Persistent storage
 
 - Components read and write JSONL files directly per request, without in-memory caching.
-- Persistence uses append-only JSONL files under `data/`.
-- `data/users.jsonl` stores one user record per line with fields `user_id`, `provider`, `provider_account_id`, `display_name`, `created_at`. `provider` is one of `google`, `discord`, or `id`.
-- `data/threads.jsonl` stores one thread record per line with fields `thread_id`, `author_user_id`, `title`, `body`, `created_at`.
-- `data/comments.jsonl` stores one comment record per line with fields `comment_id`, `thread_id`, `author_user_id`, `body`, `created_at`.
+- Persistence uses append-only JSONL files under each component's data directory, resolved through the component context's data access (s0021) rather than a process-relative path.
+- The `users` component stores user records in `users.jsonl`, one per line, with fields `user_id`, `provider`, `provider_account_id`, `display_name`, `created_at`. `provider` is one of `google`, `discord`, or `id`.
+- The `threads` component stores thread records in `threads.jsonl`, one per line, with fields `thread_id`, `author_user_id`, `title`, `body`, `created_at`.
+- The `comments` component stores comment records in `comments.jsonl`, one per line, with fields `comment_id`, `thread_id`, `author_user_id`, `body`, `created_at`.
 
 ## Constraints
 

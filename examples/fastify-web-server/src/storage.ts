@@ -1,15 +1,12 @@
-import {appendFile, mkdir, readFile} from "node:fs/promises";
+import {appendFile, mkdir} from "node:fs/promises";
 import {dirname} from "node:path";
 
-export async function readJsonl<T>(path: string): Promise<T[]> {
-    let content: string;
-    try {
-        content = await readFile(path, "utf-8");
-    } catch (error) {
-        if((error as NodeJS.ErrnoException).code === "ENOENT") {
-            return [];
-        }
-        throw error;
+import type {DataAccess} from "@jiminp/stelaro";
+
+export async function readJsonl<T>(data: DataAccess, subpath: string): Promise<T[]> {
+    const content = await data.read(subpath).optional().text();
+    if(content == null) {
+        return [];
     }
     return content
         .split("\n")
@@ -17,7 +14,8 @@ export async function readJsonl<T>(path: string): Promise<T[]> {
         .map((line) => JSON.parse(line) as T);
 }
 
-export async function appendJsonl<T>(path: string, record: T): Promise<void> {
+export async function appendJsonl<T>(data: DataAccess, subpath: string, record: T): Promise<void> {
+    const path = data.resolve(subpath);
     await mkdir(dirname(path), {recursive: true});
     await appendFile(path, JSON.stringify(record) + "\n", "utf-8");
 }

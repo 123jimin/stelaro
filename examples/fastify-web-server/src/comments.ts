@@ -6,7 +6,7 @@ import {requireAuth} from "./auth.ts";
 import {appendJsonl, readJsonl} from "./storage.ts";
 import {UsersCalls} from "./users.ts";
 
-const DATA_PATH = "data/comments.jsonl";
+const DATA_PATH = "comments.jsonl";
 
 const CommentSchema = schema({
     comment_id: "string",
@@ -40,7 +40,7 @@ export const CommentsComponent = defineComponent({
     uses: [],
     handlers: {
         create: {
-            async handle(_context, input) {
+            async handle(context, input) {
                 const record: CommentRecord = {
                     comment_id: crypto.randomUUID(),
                     thread_id: input.thread_id,
@@ -48,13 +48,13 @@ export const CommentsComponent = defineComponent({
                     body: input.body,
                     created_at: new Date().toISOString(),
                 };
-                await appendJsonl(DATA_PATH, record);
+                await appendJsonl(context.data, DATA_PATH, record);
                 return record;
             },
         },
         list_by_thread: {
-            async handle(_context, input) {
-                const all_comments = await readJsonl<CommentRecord>(DATA_PATH);
+            async handle(context, input) {
+                const all_comments = await readJsonl<CommentRecord>(context.data, DATA_PATH);
                 const comments = all_comments.filter((c) => c.thread_id === input.thread_id);
                 comments.sort((a, b) => a.created_at.localeCompare(b.created_at));
                 return {comments};

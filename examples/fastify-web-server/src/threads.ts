@@ -7,7 +7,7 @@ import {CommentsCalls} from "./comments.ts";
 import {appendJsonl, readJsonl} from "./storage.ts";
 import {UsersCalls} from "./users.ts";
 
-const DATA_PATH = "data/threads.jsonl";
+const DATA_PATH = "threads.jsonl";
 
 const ThreadSchema = schema({
     thread_id: "string",
@@ -45,7 +45,7 @@ export const ThreadsComponent = defineComponent({
     uses: [],
     handlers: {
         create: {
-            async handle(_context, input) {
+            async handle(context, input) {
                 const record: ThreadRecord = {
                     thread_id: crypto.randomUUID(),
                     author_user_id: input.author_user_id,
@@ -53,20 +53,20 @@ export const ThreadsComponent = defineComponent({
                     body: input.body,
                     created_at: new Date().toISOString(),
                 };
-                await appendJsonl(DATA_PATH, record);
+                await appendJsonl(context.data, DATA_PATH, record);
                 return record;
             },
         },
         list: {
-            async handle() {
-                const threads = await readJsonl<ThreadRecord>(DATA_PATH);
+            async handle(context) {
+                const threads = await readJsonl<ThreadRecord>(context.data, DATA_PATH);
                 threads.sort((a, b) => b.created_at.localeCompare(a.created_at));
                 return {threads};
             },
         },
         get: {
-            async handle(_context, input) {
-                const threads = await readJsonl<ThreadRecord>(DATA_PATH);
+            async handle(context, input) {
+                const threads = await readJsonl<ThreadRecord>(context.data, DATA_PATH);
                 return threads.find((t) => t.thread_id === input.thread_id) ?? null;
             },
         },
