@@ -485,7 +485,9 @@ function buildRuntimes(
             }
             dispatchers.set(reference, {
                 runtime,
-                handle: (context, input) => handler.handle(context, input),
+                handle: typeof handler === "function"
+                    ? handler
+                    : (context, input) => handler.handle(context, input),
             });
         }
     }

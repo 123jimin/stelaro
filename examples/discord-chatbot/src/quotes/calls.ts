@@ -38,7 +38,7 @@ export const QuotesCalls = defineComponentCalls("quotes", {
             input: schema({query: "string"}),
             output: schema({quotes: QuoteSchema.array()}),
         },
-        "get_reaction_config": {
+        "getReactionConfig": {
             input: schema({}),
             output: schema({
                 board_channel_id: "string",

@@ -185,7 +185,7 @@ export const QuotesMounts = defineDiscordMounts({
             async handle({event: [reaction, user], call, client}) {
                 if(user.bot) return;
 
-                const reaction_config = await call(QuotesCalls.calls.get_reaction_config, {});
+                const reaction_config = await call(QuotesCalls.calls.getReactionConfig, {});
 
                 const emoji_name = reaction.emoji.name;
                 if(emoji_name !== reaction_config.reaction_emoji) return;

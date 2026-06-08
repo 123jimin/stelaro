@@ -134,7 +134,7 @@ export const ThreadsRoutes = defineFastifyRoutes({
                         `<h1>Thread not found</h1><nav><a href="/">Back</a></nav>`,
                     );
                 }
-                const {comments} = await call(CommentsCalls.calls.list_by_thread, {thread_id: params.thread_id});
+                const {comments} = await call(CommentsCalls.calls.listByThread, {thread_id: params.thread_id});
                 const session_user = request.user ?? null;
                 return html(`
                     <article>

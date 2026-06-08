@@ -49,9 +49,10 @@ type Component = {
     readonly start?: (context: ComponentContext) => Promisable<void>;
     readonly stop?: (context: ComponentContext) => Promisable<void>;
     readonly onConfigReload?: (context: ComponentContext) => Promisable<void>;
-    readonly handlers: Record<ComponentCallName, {
-        handle(context: ComponentContext, input: unknown): Promisable<unknown>;
-    }>;
+    readonly handlers: Record<ComponentCallName,
+        | ((context: ComponentContext, input: unknown) => Promisable<unknown>)
+        | {handle(context: ComponentContext, input: unknown): Promisable<unknown>}
+    >;
 };
 
 function defineComponentCalls(id: ComponentId, declarations: ComponentCallDeclarations): ComponentCalls;
@@ -61,6 +62,7 @@ function defineComponent(definition: Component): Component;
 ## Behavior
 
 - Component call APIs support IPC-like usage without requiring cross-process transport.
+- A component call handler may be written as a bare callable `(context, input) => …` or as an object exposing a `handle(context, input)` method; both forms dispatch identically.
 - UNIMPLEMENTED Components may use gateway capabilities through typed component call APIs.
 - Component state must be scoped to a single application runtime. A component definition reused across multiple application runtimes must have independent state per runtime.
 - Component state must not be shared between different components within the same application runtime.
@@ -71,6 +73,7 @@ function defineComponent(definition: Component): Component;
 - Component behavior belongs to the core package.
 - Component ids must be lowercase kebab-case.
 - Component ids must be stable enough to serve as public identity within an application.
+- Component call names should be camelCase.
 - Component call boundaries must remain typed.
 - Component call input and output definitions must be Arktype schemas.
 - Component behavior must not require raw gateway-specific runtime objects.

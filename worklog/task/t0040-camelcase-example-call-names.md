@@ -1,7 +1,7 @@
 +++
 id = "t0040"
 title = "camelCase call names in examples (and document the convention)"
-status = "pending"
+status = "done"
 tags = ["examples", "convention", "naming"]
 modifies = ["s0003", "s0014"]
 blocked_by = []

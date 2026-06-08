@@ -137,6 +137,41 @@ describe("@jiminp/stelaro application core", () => {
         });
     });
 
+    it("dispatches a handler written as a bare callable identically to the object form", async () => {
+        let count = 0;
+        const CounterCalls = defineComponentCalls("counter", {
+            current: {input: EmptyInput, output: CounterOutput},
+            increment: {input: EmptyInput, output: CounterOutput},
+            set: {input: SetCounterInput, output: CounterOutput},
+        });
+        const CounterComponent = defineComponent({
+            calls: CounterCalls,
+            uses: [],
+            handlers: {
+                current: {
+                    handle() {
+                        return {count};
+                    },
+                },
+                async increment() {
+                    count += 1;
+                    return {count};
+                },
+                set: (_context, input) => {
+                    count = input.count;
+                    return {count};
+                },
+            },
+        });
+        const app = createApplication(defineApplication({components: [CounterComponent]}));
+        await app.start();
+
+        assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 0});
+        assert.deepStrictEqual(await app.call(CounterCalls.calls.increment, {}), {count: 1});
+        assert.deepStrictEqual(await app.call(CounterCalls.calls.set, {count: 5}), {count: 5});
+        assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 5});
+    });
+
     it("provides component behavior with context for declared typed calls", async () => {
         const CounterCalls = defineComponentCalls("counter", {
             current: {

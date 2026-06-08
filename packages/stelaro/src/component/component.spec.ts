@@ -62,7 +62,9 @@ describe("@jiminp/stelaro component core", () => {
 
         assert.deepStrictEqual(CounterComponent.calls, CounterCalls);
         assert.deepStrictEqual(CounterComponent.uses, []);
-        assert.deepStrictEqual(typeof CounterComponent.handlers.current.handle, "function");
+        const current_handler = CounterComponent.handlers.current;
+        assert.ok(typeof current_handler === "object");
+        assert.deepStrictEqual(typeof current_handler.handle, "function");
     });
 
     it("defines a component with an optional state factory", () => {

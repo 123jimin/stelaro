@@ -27,7 +27,7 @@ export const CommentsCalls = defineComponentCalls("comments", {
             }),
             output: CommentSchema,
         },
-        list_by_thread: {
+        listByThread: {
             input: schema({thread_id: "string"}),
             output: schema({
                 comments: CommentSchema.array(),
@@ -52,7 +52,7 @@ export const CommentsComponent = defineComponent({
                 return record;
             },
         },
-        list_by_thread: {
+        listByThread: {
             async handle(context, input) {
                 const all_comments = await readJsonl<CommentRecord>(context.data, DATA_PATH);
                 const comments = all_comments.filter((c) => c.thread_id === input.thread_id);

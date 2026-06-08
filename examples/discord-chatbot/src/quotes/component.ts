@@ -66,7 +66,7 @@ export const QuotesComponent = defineComponent({
                 return {quotes: matches.slice(0, 25)};
             },
         },
-        "get_reaction_config": {
+        "getReactionConfig": {
             async handle(context) {
                 return {
                     board_channel_id: context.config.board_channel_id,

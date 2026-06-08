@@ -135,6 +135,26 @@ type ConfigOf<T> = T extends ConfigSchema ? T["infer"] : undefined;
 type SecretsOf<T> = T extends ConfigSchema ? T["infer"] : undefined;
 
 /**
+ * Bivariant call-handler function. Deriving the type from a method makes its
+ * parameters checked bivariantly (as methods are), which keeps a concrete
+ * `Component` assignable to `AnyComponent` — exactly how the object form behaves.
+ */
+type ComponentHandleFn<TContext, TInput, TOutput> = {
+    handle(context: TContext, input: TInput): Promisable<TOutput>;
+}["handle"];
+
+/**
+ * A single call handler: either a bare callable `(context, input) => …` or an
+ * object exposing a `handle(context, input)` method. Both forms dispatch
+ * identically; the object form leaves room for future per-handler metadata.
+ *
+ * @category Component
+ */
+export type ComponentHandler<TContext, TInput, TOutput> =
+    | ComponentHandleFn<TContext, TInput, TOutput>
+    | {handle: ComponentHandleFn<TContext, TInput, TOutput>};
+
+/**
  * Component definition with a public call surface, declared dependencies, and
  * one handler per exposed call. Stateful components include a state factory.
  * Components with a config schema receive validated config through context.
@@ -162,14 +182,13 @@ export type Component<
     readonly stop?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>) => Promisable<void>;
     /** Called after this component's config is reloaded */
     readonly onConfigReload?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>) => Promisable<void>;
-    /** One handler per call in the call surface */
+    /** One handler per call in the call surface (a bare callable or an object with `handle`) */
     readonly handlers: {
-        readonly [TCallName in keyof TCalls["calls"] & ComponentCallName]: {
-            handle(
-                context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>,
-                input: CallInput<TCalls["calls"][TCallName]>,
-            ): Promisable<CallOutput<TCalls["calls"][TCallName]>>;
-        };
+        readonly [TCallName in keyof TCalls["calls"] & ComponentCallName]: ComponentHandler<
+            ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>,
+            CallInput<TCalls["calls"][TCallName]>,
+            CallOutput<TCalls["calls"][TCallName]>
+        >;
     };
 } & ([TState] extends [undefined] ? unknown : {readonly state: StateFactory<TState>});
 
@@ -187,11 +206,6 @@ export interface AnyComponent {
     stop?(context: AnyComponentContext): Promisable<void>;
     onConfigReload?(context: AnyComponentContext): Promisable<void>;
     readonly handlers: {
-        readonly [name: ComponentCallName]: {
-            handle(
-                context: AnyComponentContext,
-                input: unknown,
-            ): Promisable<unknown>;
-        };
+        readonly [name: ComponentCallName]: ComponentHandler<AnyComponentContext, unknown, unknown>;
     };
 }

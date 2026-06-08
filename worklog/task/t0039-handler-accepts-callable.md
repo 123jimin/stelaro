@@ -1,7 +1,7 @@
 +++
 id = "t0039"
 title = "Handlers accept a bare callable in addition to { handle() }"
-status = "pending"
+status = "done"
 tags = ["component", "api", "ergonomics"]
 modifies = ["s0003"]
 blocked_by = []
