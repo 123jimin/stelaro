@@ -11,10 +11,13 @@ export type DataAccess = {
     /** Resolved absolute path of the data directory */
     readonly dir: string;
     /**
-     * Resolves a subpath relative to the data directory.
+     * Resolves a subpath confined within the data directory.
+     *
+     * `..` is capped at the data directory and cannot escape it; absolute
+     * segments reset to it.
      *
      * @param subpath - Relative path to resolve
-     * @returns Absolute path
+     * @returns Absolute path within the data directory
      */
     resolve(subpath: string): string;
     /**
@@ -43,13 +46,13 @@ export function createDataAccess(base_path: string): DataAccess {
     return {
         dir: fp.path,
         resolve(subpath: string) {
-            return fp.join(subpath).path;
+            return fp.confine(subpath).path;
         },
         read(subpath: string) {
-            return fp.join(subpath).read();
+            return fp.confine(subpath).read();
         },
         write(subpath: string) {
-            return fp.join(subpath).write();
+            return fp.confine(subpath).write();
         },
     };
 }
