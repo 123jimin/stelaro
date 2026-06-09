@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {join, resolve} from "node:path";
+import {join, resolve, sep} from "node:path";
 import {describe, it} from "node:test";
 
 import {fluentPath} from "./path.ts";
@@ -85,5 +85,62 @@ describe("@jiminp/stelaro fluent path", () => {
         const sub = fp.join("sub");
         const confined = sub.confine("..", "..", "escape");
         assert.strictEqual(confined.path, join(base, "sub", "escape"));
+    });
+
+    it("treats backslash as a separator so traversal cannot hide", () => {
+        const base = resolve("/base");
+        const fp = fluentPath(base);
+        assert.strictEqual(fp.confine("a\\..\\..\\b").path, join(base, "b"));
+    });
+
+    it("caps surplus and deeply nested traversal at the base", () => {
+        const base = resolve("/base");
+        const fp = fluentPath(base);
+        assert.strictEqual(fp.confine("..", "..", "..", "..", "secret").path, join(base, "secret"));
+        assert.strictEqual(fp.confine("../../../../etc/passwd").path, join(base, "etc", "passwd"));
+        assert.strictEqual(fp.confine("foo/../../../bar/./baz").path, join(base, "bar", "baz"));
+    });
+
+    it("keeps a drive-relative segment as a child component, not a drive jump", () => {
+        const base = resolve("/base");
+        const fp = fluentPath(base);
+        assert.strictEqual(fp.confine("C:rel").path, join(base, "C:rel"));
+    });
+
+    it("keeps trailing-dot/space components as literal children, not traversal", () => {
+        const base = resolve("/base");
+        const fp = fluentPath(base);
+        assert.strictEqual(fp.confine(".. ").path, join(base, ".. "));
+        assert.strictEqual(fp.confine("...").path, join(base, "..."));
+    });
+
+    it("ignores empty and . noise between segments", () => {
+        const base = resolve("/base");
+        const fp = fluentPath(base);
+        assert.strictEqual(fp.confine("", ".", "", "a").path, join(base, "a"));
+    });
+
+    it("never escapes the base for hostile inputs", () => {
+        const base = resolve("/base");
+        const fp = fluentPath(base);
+        const hostile = [
+            ["..", "..", "..", "x"],
+            ["a/../../../../b"],
+            ["a\\..\\..\\c"],
+            ["/abs/../../d"],
+            ["C:rel"],
+            [".. ", "e"],
+            ["...", "f"],
+            ["a", "..", "..", ".."],
+            ["foo", "..\\..\\bar"],
+            ["\\\\server\\share\\g"],
+        ];
+        for(const segments of hostile) {
+            const out = fp.confine(...segments).path;
+            assert.ok(
+                out === base || out.startsWith(base + sep),
+                `${JSON.stringify(segments)} -> ${out} escaped ${base}`,
+            );
+        }
     });
 });

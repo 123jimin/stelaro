@@ -63,7 +63,7 @@ function fluentPath(base: string): FluentPath;
 - `fluentPath(base)` resolves the base to an absolute path and returns a `FluentPath`.
 - `path` exposes the resolved absolute path as a string.
 - `join(...segments)` appends path segments and returns a new `FluentPath`. The result is absolute. No traversal restriction — `..` may resolve above the original path.
-- `confine(...segments)` appends path segments and returns a new `FluentPath`. Resolves `.` and `..` segments, but `..` cannot escape above the original path. Absolute segments in the arguments reset to the original path, not to the filesystem root.
+- `confine(...segments)` appends path segments and returns a new `FluentPath`. Its `path` is **guaranteed** to be the base path (the original path) or a descendant of it, for *every* input — adversarial input included. `.` and `..` are resolved; `..` is capped at the base and can never escape above it (surplus `..` past the base is a no-op). Both `/` and `\` are treated as separators, so traversal cannot be smuggled through the non-native separator. Absolute segments — including a `drive:\` root — reset to the base, not to the filesystem root or another drive. Every other segment resolves to a name under the base. This containment is guaranteed as resolved by the `node:fs` backend (see Dangers).
 - `read()` returns a `FileReader` targeting the current path.
 - `write()` returns a `FileWriter` targeting the current path.
 
@@ -96,6 +96,7 @@ function fluentPath(base: string): FluentPath;
 - Path operations are pure — no I/O until a terminal read or write method is called.
 - `FluentPath` is immutable — `join` returns a new instance.
 - All paths exposed by `FluentPath` are absolute.
+- `confine` is a containment boundary: for any `segments`, `confine(...segments).path` is the base path or a descendant of it, including under adversarial input. `join`, by contrast, intentionally permits escape above the base.
 - The fluent-fs module must not depend on component, application, or configuration modules.
 
 ## Anticipated Changes
@@ -111,3 +112,4 @@ function fluentPath(base: string): FluentPath;
 - Growing the I/O surface without clear boundaries would turn this into a full fs abstraction library. Each addition should justify itself against bare `node:fs`.
 - Coupling to `node:fs` internals would make the eventual backend abstraction harder.
 - Silently swallowing non-ENOENT errors in optional mode would hide real failures.
+- `confine`'s containment is guaranteed for the `node:fs` consumption model: libuv resolves `.`/`..` itself and hands the OS a namespaced path, so the only effective traversal token is `..` (which `confine` removes) — on Windows, trailing dots/spaces are not canonicalized into `..` and reserved device names do not redirect. A future non-`node:fs` backend (see Anticipated Changes) applying raw OS path canonicalization could reinterpret an otherwise-inert returned component (e.g. a Windows trailing dot/space collapsing into `..`); `confine` robustness must be revisited when the I/O backend is abstracted.
