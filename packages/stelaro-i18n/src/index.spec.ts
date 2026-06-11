@@ -154,6 +154,27 @@ describe("stelaro-i18n", () => {
         assert.equal(i18n.t("fr", {id: "farewell", defaultMessage: "Bye"}), "Au revoir"); // seeded-only survives
     });
 
+    it("keys an id-less descriptor by its source text (gettext-style)", () => {
+        const i18n = createI18n({default_locale: "en", messages: {fr: {"Hi {name}": "Bonjour {name}"}}});
+        assert.equal(i18n.t("fr", {defaultMessage: "Hi {name}"}, {name: "World"}), "Bonjour World");
+    });
+
+    it("falls back to source text for an id-less descriptor absent from the catalog", () => {
+        const i18n = createI18n({default_locale: "en", messages: {fr: {other: "Autre"}}});
+        assert.equal(i18n.t("fr", {defaultMessage: "Hi {name}"}, {name: "World"}), "Hi World");
+    });
+
+    it("an explicit id wins over the source-text key", () => {
+        const i18n = createI18n({default_locale: "en", messages: {fr: {greeting: "Par id", Hi: "Par texte"}}});
+        assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: "Hi"}), "Par id");
+    });
+
+    it("bind(locale).t equals t(locale, …) for an id-less descriptor", () => {
+        const i18n = createI18n({default_locale: "en", messages: {fr: {Hi: "Salut"}}});
+        assert.equal(i18n.bind("fr").t({defaultMessage: "Hi"}), i18n.t("fr", {defaultMessage: "Hi"}));
+        assert.equal(i18n.bind("fr").t({defaultMessage: "Hi"}), "Salut");
+    });
+
     it("bind(locale).t equals t(locale, …) across seeded, missing-id, and interpolated messages", () => {
         const i18n = createI18n({default_locale: "en", messages: {fr: {greeting: "Bonjour {name}"}}});
         const fr = i18n.bind("fr");

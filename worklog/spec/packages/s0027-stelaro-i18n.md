@@ -36,11 +36,13 @@ from the server framework, so the package carries no `@jiminp/stelaro` dependenc
 type Locale = string;
 
 type MessageDescriptor = {
-    readonly id: string;              // stable message key
+    // Stable message key. Optional: an id-less descriptor is keyed by its source text —
+    // defaultMessage is the key (gettext msgid semantics); an explicit id wins when present.
+    readonly id?: string;
     // ICU source text and the final fallback. Intentionally camelCase, not snake_case, to mirror
     // FormatJS's own descriptor fields so extraction is 1:1.
     readonly defaultMessage: string;
-    readonly description?: string;    // translator context; carried through extraction
+    readonly description?: string;    // translator context; carried through extraction, never part of the key
 };
 
 // A locale's runtime catalog: message id → translated string.
@@ -117,9 +119,10 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
   `t(locale, message, ...values)` selects the shape for the explicit `locale` and delegates to
   `intl.formatMessage(message, values)`. There is no ambient or active locale, so concurrent calls
   for different locales are independent.
-- Fallback is FormatJS's `formatMessage` chain: translated message at the id → the descriptor's
-  `defaultMessage` → … → the literal id. So a missing translation — or a `t` call made before
-  `load` (no shapes yet) — yields readable source text, never a blank.
+- Each descriptor resolves to a catalog key: its explicit `id`, or — id-less — its source text
+  (`defaultMessage`). Fallback is FormatJS's `formatMessage` chain at that key: translated message →
+  the descriptor's `defaultMessage` → … → the literal key. So a missing translation — or a `t` call
+  made before `load` (no shapes yet) — yields readable source text, never a blank.
 - Messages use ICU MessageFormat (interpolation, plurals, select); plurals/number/date use the
   platform `Intl` (no CLDR bundle).
 - Non-fallback formatting errors — malformed ICU source, a missing interpolation value — are
@@ -139,8 +142,8 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
 
 ### Catalogs + pipeline
 
-- Three shapes flow through the pipeline (keys below are message *ids*, e.g. `"home.greeting"`,
-  not a literal `id`):
+- Three shapes flow through the pipeline (keys below are message *keys* — an explicit id like
+  `"home.greeting"`, or the source text itself for id-less descriptors):
   - **Source**, from `@formatjs/cli` extract of the in-code `defineMessages` declarations:
     `Record<MessageId, { defaultMessage: string; description?: string }>` — the default locale,
     handed to translators.
@@ -162,12 +165,13 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
   seeded-only ids survive.
 - `locales` gates only what `load` reads from files; seeding via `messages` is independent — a
   seeded locale formats even if it is not listed in `locales`.
-- Extraction reads the `defineMessages` declarations (descriptor objects), **not** the locale-first
-  `t(locale, message, …)` calls — `@formatjs/cli`'s `--additional-function-names` assumes a
-  `formatMessage(descriptor, …)` shape (descriptor first), which `t` is not. Ids are explicit, so
-  no Babel/SWC transform is needed. It is a developer-run, offline step requiring no package
-  tooling: stock `@formatjs/cli` recognizes the `defineMessages` name and the FormatJS-shaped
-  descriptors as-is (e.g. `formatjs extract 'src/**/*.ts'`).
+- Extraction reads descriptor-first call shapes: `defineMessages` declarations (stock-recognized),
+  and a bound translator's `t(descriptor, …)` via `--additional-function-names` — but **not** the
+  locale-first `t(locale, message, …)` calls, whose descriptor is not the first argument. No
+  Babel/SWC transform is needed either way: explicit ids are written in source, and id-less keys
+  are derived at runtime from the descriptor itself (never injected at build). It is a
+  developer-run, offline step requiring no package tooling (e.g. `formatjs extract 'src/**/*.ts'`;
+  the consumer's merge step decides what to do with CLI-generated ids for id-less descriptors).
 
 ## Constraints
 

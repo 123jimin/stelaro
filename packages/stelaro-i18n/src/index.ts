@@ -39,14 +39,15 @@ export type CatalogReader = (subpath: string) => Promise<unknown>;
  * @category i18n
  */
 export type MessageDescriptor = {
-    /** Stable message key, unique within the component */
-    readonly id: string;
+    /** Stable message key, unique within the component. Optional: an id-less descriptor is keyed
+     *  by its source text — `defaultMessage` is the key (gettext msgid semantics). */
+    readonly id?: string;
     /**
      * ICU source text and the final fallback. Intentionally camelCase, not snake_case, to mirror
      * FormatJS's own descriptor fields so extraction is 1:1.
      */
     readonly defaultMessage: string;
-    /** Optional translator context, carried through extraction */
+    /** Optional translator context, carried through extraction. Never part of the key. */
     readonly description?: string;
 };
 
@@ -187,7 +188,9 @@ export function createI18n(options: I18nOptions): I18n {
     }
 
     function translate(locale: Locale, message: MessageDescriptor, values?: Record<string, PrimitiveValue>): string {
-        return shapeFor(locale).formatMessage(message, values);
+        // FormatJS requires an id; an id-less descriptor is keyed by its source text.
+        const keyed = message.id == null ? {...message, id: message.defaultMessage} : message;
+        return shapeFor(locale).formatMessage(keyed, values);
     }
 
     return {
