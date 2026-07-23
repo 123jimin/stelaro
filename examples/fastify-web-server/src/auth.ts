@@ -3,8 +3,8 @@ import fastifySecureSession from "@fastify/secure-session";
 import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
 import {defineFastifyRoutes, route} from "@jiminp/stelaro-fastify";
 import {type as schema} from "arktype";
+import {DiscordScope, Strategy as DiscordStrategy} from "discord-strategy";
 import type {FastifyInstance, FastifyReply, FastifyRequest} from "fastify";
-import {Strategy as DiscordStrategy} from "passport-discord";
 import {Strategy as GoogleStrategy} from "passport-google-oauth20";
 
 import {UsersCalls} from "./users.ts";
@@ -74,7 +74,11 @@ export function createAuthComponent(server: FastifyInstance) {
                     clientID: context.secrets.discord_client_id,
                     clientSecret: context.secrets.discord_client_secret,
                     callbackURL: "/login/discord/callback",
-                    scope: ["identify"],
+                    scope: [DiscordScope.Identify],
+                    // discord-strategy defaults these at runtime, but its option type inherits
+                    // them as required from passport-oauth2's StrategyOptions.
+                    authorizationURL: "https://discord.com/api/oauth2/authorize",
+                    tokenURL: "https://discord.com/api/oauth2/token",
                 },
                 (_access_token, _refresh_token, profile, done) => {
                     done(null, {
