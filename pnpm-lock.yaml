@@ -70,8 +70,8 @@ importers:
         specifier: ^8.0.2
         version: 8.0.2
       '@fastify/passport':
-        specifier: ^3.0.2
-        version: 3.0.2
+        specifier: ^4.0.0
+        version: 4.0.0
       '@fastify/secure-session':
         specifier: ^8.3.0
         version: 8.3.0(bare-events@2.9.1)
@@ -272,8 +272,8 @@ packages:
   '@fastify/merge-json-schemas@0.2.1':
     resolution: {integrity: sha512-OA3KGBCy6KtIvLf8DINC5880o5iBlDX4SxzLQS8HorJAbqluzLRn80UXU0bxZn7UOFhFgpRJDasfwn9nG4FG4A==}
 
-  '@fastify/passport@3.0.2':
-    resolution: {integrity: sha512-pUzOxHTaTta6RvtbD4Ct4uTH7wWfgFtyj8apTu+IMe0w67qm5Q5fZsESOVdcC5IothVEySf54fyM9qQ5VNHP3A==}
+  '@fastify/passport@4.0.0':
+    resolution: {integrity: sha512-MIYCKmIZ9pt5X40DZ6QR71BqraMSbKoJryLevm9b/MmY0XhBjVVZKga5GdBukvvMwOeyFvb0Ray9MTqagpYUhg==}
 
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
@@ -1289,10 +1289,10 @@ snapshots:
     dependencies:
       dequal: 2.0.3
 
-  '@fastify/passport@3.0.2':
+  '@fastify/passport@4.0.0':
     dependencies:
       '@fastify/flash': 6.0.3
-      fastify-plugin: 5.1.0
+      fastify-plugin: 6.0.0
 
   '@fastify/proxy-addr@5.1.0':
     dependencies:
