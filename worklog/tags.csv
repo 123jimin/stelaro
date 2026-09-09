@@ -1,1 +1,27 @@
 tag,description
+application,Application runtime and lifecycle
+architecture,System architecture
+cli,Command-line behavior
+component,Component model
+config,Configuration and secrets
+context,Component context
+data,Data access
+discord,Discord integration
+documentation,Project documentation
+errors,Error contracts
+examples,Example applications
+fastify,Fastify integration
+formatjs,FormatJS integration
+fs,Filesystem behavior
+gateway,External runtime gateways
+hmr,Hot module replacement
+i18n,Internationalization
+infrastructure,Build and deployment infrastructure
+lifecycle,Runtime lifecycle
+localization,Localized messages
+logging,Logging contracts
+packages,Package boundaries
+pino,Pino integration
+style,Source and documentation style
+tooling,Developer tooling
+util,General utilities

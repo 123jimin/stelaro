@@ -2,7 +2,7 @@
 id = "t0001"
 title = "Migrate old worklog"
 status = "active"
-modifies = ["s0002", "s0029", "s0030"]
+modifies = ["s0002", "s0003", "s0004", "s0006", "s0007", "s0008", "s0009", "s0010", "s0012", "s0013", "s0014", "s0015", "s0016", "s0017", "s0018", "s0019", "s0020", "s0021", "s0022", "s0023", "s0025", "s0027", "s0028", "s0029", "s0030"]
 +++
 
 # Migrate old worklog
@@ -50,3 +50,9 @@ introductory repetition, duplicate ownership, and speculative prose. Preserve
 qualified limits, `UNIMPLEMENTED` markers, examples, and references needed to
 interpret the contract. Do not compress distinct requirements into vague
 summary language.
+
+- All 25 legacy spec files are accounted for. The target contains 26 specs:
+  current s0001, 23 retained legacy IDs, and new s0029/s0030.
+- Legacy s0024 had frontmatter but no body. It was not imported or reused;
+  `packages/stelaro-vite/**` remains without a governing behavior spec.
+- Legacy task and decision migration remains unresolved.
