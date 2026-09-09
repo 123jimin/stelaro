@@ -5,12 +5,28 @@ tags = ["cli", "application"]
 paths = ["packages/stelaro/src/cli/**"]
 +++
 
+## Types
+
+```typescript
+type ParsedArgs = {
+    readonly base_dir: string | undefined;
+    readonly env: string | null;
+};
+
+function parseArgs(argv?: string[]): ParsedArgs;
+```
+
 ## Behavior
 
-- Core defines, parses, and validates a fixed argument set during application
-  creation and before configuration loading.
-- Parsed arguments are exposed on the application runtime, remain immutable,
-  and are unaffected by configuration reload.
+- `parseArgs(argv?)` parses and validates core's fixed CLI arguments. `argv`
+  defaults to `process.argv.slice(2)`.
+- Unknown options and positional arguments are rejected.
+- `base_dir` is resolved to an absolute path when supplied and is `undefined`
+  otherwise. `env` is the supplied string or `null`.
+- `parseArgs` is independent of application creation. A CLI entrypoint may
+  pass its result as application options:
+  `createApplication(definition, parseArgs())`.
+- `createApplication` neither parses nor exposes CLI arguments.
 
 | Argument | Type | Default | Purpose |
 | --- | --- | --- | --- |
@@ -20,8 +36,7 @@ paths = ["packages/stelaro/src/cli/**"]
 ## Constraints
 
 - Applications MUST NOT declare custom CLI argument schemas.
-- Parsing belongs to core, MUST NOT depend on gateway runtimes, and MUST finish
-  before configuration loading.
+- Parsing belongs to core and MUST NOT depend on gateway runtimes.
 
 ## Anticipated Changes
 

@@ -17,7 +17,6 @@ type LifecycleState = "idle" | "starting" | "active" | "reloading" | "failed" | 
 type ApplicationDefinition = {
     readonly components: readonly AnyComponent[];
     readonly logger?: LoggerFactory;
-    readonly data: DataAccess;
     readonly config?: ConfigSchema;
     readonly secrets?: ConfigSchema;
     readonly onConfigReload?: () => Promisable<void>;
@@ -28,6 +27,7 @@ type ApplicationOptions = { readonly base_dir?: string; readonly env?: string | 
 type Application = {
     readonly config: unknown;               // null when no config schema exists
     readonly secrets: unknown;              // null when no secrets schema exists
+    readonly data: DataAccess;
     readonly logger: LoggerFactory;
     start(): Promise<void>;
     stop(): Promise<void>;
