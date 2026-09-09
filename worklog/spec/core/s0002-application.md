@@ -17,6 +17,7 @@ type LifecycleState = "idle" | "starting" | "active" | "reloading" | "failed" | 
 type ApplicationDefinition = {
     readonly components: readonly AnyComponent[];
     readonly logger?: LoggerFactory;
+    readonly data: DataAccess;
     readonly config?: ConfigSchema;
     readonly secrets?: ConfigSchema;
     readonly onConfigReload?: () => Promisable<void>;

@@ -40,7 +40,7 @@ type AutocompleteFallback = (context: {
 
 type GuardContext = {
     readonly interaction: ChatInputCommandInteraction | ContextMenuCommandInteraction
-        | ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction;
+        | ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction | AutocompleteInteraction;
     readonly client: Client;
 };
 type Guard = (context: GuardContext) => Promisable<void>;
