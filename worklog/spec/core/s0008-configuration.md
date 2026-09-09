@@ -16,8 +16,9 @@ by s0019.
   configuration and secrets. Schema defaults supply missing fields.
 - During application start, TOML configuration and secrets are loaded and
   validated before component start hooks run.
-- A declaration without a corresponding file validates an empty object;
-  missing secrets files also produce a warning. Undeclared files are skipped.
+- Applications and components without the relevant schema require no file and
+  are skipped. A missing secrets file for a declared schema produces a warning
+  and validates an empty object.
 - Any startup validation failure fails startup and moves the application to
   `failed`.
 

@@ -34,10 +34,8 @@ type DataAccess = {
 
 - Data access MUST delegate all I/O to s0022 and MUST NOT depend on component
   configuration, secrets, or other declarations.
-- Under the `node:fs` backend, `..` cannot escape `dir`, either slash is a
-  separator, and absolute segments reset to `dir`.
-- Containment is lexical rather than realpath-based; symlink and junction
-  escapes are out of scope and links are assumed absent.
+- Data-access subpaths MUST use s0022's `confine` guarantee and inherit its
+  backend and realpath limitations.
 
 ## Anticipated Changes
 
@@ -46,5 +44,4 @@ type DataAccess = {
 ## Dangers
 
 - Resolution does not create directories.
-- If s0022 adopts a backend that applies different path canonicalization, its
-  adversarial containment guarantee and this spec MUST be reviewed together.
+- Any change to s0022's containment guarantee requires review of this spec.
