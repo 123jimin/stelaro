@@ -5,9 +5,6 @@ tags = ["gateway"]
 paths = []
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0015 and the gateway
-portion of legacy s0001.
-
 ## Behavior
 
 - A gateway is a Stelaro component that bridges an external interface to typed
@@ -27,7 +24,7 @@ portion of legacy s0001.
 
 ## Constraints
 
-- Gateways MUST use platform-native types and MUST NOT wrap or redefine
+- Gateways SHOULD use platform-native types and SHOULD NOT wrap or redefine
   equivalent platform objects.
 - Shared gateway implementation belongs in common code. Repeated consumer
   patterns belong in helpers only after they recur.

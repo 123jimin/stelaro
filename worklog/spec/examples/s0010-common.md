@@ -5,8 +5,6 @@ tags = ["examples"]
 paths = ["examples/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0010.
-
 ## Behavior
 
 - Example projects live under `examples/`.

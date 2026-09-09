@@ -5,9 +5,6 @@ tags = ["application", "component", "context", "data"]
 paths = ["packages/stelaro/src/data/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0021. Confinement semantics
-and limits are owned by s0022.
-
 ## Types
 
 ```typescript
@@ -32,9 +29,9 @@ type DataAccess = {
 
 ## Constraints
 
-- Data access MUST delegate all I/O to s0022 and MUST NOT depend on component
+- Data access SHOULD delegate all I/O to s0022 and SHOULD NOT depend on component
   configuration, secrets, or other declarations.
-- Data-access subpaths MUST use s0022's `confine` guarantee and inherit its
+- Data-access subpaths SHOULD use s0022's `confine` guarantee and inherit its
   backend and realpath limitations.
 
 ## Anticipated Changes

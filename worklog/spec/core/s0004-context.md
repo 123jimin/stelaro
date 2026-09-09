@@ -4,11 +4,9 @@ title = "Context"
 tags = ["context", "architecture", "component", "application", "logging", "config"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0004.
-
 ## Types
 
-Types are shown at their widest readable form. Implementations MUST narrow
+Types are shown at their widest readable form. Implementations SHOULD narrow
 `call` to references declared by the component's `uses`, infer each call's
 input and output, and expose optional fields only when declared.
 

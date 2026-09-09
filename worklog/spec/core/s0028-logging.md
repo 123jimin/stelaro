@@ -5,9 +5,6 @@ tags = ["logging", "context", "application", "component"]
 paths = ["packages/stelaro/src/component/logger.ts"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0028 and the logging
-portion of legacy s0001.
-
 ## Types
 
 ```typescript

@@ -5,8 +5,6 @@ tags = ["errors", "application", "component"]
 paths = ["packages/stelaro/src/error.ts", "packages/stelaro/src/application/error.ts", "packages/stelaro/src/application/lifecycle.ts", "packages/stelaro/src/config/error.ts"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0007.
-
 ## Behavior
 
 - `StelaroError` is an abstract `Error` subclass. Every core error extends it,

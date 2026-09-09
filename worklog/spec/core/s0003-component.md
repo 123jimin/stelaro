@@ -4,11 +4,9 @@ title = "Component"
 tags = ["component", "architecture", "lifecycle", "config", "logging"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0003.
-
 ## Types
 
-Types are shown at their widest readable form. Implementations MUST be as
+Types are shown at their widest readable form. Implementations SHOULD be as
 narrow as possible: handlers infer input and output from their call
 declarations, and `uses` limits the references accepted by `context.call`.
 

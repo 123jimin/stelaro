@@ -5,9 +5,6 @@ tags = ["config", "application", "component", "context"]
 paths = ["packages/stelaro/src/config/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0008. File layout is owned
-by s0019.
-
 ## Behavior
 
 ### Declaration and startup

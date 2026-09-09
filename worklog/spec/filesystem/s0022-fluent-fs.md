@@ -5,11 +5,9 @@ tags = ["util", "fs", "data"]
 paths = ["packages/stelaro/src/fs/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0022.
-
 ## Types
 
-Types are shown at their widest readable form. Schema overloads MUST infer
+Types are shown at their widest readable form. Schema overloads SHOULD infer
 their return type from `schema.infer`.
 
 ```typescript
@@ -77,8 +75,8 @@ function fluentPath(base: string): FluentPath;
 
 ## Constraints
 
-- Every exposed `FluentPath.path` MUST be absolute and every path operation
-  MUST return a new object.
+- Every exposed `FluentPath.path` SHOULD be absolute and every path operation
+  SHOULD return a new object.
 - `confine` is an adversarial containment boundary; `join` is not.
 - The module MUST NOT depend on component, application, or configuration
   modules.

@@ -5,11 +5,9 @@ tags = ["logging", "pino"]
 paths = ["packages/stelaro-pino/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0025.
-
 ## Types
 
-Implementations MUST use pino's `Logger` directly and keep the adapter as
+Implementations SHOULD use pino's `Logger` directly and keep the adapter as
 narrow as possible.
 
 ```typescript
@@ -34,10 +32,10 @@ function definePinoLogger(root: PinoLogger): LoggerFactory;
 
 ## Constraints
 
-- The package MUST NOT construct, own, or mutate pino configuration, or
+- The package SHOULD NOT construct, own, or mutate pino configuration, or
   redefine pino types.
-- Core MUST NOT depend on pino or this package.
-- Every emitted record MUST carry its component id.
+- Core SHOULD NOT depend on pino or this package.
+- Every emitted record SHOULD carry its component id.
 
 ## Anticipated Changes
 

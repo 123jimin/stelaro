@@ -5,12 +5,9 @@ tags = ["gateway", "discord"]
 paths = ["packages/stelaro-discord/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0017. The complete handler
-pipeline remains in this spec.
-
 ## Types
 
-Types are shown at their widest readable form. Implementations MUST narrow
+Types are shown at their widest readable form. Implementations SHOULD narrow
 `call` to each mount's `uses`, infer command interaction/options from builders
 and schemas, preserve event tuples, and use discord.js types directly.
 
@@ -180,9 +177,9 @@ function perChannel(interaction: BaseInteraction): string;
 
 ## Constraints
 
-- The gateway MUST NOT parallel discord.js interaction, message, channel, or
+- The gateway SHOULD NOT parallel discord.js interaction, message, channel, or
   client types, or wrap reply/edit/follow-up methods.
-- Handlers MUST use raw discord.js objects for Discord API access.
+- Handlers SHOULD use raw discord.js objects for Discord API access.
 
 ## Anticipated Changes
 

@@ -7,7 +7,7 @@ tags = ["application", "architecture", "lifecycle", "config", "logging"]
 ## Types
 
 Types are shown erased to their widest form for readability. Implementations
-must be as narrow as possible: `call` accepts only references from registered
+SHOULD be as narrow as possible: `call` accepts only references from registered
 components' call surfaces, with input and output types inferred from each
 reference.
 

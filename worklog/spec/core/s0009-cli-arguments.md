@@ -5,9 +5,6 @@ tags = ["cli", "application"]
 paths = ["packages/stelaro/src/cli/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0009. Its statement that
-parsed arguments are exposed on the runtime must be reconciled with s0002.
-
 ## Behavior
 
 - Core defines, parses, and validates a fixed argument set during application

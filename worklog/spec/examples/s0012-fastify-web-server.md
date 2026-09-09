@@ -5,8 +5,6 @@ tags = ["examples"]
 paths = ["examples/fastify-web-server/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0012.
-
 ## Behavior
 
 ### Domain and API

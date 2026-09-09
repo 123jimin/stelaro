@@ -5,9 +5,6 @@ tags = ["application", "config"]
 paths = ["packages/stelaro/src/application/application.ts", "packages/stelaro/src/cli/args.ts"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0019. This spec owns the
-complete base-directory layout.
-
 ## Behavior
 
 - The base directory is the root of one application instance's filesystem

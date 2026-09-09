@@ -5,10 +5,6 @@ tags = ["i18n", "localization", "formatjs"]
 paths = ["packages/stelaro-i18n/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0027. External catalog
-extraction and translation workflow is owned by s0030; runtime catalogs remain
-string-valued.
-
 ## Types
 
 Types are shown at their widest readable form. `Locale` is a BCP-47 tag.
@@ -100,9 +96,9 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
 ## Constraints
 
 - Localization is an optional companion package, never core context. Core MUST
-  NOT depend on it, and translation MUST remain in component state rather than
+  NOT depend on it, and translation SHOULD remain in component state rather than
   `context.t`.
-- The package MUST NOT import or depend on `@jiminp/stelaro`; reader and logger
+- The package SHOULD NOT import or depend on `@jiminp/stelaro`; reader and logger
   contracts remain structural and gateway-agnostic.
 - Browser use is first-class. Runtime dependencies MUST remain client-safe and
   as small as the ICU requirement permits.

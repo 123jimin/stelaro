@@ -5,8 +5,6 @@ tags = ["examples"]
 paths = ["examples/discord-chatbot/**"]
 +++
 
-NEEDS APPROVAL: Migrated, reformatted, and condensed from legacy s0014.
-
 ## Behavior
 
 ### Domain and interactions

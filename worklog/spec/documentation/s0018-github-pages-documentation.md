@@ -5,9 +5,6 @@ tags = ["documentation", "infrastructure"]
 paths = [".github/workflows/build-docs.yaml", ".github/workflows/ci.yaml", "typedoc.json", "packages/*/typedoc.json", "docs/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0018. Documentation
-categories are owned by s0023.
-
 ## Behavior
 
 - GitHub Pages hosts TypeDoc API documentation generated from every package's
@@ -23,8 +20,6 @@ categories are owned by s0023.
 
 ## Constraints
 
-- Deployment uses the default `<user>.github.io/stelaro` URL without a custom
-  domain.
 - Generated `docs/` MUST NOT be committed; deployment uses uploaded artifacts.
 - Entry points MUST match actual packages rather than a hardcoded glob.
 

@@ -5,8 +5,6 @@ tags = ["application", "lifecycle", "util"]
 paths = ["packages/stelaro/src/signal/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0020.
-
 ## Behavior
 
 - Signal handling is opt-in. `attachSignalHandlers(application, options?)`

@@ -5,11 +5,9 @@ tags = ["gateway", "fastify"]
 paths = ["packages/stelaro-fastify/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0016.
-
 ## Types
 
-Types are shown at their widest readable form. Implementations MUST infer
+Types are shown at their widest readable form. Implementations SHOULD infer
 request data from route schemas and narrow `call` to the gateway's effective
 `uses`. Fastify types are imported directly.
 
@@ -74,10 +72,10 @@ function route(definition: GatewayRoute): GatewayRoute;
 
 ## Constraints
 
-- The gateway MUST NOT parallel Fastify request, reply, option, or hook types.
-- Standard Fastify options MUST pass through without validation or
+- The gateway SHOULD NOT parallel Fastify request, reply, option, or hook types.
+- Standard Fastify options SHOULD pass through without validation or
   transformation.
-- Calls outside effective `uses` MUST be rejected at the type level.
+- Calls outside effective `uses` SHOULD be rejected at the type level.
 
 ## Anticipated Changes
 

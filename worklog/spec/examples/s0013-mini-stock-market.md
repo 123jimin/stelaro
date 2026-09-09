@@ -5,8 +5,6 @@ tags = ["examples"]
 paths = ["examples/mini-stock-market/**"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0013.
-
 ## Behavior
 
 - UNIMPLEMENTED A gateway-free minimal order-matching stock market.

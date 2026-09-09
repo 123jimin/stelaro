@@ -4,8 +4,6 @@ title = "JSDoc Documentation"
 tags = ["documentation", "style"]
 +++
 
-NEEDS APPROVAL: Migrated and condensed from legacy s0023.
-
 ## Behavior
 
 ### Coverage
