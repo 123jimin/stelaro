@@ -1,6 +1,7 @@
 +++
 id = "n0001"
 title = "Mistakes"
+agent_mode = "autonomous"
 +++
 
 # Mistakes
