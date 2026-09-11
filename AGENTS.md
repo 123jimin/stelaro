@@ -4,7 +4,7 @@
 
 ## Tracking Mistakes
 
-- Whenever you committed a mistake, append an entry to `worklog/note/n0001-*.md`. Tool use mistakes are exceptions.
+- Whenever the user has pointed out a mistake you committed, append an entry to `worklog/note/n0001-mistakes.md`. Tool use mistakes are exceptions.
 
 ## Naming Convention
 
