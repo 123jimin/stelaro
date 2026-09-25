@@ -50,6 +50,7 @@ type BoundI18n = {
 };
 function createI18n(options: I18nOptions): I18n;
 function defineMessages<const T extends Record<string, MessageDescriptor>>(messages: T): T;
+function catalogKey(descriptor: MessageDescriptor): string;
 ```
 
 ## Behavior
@@ -71,7 +72,7 @@ function defineMessages<const T extends Record<string, MessageDescriptor>>(messa
 - Each populated locale has one `@formatjs/intl` `IntlShape`. `t` selects it
   from the explicit locale; no ambient locale exists, so concurrent locales are
   independent.
-- A descriptor key is explicit `id`, otherwise `defaultMessage`.
+- A descriptor key (`catalogKey`) is explicit `id`, otherwise `defaultMessage`.
   `description` is translator context and never part of the key.
 - Fallback is translated message, then `defaultMessage`, then the literal key.
   Missing translation or use before loading returns readable source text.

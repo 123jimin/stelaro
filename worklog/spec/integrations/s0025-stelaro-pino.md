@@ -11,7 +11,10 @@ Implementations SHOULD use pino's `Logger` directly and keep the adapter as
 narrow as possible.
 
 ```typescript
-function definePinoLogger(root: PinoLogger): LoggerFactory;
+type PinoLoggerFactory = LoggerFactory & {
+    childPinoLogger(component_id: string): PinoLogger;
+};
+function definePinoLogger(root: PinoLogger): PinoLoggerFactory;
 ```
 
 ## Behavior
@@ -19,7 +22,9 @@ function definePinoLogger(root: PinoLogger): LoggerFactory;
 - `definePinoLogger` adapts a caller-configured pino root into the s0028
   `LoggerFactory`; it does not create or configure pino.
 - Each scope is a pino child logger carrying its component id in `component`.
-  Root bindings, serializers, and level apply to child records.
+  `childPinoLogger` returns a new child with the same binding, for callers
+  handing a logger to another library. Root bindings, serializers, and level
+  apply to child records.
 - `debug`, `info`, `warn`, and `error` map to the matching pino levels; pino's
   configured level performs filtering.
 - When the first argument is a non-null, non-array object, its properties merge

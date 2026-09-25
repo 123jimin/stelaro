@@ -147,6 +147,18 @@ async function readCatalog(read: CatalogReader, subpath: string): Promise<Catalo
 }
 
 /**
+ * The catalog key {@link createI18n} looks a descriptor up by: its `id`, else its source text
+ * (`defaultMessage`).
+ *
+ * @param descriptor - The source message
+ * @returns The descriptor's catalog key
+ * @category i18n
+ */
+export function catalogKey(descriptor: MessageDescriptor): string {
+    return descriptor.id ?? descriptor.defaultMessage;
+}
+
+/**
  * Creates a component-scoped {@link I18n} backed by FormatJS. Synchronous and safe to call inside
  * a component state factory; catalogs are read later by {@link I18n.load}.
  *
@@ -188,8 +200,8 @@ export function createI18n(options: I18nOptions): I18n {
     }
 
     function translate(locale: Locale, message: MessageDescriptor, values?: Record<string, PrimitiveValue>): string {
-        // FormatJS requires an id; an id-less descriptor is keyed by its source text.
-        const keyed = message.id == null ? {...message, id: message.defaultMessage} : message;
+        // FormatJS requires an id.
+        const keyed = message.id == null ? {...message, id: catalogKey(message)} : message;
         return shapeFor(locale).formatMessage(keyed, values);
     }
 

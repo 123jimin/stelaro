@@ -7,8 +7,9 @@ import {
     type ComponentId,
     defineComponent,
     defineComponentCalls,
+    StelaroError,
 } from "@jiminp/stelaro";
-import type {Promisable} from "@jiminp/tooltool";
+import type {Nullable, Promisable} from "@jiminp/tooltool";
 import {type as schema} from "arktype";
 import type {
     FastifyInstance,
@@ -20,6 +21,60 @@ import type {
 } from "fastify";
 
 const FastifyGatewayConfig = schema({"port": "number", "host?": "string"});
+
+/**
+ * The rejection of a handler's `call` on routes mounted without one. {@link mountFastifyRoutes}
+ * requires `call` whenever the group uses a component, so only code bypassing its types sees it.
+ *
+ * @category Errors
+ */
+export class UnboundCallError extends StelaroError {
+    /** Component id of the called reference */
+    readonly component_id: string;
+    /** Call name of the called reference */
+    readonly call_name: string;
+
+    constructor(component_id: string, call_name: string) {
+        super(`Call ${component_id}.${call_name} is unbound: its routes were mounted without \`call\`.`);
+        this.component_id = component_id;
+        this.call_name = call_name;
+    }
+}
+
+/** A request part a route validates; named as Fastify names it in `validationContext`.
+ *
+ * @category Routes
+ */
+export type RouteRequestPart = "params" | "body" | "querystring";
+
+/**
+ * Thrown before a route's handler when a request part fails the route's schema. It carries HTTP
+ * status `400`, so the server's error handler answers it; its `cause` is the schema error.
+ *
+ * @category Errors
+ */
+export class RouteValidationError extends StelaroError {
+    /** HTTP status Fastify's error handling answers with */
+    readonly statusCode = 400;
+    /** The request part that failed validation, in the field Fastify's own validation errors use */
+    readonly validationContext: RouteRequestPart;
+
+    constructor(validation_context: RouteRequestPart, cause: unknown) {
+        super(`Invalid ${validation_context}: ${cause instanceof Error ? cause.message : String(cause)}`);
+        this.validationContext = validation_context;
+        this.cause = cause;
+    }
+}
+
+/** `schema`'s validated `value`, or null without a schema; throws {@link RouteValidationError}. */
+function validatePart(part: RouteRequestPart, schema: Nullable<ComponentCallSchema>, value: unknown): unknown {
+    if(schema == null) return null;
+    try {
+        return schema.assert(value);
+    } catch (err) {
+        throw new RouteValidationError(part, err);
+    }
+}
 
 /** Extracts the output type of a schema, or `null` if the schema is `undefined`. */
 export type SchemaOutput<T> = T extends ComponentCallSchema ? T["infer"] : null;
@@ -69,7 +124,8 @@ export type FastifyRouteGroup<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
 > = {
     readonly uses: TUses;
-    readonly routes: readonly GatewayRoute<TUses>[];
+    // Inferred from `uses` alone: `route()` erases its routes' uses, which would widen `TUses`.
+    readonly routes: readonly GatewayRoute<NoInfer<TUses>>[];
 };
 
 /** @category Gateway */
@@ -100,6 +156,92 @@ export function defineFastifyRoutes<
     return definition;
 }
 
+/** The media type of the HTML that {@link sendHtml} and {@link GatewayHandlerContext.html} send.
+ *
+ * @category Routes
+ */
+export const HTML_MEDIA_TYPE = "text/html; charset=utf-8";
+
+/**
+ * Sends `content` as HTML ({@link HTML_MEDIA_TYPE}), as {@link GatewayHandlerContext.html} does.
+ *
+ * @param reply - The reply to send on
+ * @param content - The HTML document or fragment
+ * @returns `reply`
+ * @category Routes
+ */
+export function sendHtml(reply: FastifyReply, content: string): FastifyReply {
+    return reply.type(HTML_MEDIA_TYPE).send(content);
+}
+
+/** Options for {@link mountFastifyRoutes}.
+ *
+ * @category Routes
+ */
+export type MountFastifyRoutesOptions<TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[]> = {
+    /** Serves the handlers' `call`. */
+    readonly call: GatewayHandlerContext<TUses>["call"];
+};
+
+function rejectCall(reference: CallFrom<AnyComponentCalls>): Promise<never> {
+    return Promise.reject(new UnboundCallError(reference.component_id, reference.name));
+}
+
+/**
+ * Mounts `group`'s routes on `server`: validates params, body, and querystring against each
+ * route's schemas (throwing {@link RouteValidationError} on failure), then calls its handler with
+ * a {@link GatewayHandlerContext}. A group that uses components needs `options.call`; one that
+ * uses none takes no options, since its handlers cannot call.
+ *
+ * @param server - The Fastify instance to mount on
+ * @param group - The route group to mount
+ * @param options - How the handlers' `call` is served
+ * @category Routes
+ */
+export function mountFastifyRoutes(server: FastifyInstance, group: FastifyRouteGroup<readonly []>): void;
+export function mountFastifyRoutes<const TUses extends readonly AnyComponentCalls[]>(
+    server: FastifyInstance,
+    group: FastifyRouteGroup<TUses>,
+    options: MountFastifyRoutesOptions<TUses>,
+): void;
+export function mountFastifyRoutes(
+    server: FastifyInstance,
+    group: FastifyRouteGroup,
+    options?: MountFastifyRoutesOptions,
+): void {
+    const call = options?.call ?? rejectCall;
+    for(const route_def of group.routes) {
+        const {
+            method, path, handle,
+            params: params_schema,
+            body: body_schema,
+            querystring: querystring_schema,
+            ...fastify_options
+        } = route_def;
+        server.route({
+            ...fastify_options,
+            method,
+            url: path,
+            async handler(request, reply) {
+                return handle({
+                    request,
+                    reply,
+                    params: validatePart("params", params_schema, request.params),
+                    body: validatePart("body", body_schema, request.body),
+                    querystring: validatePart("querystring", querystring_schema, request.query),
+                    call,
+                    redirect(url) {
+                        reply.redirect(url);
+                    },
+                    html(content) {
+                        sendHtml(reply, content);
+                    },
+                });
+            },
+        });
+    }
+}
+
 /** @category Gateway */
 export function defineFastifyGateway<
     const TUses extends readonly AnyComponentCalls[],
@@ -111,9 +253,9 @@ export function defineFastifyGateway<
         ...definition.uses,
         ...(definition.mounts ?? []).flatMap((c) => c.uses),
     ])];
-    const all_routes = [
-        ...(definition.routes ?? []),
-        ...(definition.mounts ?? []).flatMap((c) => c.routes),
+    const groups: readonly FastifyRouteGroup[] = [
+        {uses: definition.uses, routes: definition.routes ?? []},
+        ...(definition.mounts ?? []),
     ];
 
     return defineComponent({
@@ -122,50 +264,7 @@ export function defineFastifyGateway<
         config: FastifyGatewayConfig,
         handlers: {},
         async start(context) {
-            for(const route_def of all_routes) {
-                const {
-                    method, path, handle,
-                    params: params_schema,
-                    body: body_schema,
-                    querystring: querystring_schema,
-                    ...fastify_options
-                } = route_def;
-                definition.server.route({
-                    ...fastify_options,
-                    method,
-                    url: path,
-                    async handler(request, reply) {
-                        let validated_params: unknown = null;
-                        let validated_body: unknown = null;
-                        let validated_querystring: unknown = null;
-                        try {
-                            if(params_schema != null) validated_params = params_schema.assert(request.params);
-                            if(body_schema != null) validated_body = body_schema.assert(request.body);
-                            if(querystring_schema != null) validated_querystring = querystring_schema.assert(request.query);
-                        } catch (error) {
-                            return reply.status(400).send({
-                                error: error instanceof Error ? error.message : "Validation failed",
-                            });
-                        }
-                        return handle({
-                            request,
-                            reply,
-                            params: validated_params,
-                            body: validated_body,
-                            querystring: validated_querystring,
-                            call(reference, input) {
-                                return context.call(reference, input);
-                            },
-                            redirect(url) {
-                                reply.redirect(url);
-                            },
-                            html(content) {
-                                reply.type("text/html").send(content);
-                            },
-                        });
-                    },
-                });
-            }
+            for(const group of groups) mountFastifyRoutes(definition.server, group, {call: context.call});
 
             const listen_options: FastifyListenOptions = {port: context.config.port};
             if(context.config.host != null) {

@@ -23,6 +23,17 @@ function emit(child: PinoLogger, level: LogLevel, args: unknown[]): void {
 }
 
 /**
+ * A Stelaro {@link LoggerFactory} over a pino root that also exposes each component's pino child.
+ *
+ * @category Logging
+ */
+export type PinoLoggerFactory = LoggerFactory & {
+    /** A pino child of the root with `component_id` bound as `component`, as the component's
+     *  logger has. */
+    childPinoLogger(component_id: string): PinoLogger;
+};
+
+/**
  * Adapts a configured pino logger into a Stelaro {@link LoggerFactory}.
  *
  * The caller owns the pino instance: level, transports, and output formatting are configured
@@ -30,12 +41,13 @@ function emit(child: PinoLogger, level: LogLevel, args: unknown[]): void {
  * `component` field.
  *
  * @param root - A configured pino root logger
- * @returns A {@link LoggerFactory} producing component-scoped loggers
+ * @returns A {@link PinoLoggerFactory} producing component-scoped loggers
  * @category Logging
  */
-export function definePinoLogger(root: PinoLogger): LoggerFactory {
-    return (component_id): Logger => {
-        const child = root.child({component: component_id});
+export function definePinoLogger(root: PinoLogger): PinoLoggerFactory {
+    const childPinoLogger = (component_id: string): PinoLogger => root.child({component: component_id});
+    const factory: LoggerFactory = (component_id): Logger => {
+        const child = childPinoLogger(component_id);
         return {
             debug(...args: unknown[]) { emit(child, "debug", args); },
             info(...args: unknown[]) { emit(child, "info", args); },
@@ -43,4 +55,5 @@ export function definePinoLogger(root: PinoLogger): LoggerFactory {
             error(...args: unknown[]) { emit(child, "error", args); },
         };
     };
+    return Object.assign(factory, {childPinoLogger});
 }

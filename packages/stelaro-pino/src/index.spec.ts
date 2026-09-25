@@ -58,6 +58,18 @@ describe("definePinoLogger", () => {
         assert.equal(r["component"], "my-comp");
     });
 
+    it("exposes a pino child bound to the component, as the component's logger is", () => {
+        const {factory, records} = collect();
+        factory.childPinoLogger("my-comp").info({url: "/"}, "request");
+        factory("my-comp").info("hello");
+        const [child, adapted] = records();
+        assert.ok(child);
+        assert.ok(adapted);
+        assert.equal(child["component"], "my-comp");
+        assert.equal(adapted["component"], "my-comp");
+        assert.equal(child["url"], "/");
+    });
+
     it("merges a leading object and uses the remaining arguments as the message", () => {
         const {factory, records} = collect();
         factory("c").info({user_id: 7}, "logged in");
