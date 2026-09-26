@@ -1,4 +1,4 @@
-import {createApplication, defineApplication} from "@jiminp/stelaro";
+import {createApplication, defineApplication, parseArgs} from "@jiminp/stelaro";
 
 import {DiscordGateway} from "./gateway.ts";
 import {QuotesComponent} from "./quotes/index.ts";
@@ -12,5 +12,5 @@ const QuoteBoardApp = defineApplication({
     ],
 });
 
-const app = createApplication(QuoteBoardApp, {base_dir: "app"});
+const app = createApplication(QuoteBoardApp, parseArgs());
 await app.start();

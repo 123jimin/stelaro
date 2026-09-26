@@ -6,7 +6,8 @@
   "scripts": {
     "clean": "rimraf dist tsconfig.tsbuildinfo",
     "build": "tsc",
-    "start": "node --base-dir=app dist/index.js"
+    "lint": "eslint src/",
+    "start": "node dist/index.js --base-dir=app"
   },
   "dependencies": {
     "@jiminp/stelaro": "workspace:*",

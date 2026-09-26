@@ -5,27 +5,24 @@ import {appendJsonl, readJsonl} from "./storage.ts";
 
 const DATA_PATH = "users.jsonl";
 
-type UserRecord = {
-    user_id: string;
-    discord_user_id: string;
-    display_name: string;
-    created_at: string;
-};
+const UserSchema = schema({
+    user_id: "string",
+    discord_user_id: "string",
+    display_name: "string",
+    created_at: "string",
+});
+
+type UserRecord = typeof UserSchema.infer;
 
 export const UsersCalls = defineComponentCalls("users", {
-        resolve: {
-            input: schema({
-                discord_user_id: "string",
-                display_name: "string",
-            }),
-            output: schema({
-                user_id: "string",
-                discord_user_id: "string",
-                display_name: "string",
-                created_at: "string",
-            }),
-        },
-    });
+    resolve: {
+        input: schema({
+            discord_user_id: "string",
+            display_name: "string",
+        }),
+        output: UserSchema,
+    },
+});
 
 export const UsersComponent = defineComponent({
     calls: UsersCalls,
@@ -33,7 +30,7 @@ export const UsersComponent = defineComponent({
     handlers: {
         resolve: {
             async handle(context, input) {
-                const users = await readJsonl<UserRecord>(context.data, DATA_PATH);
+                const users = await readJsonl(context.data, DATA_PATH, UserSchema);
                 const existing = users.find(
                     (u) => u.discord_user_id === input.discord_user_id,
                 );
@@ -47,6 +44,7 @@ export const UsersComponent = defineComponent({
                     created_at: new Date().toISOString(),
                 };
                 await appendJsonl(context.data, DATA_PATH, record);
+                context.log.info({event: "user.created", user_id: record.user_id}, "User created.");
                 return record;
             },
         },

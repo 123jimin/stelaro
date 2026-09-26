@@ -3,7 +3,7 @@ import {dirname} from "node:path";
 
 import type {DataAccess} from "@jiminp/stelaro";
 
-export async function readJsonl<T>(data: DataAccess, subpath: string): Promise<T[]> {
+export async function readJsonl<T>(data: DataAccess, subpath: string, record_schema: {assert(value: unknown): T}): Promise<T[]> {
     const content = await data.read(subpath).optional().text();
     if(content == null) {
         return [];
@@ -11,15 +11,11 @@ export async function readJsonl<T>(data: DataAccess, subpath: string): Promise<T
     return content
         .split("\n")
         .filter((line) => line.trim() !== "")
-        .map((line) => JSON.parse(line) as T);
+        .map((line) => record_schema.assert(JSON.parse(line)));
 }
 
 export async function appendJsonl<T>(data: DataAccess, subpath: string, record: T): Promise<void> {
     const path = data.resolve(subpath);
     await mkdir(dirname(path), {recursive: true});
     await appendFile(path, JSON.stringify(record) + "\n", "utf-8");
-}
-
-export async function writeJsonl<T>(data: DataAccess, subpath: string, records: T[]): Promise<void> {
-    await data.write(subpath).text(records.map((r) => JSON.stringify(r) + "\n").join(""));
 }

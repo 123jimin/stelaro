@@ -18,11 +18,20 @@ import {
 } from "discord.js";
 
 import {UsersCalls} from "../users.ts";
-import {type QuoteRecord, type QuoteSchema, QuotesCalls} from "./calls.ts";
+import {type QuoteRecord, QuotesCalls, type QuoteSchema} from "./calls.ts";
+
+const EMBED_TITLE_LIMIT = 256;
+const EMBED_DESCRIPTION_LIMIT = 4096;
+const CHOICE_LIMIT = 100;
+const LIST_ENTRY_CONTENT_LIMIT = 300;
+
+function truncate(text: string, max_length: number): string {
+    return text.length <= max_length ? text : text.slice(0, max_length - 1) + "…";
+}
 
 function buildQuoteEmbed(quote: typeof QuoteSchema.infer) {
     return new EmbedBuilder()
-        .setDescription(quote.content)
+        .setDescription(truncate(quote.content, EMBED_DESCRIPTION_LIMIT))
         .setFooter({text: `by ${quote.author_display_name}`})
         .setTimestamp(new Date(quote.created_at));
 }
@@ -38,7 +47,8 @@ function buildDeleteRow(quote_id: string) {
 
 function formatQuoteList(quotes: QuoteRecord[]): string {
     if(quotes.length === 0) return "No quotes on this page.";
-    return quotes.map((q) => `> ${q.content}\n— ${q.author_display_name}`).join("\n\n");
+    const entries = quotes.map((q) => `> ${truncate(q.content, LIST_ENTRY_CONTENT_LIMIT)}\n— ${q.author_display_name}`);
+    return truncate(entries.join("\n\n"), EMBED_DESCRIPTION_LIMIT);
 }
 
 function buildPaginationRow(user_filter: string, page: number, total_pages: number) {
@@ -111,7 +121,7 @@ export const QuotesMounts = defineDiscordMounts({
                         return;
                     }
                     const embed = new EmbedBuilder()
-                        .setTitle(`Search results for "${query}"`)
+                        .setTitle(truncate(`Search results for "${query}"`, EMBED_TITLE_LIMIT))
                         .setDescription(formatQuoteList(quotes));
                     await interaction.reply({embeds: [embed]});
                     return;
@@ -143,7 +153,13 @@ export const QuotesMounts = defineDiscordMounts({
             autocomplete: {
                 async query({value, call}) {
                     const {quotes} = await call(QuotesCalls.calls.search, {query: value});
-                    return quotes.map((q) => q.content);
+                    return quotes
+                        .filter((q) => q.content.trim() !== "")
+                        .map((q) => ({
+                            name: truncate(q.content, CHOICE_LIMIT),
+                            // A prefix of the content still matches the substring search.
+                            value: q.content.slice(0, CHOICE_LIMIT),
+                        }));
                 },
             },
         }),
@@ -157,11 +173,15 @@ export const QuotesMounts = defineDiscordMounts({
             async handle({interaction, call}) {
                 if(!interaction.isMessageContextMenuCommand()) return;
                 const message = interaction.targetMessage;
+                if(message.content.trim() === "") {
+                    await interaction.reply({content: "Only messages with text can be saved.", flags: MessageFlags.Ephemeral});
+                    return;
+                }
                 const {user_id} = await call(UsersCalls.calls.resolve, {
                     discord_user_id: interaction.user.id,
                     display_name: interaction.user.displayName,
                 });
-                const quote = await call(QuotesCalls.calls.create, {
+                const {quote, created} = await call(QuotesCalls.calls.create, {
                     content: message.content,
                     author_discord_user_id: message.author.id,
                     author_display_name: message.author.displayName,
@@ -170,7 +190,7 @@ export const QuotesMounts = defineDiscordMounts({
                     source_message_id: message.id,
                 });
                 await interaction.reply({
-                    content: "Quote saved!",
+                    content: created ? "Quote saved!" : "This message is already saved.",
                     embeds: [buildQuoteEmbed(quote)],
                     components: [buildDeleteRow(quote.quote_id)],
                     flags: MessageFlags.Ephemeral,
@@ -193,18 +213,20 @@ export const QuotesMounts = defineDiscordMounts({
                 const full_reaction = reaction.partial
                     ? await reaction.fetch()
                     : reaction;
-                if(full_reaction.count == null || full_reaction.count < reaction_config.reaction_threshold) return;
+                // Only the reaction that reaches the threshold saves; `create` dedupes re-crossings.
+                if(full_reaction.count !== reaction_config.reaction_threshold) return;
 
                 const message = full_reaction.message.partial
                     ? await full_reaction.message.fetch()
                     : full_reaction.message;
+                if(message.content.trim() === "") return;
 
                 const {user_id} = await call(UsersCalls.calls.resolve, {
                     discord_user_id: user.id,
                     display_name: user.displayName,
                 });
 
-                const quote = await call(QuotesCalls.calls.create, {
+                const {quote, created} = await call(QuotesCalls.calls.create, {
                     content: message.content,
                     author_discord_user_id: message.author.id,
                     author_display_name: message.author.displayName,
@@ -212,6 +234,7 @@ export const QuotesMounts = defineDiscordMounts({
                     saved_by_discord_user_id: user.id,
                     source_message_id: message.id,
                 });
+                if(!created) return;
 
                 const board_channel = await client.channels.fetch(reaction_config.board_channel_id);
                 if(board_channel?.isSendable()) {
