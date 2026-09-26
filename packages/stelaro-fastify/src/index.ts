@@ -1,8 +1,7 @@
 import {
     type AnyComponentCalls,
     type CallFrom,
-    type CallInput,
-    type CallOutput,
+    type ComponentCallFn,
     type ComponentCallSchema,
     type ComponentId,
     defineComponent,
@@ -109,10 +108,7 @@ export type GatewayHandlerContext<
     /** Querystring validated by the route's `querystring` schema, or `null` without one */
     readonly querystring: TQuerystring;
     /** Calls a component through a reference from `TUses` */
-    call<TCall extends CallFrom<TUses[number]>>(
-        reference: TCall,
-        input: CallInput<TCall>,
-    ): Promise<CallOutput<TCall>>;
+    readonly call: ComponentCallFn<TUses>;
     /** Sends a redirect to `url` */
     redirect(url: string): void;
     /** Sends `content` as HTML, as {@link sendHtml} does */
