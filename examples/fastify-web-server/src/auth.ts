@@ -1,6 +1,7 @@
+import {randomBytes} from "node:crypto";
+
 import {Authenticator} from "@fastify/passport";
 import fastifySecureSession from "@fastify/secure-session";
-import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
 import {defineFastifyRoutes, route} from "@jiminp/stelaro-fastify";
 import {type as schema} from "arktype";
 import {DiscordScope, Strategy as DiscordStrategy} from "discord-strategy";
@@ -18,77 +19,78 @@ export type SessionUser = {
 };
 
 declare module "fastify" {
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- module augmentation
     interface PassportUser extends SessionUser {}
 }
 
-const AuthCalls = defineComponentCalls("auth", {});
-
-const AuthSecrets = schema({
+export const AuthSecrets = schema({
     google_client_id: "string",
     google_client_secret: "string",
     discord_client_id: "string",
     discord_client_secret: "string",
-    session_key: "string",
 });
 
-export function createAuthComponent(server: FastifyInstance) {
-    return defineComponent({
-        calls: AuthCalls,
-        uses: [],
-        secrets: AuthSecrets,
-        handlers: {},
+export type AuthSecrets = typeof AuthSecrets.infer;
 
-        async start(context) {
-            await server.register(fastifySecureSession, {
-                key: Buffer.from(context.secrets.session_key, "hex"),
-                cookie: {path: "/"},
-            });
+/**
+ * Registers session and passport plugins on `server`.
+ * OAuth strategies read `getSecrets()` once the server is ready, after the application has loaded its secrets.
+ */
+export async function registerAuth(server: FastifyInstance, getSecrets: () => AuthSecrets): Promise<void> {
+    // A per-process key invalidates every session cookie on restart.
+    await server.register(fastifySecureSession, {
+        key: randomBytes(32),
+        cookie: {path: "/"},
+    });
+    await server.register(fastifyPassport.initialize());
+    await server.register(fastifyPassport.secureSession());
 
-            await server.register(fastifyPassport.initialize());
-            await server.register(fastifyPassport.secureSession());
+    fastifyPassport.registerUserSerializer<SessionUser, SessionUser>(
+        async (user) => user,
+    );
+    fastifyPassport.registerUserDeserializer<SessionUser, SessionUser>(
+        async (user) => user,
+    );
 
-            fastifyPassport.registerUserSerializer<SessionUser, SessionUser>(
-                async (user) => user,
-            );
-            fastifyPassport.registerUserDeserializer<SessionUser, SessionUser>(
-                async (user) => user,
-            );
+    server.addHook("onReady", async () => {
+        const secrets = getSecrets();
+        // `app.secrets` is loaded by `app.start()`, which triggers `onReady` via the gateway's `listen`.
+        if(secrets == null) throw new Error("Auth secrets are not loaded; start the application first.");
 
-            fastifyPassport.use("google", new GoogleStrategy(
-                {
-                    clientID: context.secrets.google_client_id,
-                    clientSecret: context.secrets.google_client_secret,
-                    callbackURL: "/login/google/callback",
-                },
-                (_access_token, _refresh_token, profile, done) => {
-                    done(null, {
-                        provider: "google",
-                        provider_account_id: profile.id,
-                        display_name: profile.displayName,
-                    } satisfies SessionUser);
-                },
-            ));
+        fastifyPassport.use("google", new GoogleStrategy(
+            {
+                clientID: secrets.google_client_id,
+                clientSecret: secrets.google_client_secret,
+                callbackURL: "/login/google/callback",
+            },
+            (_access_token, _refresh_token, profile, done) => {
+                done(null, {
+                    provider: "google",
+                    provider_account_id: profile.id,
+                    display_name: profile.displayName,
+                } satisfies SessionUser);
+            },
+        ));
 
-            fastifyPassport.use("discord", new DiscordStrategy(
-                {
-                    clientID: context.secrets.discord_client_id,
-                    clientSecret: context.secrets.discord_client_secret,
-                    callbackURL: "/login/discord/callback",
-                    scope: [DiscordScope.Identify],
-                    // discord-strategy defaults these at runtime, but its option type inherits
-                    // them as required from passport-oauth2's StrategyOptions.
-                    authorizationURL: "https://discord.com/api/oauth2/authorize",
-                    tokenURL: "https://discord.com/api/oauth2/token",
-                },
-                (_access_token, _refresh_token, profile, done) => {
-                    done(null, {
-                        provider: "discord",
-                        provider_account_id: profile.id,
-                        display_name: profile.username,
-                    } satisfies SessionUser);
-                },
-            ));
-        },
+        fastifyPassport.use("discord", new DiscordStrategy(
+            {
+                clientID: secrets.discord_client_id,
+                clientSecret: secrets.discord_client_secret,
+                callbackURL: "/login/discord/callback",
+                scope: [DiscordScope.Identify],
+                // discord-strategy defaults these at runtime, but its option type inherits
+                // them as required from passport-oauth2's StrategyOptions.
+                authorizationURL: "https://discord.com/api/oauth2/authorize",
+                tokenURL: "https://discord.com/api/oauth2/token",
+            },
+            (_access_token, _refresh_token, profile, done) => {
+                done(null, {
+                    provider: "discord",
+                    provider_account_id: profile.id,
+                    display_name: profile.username,
+                } satisfies SessionUser);
+            },
+        ));
     });
 }
 
@@ -135,6 +137,7 @@ export const AuthRoutes = defineFastifyRoutes({
                                 <li><a href="/login/discord">Login with Discord</a></li>
                             </ul>
                         </nav>
+                        <p>OAuth login needs real client credentials in <code>app/secrets.toml</code>.</p>
                     </section>
                     <section>
                         <h2>Login with ID</h2>
@@ -157,7 +160,8 @@ export const AuthRoutes = defineFastifyRoutes({
             method: "GET",
             path: "/login/google/callback",
             preValidation: [authenticateGoogleCallback],
-            async handle({redirect}) {
+            async handle({request, call, redirect}) {
+                if(request.user != null) await call(UsersCalls.calls.resolve, request.user);
                 return redirect("/");
             },
         },
@@ -171,7 +175,8 @@ export const AuthRoutes = defineFastifyRoutes({
             method: "GET",
             path: "/login/discord/callback",
             preValidation: [authenticateDiscordCallback],
-            async handle({redirect}) {
+            async handle({request, call, redirect}) {
+                if(request.user != null) await call(UsersCalls.calls.resolve, request.user);
                 return redirect("/");
             },
         },
@@ -180,16 +185,9 @@ export const AuthRoutes = defineFastifyRoutes({
             path: "/login/id",
             body: schema({name: "string"}),
             async handle({request, body: form, call, redirect}) {
-                await request.login({
-                    provider: "id",
-                    provider_account_id: form.name,
-                    display_name: form.name,
-                });
-                await call(UsersCalls.calls.resolve, {
-                    provider: "id",
-                    provider_account_id: form.name,
-                    display_name: form.name,
-                });
+                const user: SessionUser = {provider: "id", provider_account_id: form.name, display_name: form.name};
+                await call(UsersCalls.calls.resolve, user);
+                await request.login(user);
                 return redirect("/");
             },
         }),

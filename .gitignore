@@ -10,6 +10,7 @@ docs-md/
 # Runtime data
 *.pid
 *.pid.lock
+examples/*/app/*/data/
 
 # Logs
 *.log

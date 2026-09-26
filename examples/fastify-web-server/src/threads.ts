@@ -1,44 +1,15 @@
-import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
-import {defineFastifyRoutes, route} from "@jiminp/stelaro-fastify";
+import {defineComponent} from "@jiminp/stelaro";
+import {defineFastifyRoutes, route, sendHtml} from "@jiminp/stelaro-fastify";
 import {type as schema} from "arktype";
 
 import {requireAuth} from "./auth.ts";
 import {CommentsCalls} from "./comments.ts";
+import {markup, THREAD_NOT_FOUND_HTML} from "./html.ts";
 import {appendJsonl, readJsonl} from "./storage.ts";
+import {type ThreadRecord, ThreadsCalls, ThreadSchema} from "./threads-calls.ts";
 import {UsersCalls} from "./users.ts";
 
 const DATA_PATH = "threads.jsonl";
-
-const ThreadSchema = schema({
-    thread_id: "string",
-    author_user_id: "string",
-    title: "string",
-    body: "string",
-    created_at: "string",
-});
-
-type ThreadRecord = typeof ThreadSchema.infer;
-
-export const ThreadsCalls = defineComponentCalls("threads", {
-        create: {
-            input: schema({
-                author_user_id: "string",
-                title: "string",
-                body: "string",
-            }),
-            output: ThreadSchema,
-        },
-        list: {
-            input: schema({}),
-            output: schema({
-                threads: ThreadSchema.array(),
-            }),
-        },
-        get: {
-            input: schema({thread_id: "string"}),
-            output: ThreadSchema.or("null"),
-        },
-    });
 
 export const ThreadsComponent = defineComponent({
     calls: ThreadsCalls,
@@ -54,19 +25,20 @@ export const ThreadsComponent = defineComponent({
                     created_at: new Date().toISOString(),
                 };
                 await appendJsonl(context.data, DATA_PATH, record);
+                context.log.info({event: "thread.created", thread_id: record.thread_id}, "Thread created.");
                 return record;
             },
         },
         list: {
             async handle(context) {
-                const threads = await readJsonl<ThreadRecord>(context.data, DATA_PATH);
+                const threads = await readJsonl(context.data, DATA_PATH, ThreadSchema);
                 threads.sort((a, b) => b.created_at.localeCompare(a.created_at));
                 return {threads};
             },
         },
         get: {
             async handle(context, input) {
-                const threads = await readJsonl<ThreadRecord>(context.data, DATA_PATH);
+                const threads = await readJsonl(context.data, DATA_PATH, ThreadSchema);
                 return threads.find((t) => t.thread_id === input.thread_id) ?? null;
             },
         },
@@ -82,29 +54,29 @@ export const ThreadsRoutes = defineFastifyRoutes({
             async handle({request, call, html}) {
                 const {threads} = await call(ThreadsCalls.calls.list, {});
                 const session_user = request.user ?? null;
-                return html(`
+                return html(markup`
                     <header>
                         <h1>BBS</h1>
                         <nav>
                             ${session_user != null
-                                    ? `Logged in as ${session_user.display_name}
+                                    ? markup`Logged in as ${session_user.display_name}
                                     <form method="post" action="/logout" style="display:inline">
                                         <button type="submit">Logout</button>
                                     </form>
                                     | <a href="/threads/new">New Thread</a>`
-                                    : `<a href="/login">Login</a>`
+                                    : markup`<a href="/login">Login</a>`
                             }
                         </nav>
                     </header>
                     <main>
-                        ${threads.map((t) => `
+                        ${threads.map((t) => markup`
                             <article>
                                 <a href="/threads/${t.thread_id}">${t.title}</a>
                                 <footer><time>${t.created_at}</time></footer>
                             </article>
-                        `).join("")}
+                        `)}
                     </main>
-                `);
+                `.html);
             },
         },
         {
@@ -130,13 +102,11 @@ export const ThreadsRoutes = defineFastifyRoutes({
             async handle({request, reply, params, call, html}) {
                 const thread = await call(ThreadsCalls.calls.get, {thread_id: params.thread_id});
                 if(thread == null) {
-                    return reply.status(404).type("text/html").send(
-                        `<h1>Thread not found</h1><nav><a href="/">Back</a></nav>`,
-                    );
+                    return sendHtml(reply.status(404), THREAD_NOT_FOUND_HTML);
                 }
-                const {comments} = await call(CommentsCalls.calls.listByThread, {thread_id: params.thread_id});
+                const {comments} = await call(CommentsCalls.calls.listByThread, {thread_id: thread.thread_id});
                 const session_user = request.user ?? null;
-                return html(`
+                return html(markup`
                     <article>
                         <h1>${thread.title}</h1>
                         <p>${thread.body}</p>
@@ -144,23 +114,23 @@ export const ThreadsRoutes = defineFastifyRoutes({
                     </article>
                     <section>
                         <h2>Comments</h2>
-                        ${comments.length === 0 ? "<p>No comments yet.</p>" : ""}
-                        ${comments.map((c) => `
+                        ${comments.length === 0 ? markup`<p>No comments yet.</p>` : ""}
+                        ${comments.map((c) => markup`
                             <article>
                                 <p>${c.body}</p>
                                 <footer>by ${c.author_user_id} at <time>${c.created_at}</time></footer>
                             </article>
-                        `).join("")}
+                        `)}
                         ${session_user != null
-                                ? `<form method="post" action="/threads/${params.thread_id}/comments">
+                                ? markup`<form method="post" action="/threads/${thread.thread_id}/comments">
                                 <label>Comment<br><textarea name="body" required></textarea></label>
                                 <button type="submit">Post Comment</button>
                             </form>`
-                                : `<p><a href="/login">Login to comment</a></p>`
+                                : markup`<p><a href="/login">Login to comment</a></p>`
                         }
                     </section>
                     <nav><a href="/">Back to threads</a></nav>
-                `);
+                `.html);
             },
         }),
         route({
@@ -180,7 +150,7 @@ export const ThreadsRoutes = defineFastifyRoutes({
                     title: form.title,
                     body: form.body,
                 });
-                return redirect(`/threads/${thread.thread_id}`);
+                redirect(`/threads/${thread.thread_id}`);
             },
         }),
     ],

@@ -74,7 +74,7 @@ export const GreeterRoutes = defineFastifyRoutes({
 });
 ```
 
-The route group declares `uses: [GreeterCalls]` — it can only call what it declares. The `params` schema validates the URL parameter before the handler runs.
+The route group declares `uses: [GreeterCalls]`; the gateway component depends on every surface its route groups declare. Inline routes can only call what their group declares, but routes built with `route()` are not narrowed to the group's `uses`. The `params` schema validates the URL parameter before the handler runs.
 
 Then define the gateway that mounts these route groups:
 
@@ -99,7 +99,7 @@ export const Gateway = defineFastifyGateway({
 
 ```ts
 // src/index.ts
-import {createApplication, defineApplication} from "@jiminp/stelaro";
+import {createApplication, defineApplication, parseArgs} from "@jiminp/stelaro";
 
 import {Gateway} from "./gateway.ts";
 import {GreeterComponent} from "./greeter.ts";
@@ -108,19 +108,20 @@ const App = defineApplication({
     components: [GreeterComponent, Gateway],
 });
 
-const app = createApplication(App, {base_dir: "app"});
+const app = createApplication(App, parseArgs());
 await app.start();
 ```
 
-`base_dir` tells stelaro where to find configuration files. Each component loads config from `{base_dir}/{component_id}/config.toml` — so the gateway with id `"http"` reads from `app/http/config.toml`. The Fastify gateway requires a `port`:
+`parseArgs()` reads the `--base-dir` and `--env` command-line arguments. The base directory (default: the working directory) tells stelaro where to find configuration files. Each component loads config from `{base_dir}/{component_id}/config.toml` — so with `--base-dir=app`, the gateway with id `"http"` reads from `app/http/config.toml`. The Fastify gateway requires a `port`:
 
 ```toml
 port = 3000
 ```
 
-On startup, the application validates the component graph (no missing dependencies, no cycles) and starts components in dependency order.
+`createApplication` validates the component graph (no duplicate ids, no missing handlers, no cycles); `start()` then starts components in dependency order.
 
 ```bash
+$ node dist/index.js --base-dir=app
 $ curl http://localhost:3000/greet/world
 {"message":"Hello, world!"}
 ```
@@ -168,3 +169,6 @@ prefix = "Hello"
 Environment-specific overlays (e.g., `greeter/config.dev.toml`) are deep-merged onto the base file when `--env dev` is passed. Secrets work the same way with `secrets.toml`.
 
 ## Next Steps
+
+- Browse the [API reference](https://123jimin.github.io/stelaro/) for every package.
+- See the [examples](https://github.com/123jimin/stelaro/tree/main/examples) for a Fastify web server and a Discord chatbot built from these pieces.

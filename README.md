@@ -43,7 +43,7 @@ console.log(result.message); // "Hello, world!"
 ```
 
 Components declare which other components they depend on via `uses`.
-The runtime topologically sorts components at startup, so dependencies start first and stop last.
+`createApplication` validates the dependency graph and sorts components topologically, so dependencies start first and stop last.
 
 ### Packages
 
@@ -53,6 +53,7 @@ The runtime topologically sorts components at startup, so dependencies start fir
 | `@jiminp/stelaro-fastify` | Fastify gateway |
 | `@jiminp/stelaro-discord` | Discord.js gateway |
 | `@jiminp/stelaro-pino` | Pino logger adapter |
+| `@jiminp/stelaro-i18n` | FormatJS-backed component-scoped localization |
 
 ## Documentation
 
@@ -64,8 +65,7 @@ This project uses [pnpm](https://pnpm.io/) for package management.
 
 - `pnpm build` – compile TypeScript packages from `src/` into `dist/`.
   - `pnpm build:watch` – recompile the core package on every file change.
-- `pnpm test` – run package unit tests from `dist/**/*.spec.js`.
-  - Don't forget to run `pnpm build` before running tests!
+- `pnpm test` – build, then run package unit tests from `dist/**/*.spec.js`.
 - `pnpm lint` – run ESLint on the source code.
 - `pnpm clean` – remove the `dist/` directory.
 
