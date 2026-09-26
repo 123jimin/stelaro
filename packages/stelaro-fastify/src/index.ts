@@ -66,7 +66,6 @@ export class RouteValidationError extends StelaroError {
     }
 }
 
-/** `part_schema`'s validated `value`, or null without a schema; throws {@link RouteValidationError}. */
 function validatePart(part: RouteRequestPart, part_schema: Nullable<ComponentCallSchema>, value: unknown): unknown {
     if(part_schema == null) return null;
     try {

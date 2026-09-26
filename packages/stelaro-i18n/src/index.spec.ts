@@ -123,12 +123,32 @@ describe("stelaro-i18n", () => {
         }
     });
 
-    it("falls back to source and reports an unsupported locale through the logger", async () => {
+    it("uses the loaded catalog for a well-formed locale without runtime data", async () => {
         const i18n = createI18n({default_locale: "de", locales: ["xx"]});
-        const log = spyLogger();
-        await i18n.load(fakeReader({"i18n/xx.json": {count: "xx {n, number}"}}), log);
-        assert.equal(i18n.t("xx", {id: "count", defaultMessage: "{n, number} items"}, {n: 1000}), "1.000 items");
-        assert.ok(log.errors.length > 0);
+        await i18n.load(fakeReader({"i18n/xx.json": {count: "xx items"}}), spyLogger());
+        assert.equal(i18n.t("xx", {id: "count", defaultMessage: "items"}), "xx items");
+    });
+
+    it("rejects a malformed default_locale", () => {
+        assert.throws(() => createI18n({default_locale: "en_US"}), RangeError);
+    });
+
+    it("rebuilds from the seed on each load, dropping ids the reader no longer returns", async () => {
+        const i18n = createI18n({default_locale: "en", locales: ["fr"], messages: {fr: {greeting: "Salut"}}});
+        await i18n.load(fakeReader({"i18n/fr.json": {greeting: "Bonjour", farewell: "Au revoir"}}));
+        await i18n.load(fakeReader({}));
+        assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: "Hi"}), "Salut");
+        assert.equal(i18n.t("fr", {id: "farewell", defaultMessage: "Bye"}), "Bye");
+    });
+
+    it("keeps the previous catalogs when the reader rejects", async () => {
+        const i18n = createI18n({default_locale: "en", locales: ["fr", "ko"]});
+        await i18n.load(fakeReader({"i18n/fr.json": {greeting: "Bonjour"}}));
+        const failing: CatalogReader = (subpath) => subpath.endsWith("ko.json")
+            ? Promise.reject(new Error("read failed"))
+            : Promise.resolve({greeting: "Salut"});
+        await assert.rejects(i18n.load(failing));
+        assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: "Hi"}), "Bonjour");
     });
 
     it("types interpolation values from the source text", () => {

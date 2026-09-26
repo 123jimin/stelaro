@@ -36,9 +36,11 @@ export type PinoLoggerFactory = LoggerFactory & {
  *
  * @param root - A configured pino root logger
  * @returns A {@link PinoLoggerFactory} producing component-scoped loggers
+ *
  * @remarks
  * A leading non-null, non-array object merges into the record; the remaining arguments form the
  * message as the default console logger renders them.
+ *
  * @example
  * ```ts
  * import {defineApplication} from "@jiminp/stelaro";
@@ -50,6 +52,7 @@ export type PinoLoggerFactory = LoggerFactory & {
  *     logger: definePinoLogger(pino({level: "debug"})),
  * });
  * ```
+ *
  * @category Logging
  */
 export function definePinoLogger(root: PinoLogger): PinoLoggerFactory {

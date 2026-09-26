@@ -107,7 +107,7 @@ export type I18n = {
     /**
      * Translates `message` for an explicit `locale`. Synchronous; falls back to the message's
      * source (`defaultMessage`) when a translation is missing or before {@link I18n.load}. A malformed
-     * or runtime-unsupported `locale` is reported and gets the source formatted in `default_locale`.
+     * `locale` tag is reported and gets the source formatted in `default_locale`.
      */
     t<const D extends MessageDescriptor>(
         locale: Locale,
@@ -116,8 +116,7 @@ export type I18n = {
     ): string;
     /**
      * Returns a translator with `locale` fixed: `bind(locale).t(message, …)` is
-     * `t(locale, message, …)`. Useful for a per-request or per-user-locale caller that should not
-     * repeat the locale on every call.
+     * `t(locale, message, …)`.
      */
     bind(locale: Locale): BoundI18n;
 };
@@ -137,16 +136,10 @@ export type BoundI18n = {
     ): string;
 };
 
-async function readCatalog(read: CatalogReader, subpath: string): Promise<Catalog | null> {
-    const raw: unknown = await read(subpath);
-    return (raw as Catalog | null) ?? null;
-}
-
-// Malformed tags make `Intl` throw; well-formed tags without runtime locale data match nothing.
-function isSupportedLocale(locale: Locale): boolean {
+function isWellFormedLocale(locale: Locale): boolean {
     try {
-        return Intl.NumberFormat.supportedLocalesOf(locale).length > 0
-            && Intl.DateTimeFormat.supportedLocalesOf(locale).length > 0;
+        Intl.getCanonicalLocales(locale);
+        return true;
     } catch{
         return false;
     }
@@ -170,6 +163,8 @@ export function catalogKey(descriptor: MessageDescriptor): string {
  *
  * @param options - Default locale, loadable locales, catalog directory, and seeded catalogs
  * @returns A new {@link I18n} holder
+ * @throws {RangeError} When `default_locale` is not a well-formed locale tag
+ *
  * @example
  * ```ts
  * const GreeterComponent = defineComponent({
@@ -186,33 +181,38 @@ export function catalogKey(descriptor: MessageDescriptor): string {
  *     },
  * });
  * ```
+ *
  * @category i18n
  */
 export function createI18n(options: I18nOptions): I18n {
+    if(!isWellFormedLocale(options.default_locale)) {
+        throw new RangeError(`Malformed default_locale "${options.default_locale}".`);
+    }
     const cache = createIntlCache();
     const catalog_dir = options.catalog_dir ?? "i18n";
-    const messages_by_locale = new Map<Locale, Catalog>();
+    const seed = new Map<Locale, Catalog>();
     if(options.messages != null) {
         for(const [locale, catalog] of Object.entries(options.messages)) {
-            if(catalog != null) messages_by_locale.set(locale, catalog);
+            if(catalog != null) seed.set(locale, catalog);
         }
     }
+    let messages_by_locale: ReadonlyMap<Locale, Catalog> = seed;
     const shapes = new Map<Locale, IntlShape>();
     let logger: Logger | null = null;
 
     function shapeFor(locale: Locale): IntlShape {
         const cached = shapes.get(locale);
         if(cached != null) return cached;
-        const supported = isSupportedLocale(locale);
-        if(!supported) {
+        const well_formed = isWellFormedLocale(locale);
+        if(!well_formed) {
             (logger ?? console).error(
-                `Unsupported locale "${locale}"; using source text formatted in "${options.default_locale}".`,
+                `Malformed locale "${locale}"; using source text formatted in "${options.default_locale}".`,
             );
         }
         const shape = createIntl({
-            locale: supported ? locale : options.default_locale,
+            locale: well_formed ? locale : options.default_locale,
             defaultLocale: options.default_locale,
-            messages: supported ? messages_by_locale.get(locale) ?? {} : {},
+            messages: well_formed ? messages_by_locale.get(locale) ?? {} : {},
             onError(error) {
                 if(error.code === IntlErrorCode.MISSING_TRANSLATION) return;
                 (logger ?? console).error(error);
@@ -230,16 +230,14 @@ export function createI18n(options: I18nOptions): I18n {
 
     return {
         async load(read: CatalogReader, log?: Logger): Promise<void> {
-            logger = log ?? null;
-            const locales = options.locales ?? [options.default_locale];
-            for(const locale of locales) {
-                const catalog = await readCatalog(read, `${catalog_dir}/${locale}.json`);
-                if(catalog != null) {
-                    const seeded = messages_by_locale.get(locale);
-                    messages_by_locale.set(locale, seeded != null ? {...seeded, ...catalog} : catalog);
-                }
+            const next = new Map(seed);
+            for(const locale of options.locales ?? [options.default_locale]) {
+                const catalog = await read(`${catalog_dir}/${locale}.json`) as Catalog | null | undefined;
+                if(catalog != null) next.set(locale, {...seed.get(locale), ...catalog});
             }
-            shapes.clear(); // rebuild lazily with the loaded catalogs (and the supplied logger)
+            messages_by_locale = next;
+            logger = log ?? null;
+            shapes.clear();
         },
         t(locale, message, ...[values]) {
             return translate(locale, message, values as Record<string, PrimitiveValue> | undefined);

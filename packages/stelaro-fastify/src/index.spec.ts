@@ -26,7 +26,7 @@ const GreeterCalls = defineComponentCalls("greeter", {
     greet: {input: schema({name: "string"}), output: schema("string")},
 });
 
-const LISTEN_ADDRESS = "http://127.0.0.1:0";
+const listen_address = "http://127.0.0.1:0";
 
 /** A Fastify stand-in that records `listen` options and `close` calls without binding a port. */
 function fakeServer() {
@@ -34,7 +34,7 @@ function fakeServer() {
     const server = {
         listen(options: FastifyListenOptions) {
             recorded.listen_options.push(options);
-            return Promise.resolve(LISTEN_ADDRESS);
+            return Promise.resolve(listen_address);
         },
         close() {
             recorded.close_count++;
@@ -82,7 +82,7 @@ describe("defineFastifyGateway", () => {
 
         assert.deepStrictEqual(recorded.listen_options, [{port: 8080, host: "127.0.0.1"}]);
         assert.ok(captured.some((record) =>
-            record.level === "info" && Object.values(record.fields).includes(LISTEN_ADDRESS)));
+            record.level === "info" && Object.values(record.fields).includes(listen_address)));
     });
 
     it("omits host from the listen options when config has none", async () => {
