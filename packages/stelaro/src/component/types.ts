@@ -29,8 +29,6 @@ export interface ComponentCallSchema extends Schema {
     readonly inferIn: unknown;
 }
 
-type ValueOf<T extends object> = T extends unknown ? T[keyof T] : never;
-
 /**
  * Runtime value used to call a component API without stringly typed keys.
  *
@@ -114,7 +112,9 @@ export type AnyComponentCalls = ComponentCalls<ComponentId, ComponentCallDeclara
  * @typeParam TCalls - Call surface to extract references from
  * @category Component
  */
-export type CallFrom<TCalls extends AnyComponentCalls> = ValueOf<TCalls["calls"]>;
+export type CallFrom<TCalls extends AnyComponentCalls> = TCalls extends unknown
+    ? TCalls["calls"][keyof TCalls["calls"]]
+    : never;
 
 /** Extracts the input type a caller passes to a call reference.
  *
@@ -148,13 +148,6 @@ export type ComponentCallFn<TUses extends readonly AnyComponentCalls[]> = <TCall
  */
 export type StateFactory<TState> = () => TState;
 
-type SchemaInfer<TSchema> = TSchema extends Schema ? TSchema["infer"] : undefined;
-
-/** Method-derived so handler parameters are checked bivariantly, as in the object form. */
-type ComponentHandleFn<TContext, TInput, TOutput> = {
-    handle(context: TContext, input: TInput): Promisable<TOutput>;
-}["handle"];
-
 /**
  * A single call handler: either a bare callable `(context, input) => …` or an
  * object exposing a `handle(context, input)` method. Both forms dispatch
@@ -166,15 +159,35 @@ type ComponentHandleFn<TContext, TInput, TOutput> = {
  * @category Component
  */
 export type ComponentHandler<TContext, TInput, TOutput> =
-    | ComponentHandleFn<TContext, TInput, TOutput>
-    | {handle: ComponentHandleFn<TContext, TInput, TOutput>};
+    // Method-derived so handler parameters are checked bivariantly, as in the object form.
+    | {handle(context: TContext, input: TInput): Promisable<TOutput>}["handle"]
+    | {handle(context: TContext, input: TInput): Promisable<TOutput>};
 
-type ComponentBody<
+/**
+ * Component definition with a public call surface, declared dependencies, and
+ * one handler per exposed call. Handlers receive validated input and return
+ * values accepted by the output schema.
+ *
+ * @typeParam TCalls - This component's call surface
+ * @typeParam TUses - Call surfaces this component may invoke
+ * @typeParam TState - State factory return type (default: `undefined`)
+ * @typeParam TConfigSchema - Config schema (default: `undefined`)
+ * @typeParam TSecretsSchema - Secrets schema (default: `undefined`)
+ * @typeParam TContext - Context passed to hooks and handlers; derived from the other parameters and not meant to be supplied
+ * @category Component
+ */
+export type Component<
     TCalls extends AnyComponentCalls,
     TUses extends readonly AnyComponentCalls[],
-    TConfigSchema extends ConfigSchema | undefined,
-    TSecretsSchema extends ConfigSchema | undefined,
-    TContext,
+    TState = undefined,
+    TConfigSchema extends ConfigSchema | undefined = undefined,
+    TSecretsSchema extends ConfigSchema | undefined = undefined,
+    TContext = ComponentContext<
+        TUses,
+        NoInfer<TState>,
+        TConfigSchema extends Schema ? TConfigSchema["infer"] : undefined,
+        TSecretsSchema extends Schema ? TSecretsSchema["infer"] : undefined
+    >,
 > = {
     /** This component's public call surface */
     readonly calls: TCalls;
@@ -198,33 +211,7 @@ type ComponentBody<
             TCalls["calls"][TCallName]["output"]["inferIn"]
         >;
     };
-};
-
-/**
- * Component definition with a public call surface, declared dependencies, and
- * one handler per exposed call. Handlers receive validated input and return
- * values accepted by the output schema.
- *
- * @typeParam TCalls - This component's call surface
- * @typeParam TUses - Call surfaces this component may invoke
- * @typeParam TState - State factory return type (default: `undefined`)
- * @typeParam TConfigSchema - Config schema (default: `undefined`)
- * @typeParam TSecretsSchema - Secrets schema (default: `undefined`)
- * @category Component
- */
-export type Component<
-    TCalls extends AnyComponentCalls,
-    TUses extends readonly AnyComponentCalls[],
-    TState = undefined,
-    TConfigSchema extends ConfigSchema | undefined = undefined,
-    TSecretsSchema extends ConfigSchema | undefined = undefined,
-> = ComponentBody<
-    TCalls,
-    TUses,
-    TConfigSchema,
-    TSecretsSchema,
-    ComponentContext<TUses, NoInfer<TState>, SchemaInfer<TConfigSchema>, SchemaInfer<TSecretsSchema>>
-> & ([TState] extends [undefined] ? unknown : {
+} & ([TState] extends [undefined] ? unknown : {
     /** Creates this component's state once per application runtime */
     readonly state: StateFactory<TState>;
 });

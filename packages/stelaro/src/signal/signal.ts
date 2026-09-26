@@ -24,7 +24,7 @@ export type SignalHandlerOptions = {
  * @param app - Application to stop
  * @param options - Signal handling options
  * @returns A cleanup function that removes this attachment's listeners and clears any pending timeout
- * @throws {RangeError} When `timeout` is neither `null` nor a finite number from 0 to 2147483647
+ * @throws {RangeError} If `timeout` is neither `null` nor a finite number from 0 to 2147483647
  * @category Signal
  */
 export function attachSignalHandlers(

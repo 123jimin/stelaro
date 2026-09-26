@@ -33,5 +33,9 @@ describe("@jiminp/stelaro CLI argument parsing", () => {
     });
 });
 
-// A CLI entrypoint can pass parsed arguments as application options.
-void (() => createApplication(defineApplication({components: []}), parseArgs()));
+function assertTypeBehavior() {
+    // A CLI entrypoint can pass parsed arguments as application options.
+    void createApplication(defineApplication({components: []}), parseArgs());
+}
+
+void assertTypeBehavior;

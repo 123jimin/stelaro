@@ -1,27 +1,19 @@
 import assert from "node:assert/strict";
-import {rm, writeFile} from "node:fs/promises";
+import {writeFile} from "node:fs/promises";
 import {join} from "node:path";
-import {afterEach, beforeEach, describe, it} from "node:test";
+import {describe, it} from "node:test";
 
 import {type as schema} from "arktype";
 
-import {createTempDir} from "../test-util.ts";
+import {useTempDir} from "../test-util.ts";
 import {ConfigFileError, ConfigValidationError, SecretsFileError, SecretsValidationError} from "./error.ts";
 import {loadTomlConfig, loadTomlSecrets} from "./loader.ts";
 
 describe("@jiminp/stelaro config loader", () => {
-    let temp_dir: string;
-
-    beforeEach(async () => {
-        temp_dir = await createTempDir("config-loader");
-    });
-
-    afterEach(async () => {
-        await rm(temp_dir, {recursive: true});
-    });
+    const tempDir = useTempDir("config-loader");
 
     it("parses valid TOML and returns a validated object", async () => {
-        const file_path = join(temp_dir, "test.toml");
+        const file_path = join(tempDir(), "test.toml");
         await writeFile(file_path, 'host = "localhost"\nport = 8080\n');
 
         const config_schema = schema({host: "string", port: "number"});
@@ -31,7 +23,7 @@ describe("@jiminp/stelaro config loader", () => {
     });
 
     it("throws ConfigFileError on missing file", async () => {
-        const file_path = join(temp_dir, "missing.toml");
+        const file_path = join(tempDir(), "missing.toml");
         const config_schema = schema({host: "string"});
 
         await assert.rejects(
@@ -46,7 +38,7 @@ describe("@jiminp/stelaro config loader", () => {
     });
 
     it("throws ConfigFileError on invalid TOML", async () => {
-        const file_path = join(temp_dir, "bad.toml");
+        const file_path = join(tempDir(), "bad.toml");
         await writeFile(file_path, "not valid = = = toml");
 
         const config_schema = schema({host: "string"});
@@ -62,7 +54,7 @@ describe("@jiminp/stelaro config loader", () => {
     });
 
     it("throws ConfigValidationError when parsed TOML fails schema validation", async () => {
-        const file_path = join(temp_dir, "invalid.toml");
+        const file_path = join(tempDir(), "invalid.toml");
         await writeFile(file_path, 'host = 42\n');
 
         const config_schema = schema({host: "string"});
@@ -79,8 +71,8 @@ describe("@jiminp/stelaro config loader", () => {
     });
 
     it("deep-merges overlay onto base config", async () => {
-        const base_path = join(temp_dir, "config.toml");
-        const overlay_path = join(temp_dir, "config.prod.toml");
+        const base_path = join(tempDir(), "config.toml");
+        const overlay_path = join(tempDir(), "config.prod.toml");
         await writeFile(base_path, 'host = "localhost"\nport = 8080\n');
         await writeFile(overlay_path, 'host = "0.0.0.0"\n');
 
@@ -91,8 +83,8 @@ describe("@jiminp/stelaro config loader", () => {
     });
 
     it("deep-merges nested overlay fields", async () => {
-        const base_path = join(temp_dir, "config.toml");
-        const overlay_path = join(temp_dir, "config.prod.toml");
+        const base_path = join(tempDir(), "config.toml");
+        const overlay_path = join(tempDir(), "config.prod.toml");
         await writeFile(base_path, '[db]\nhost = "localhost"\nport = 5432\n');
         await writeFile(overlay_path, '[db]\nhost = "db.prod"\n');
 
@@ -103,8 +95,8 @@ describe("@jiminp/stelaro config loader", () => {
     });
 
     it("skips missing overlay file silently", async () => {
-        const base_path = join(temp_dir, "config.toml");
-        const overlay_path = join(temp_dir, "config.prod.toml");
+        const base_path = join(tempDir(), "config.toml");
+        const overlay_path = join(tempDir(), "config.prod.toml");
         await writeFile(base_path, 'host = "localhost"\nport = 8080\n');
 
         const config_schema = schema({host: "string", port: "number"});
@@ -114,8 +106,8 @@ describe("@jiminp/stelaro config loader", () => {
     });
 
     it("throws ConfigFileError when overlay file has invalid TOML", async () => {
-        const base_path = join(temp_dir, "config.toml");
-        const overlay_path = join(temp_dir, "config.prod.toml");
+        const base_path = join(tempDir(), "config.toml");
+        const overlay_path = join(tempDir(), "config.prod.toml");
         await writeFile(base_path, 'host = "localhost"\n');
         await writeFile(overlay_path, "not valid = = = toml");
 
@@ -133,18 +125,10 @@ describe("@jiminp/stelaro config loader", () => {
 });
 
 describe("@jiminp/stelaro secrets loader", () => {
-    let temp_dir: string;
-
-    beforeEach(async () => {
-        temp_dir = await createTempDir("secrets-loader");
-    });
-
-    afterEach(async () => {
-        await rm(temp_dir, {recursive: true});
-    });
+    const tempDir = useTempDir("secrets-loader");
 
     it("loads and validates a secrets file", async () => {
-        const file_path = join(temp_dir, "secrets.toml");
+        const file_path = join(tempDir(), "secrets.toml");
         await writeFile(file_path, 'api_key = "sk-123"\n');
 
         const secrets_schema = schema({api_key: "string"});
@@ -154,7 +138,7 @@ describe("@jiminp/stelaro secrets loader", () => {
     });
 
     it("returns base_found false and empty validated object when file is missing", async () => {
-        const file_path = join(temp_dir, "secrets.toml");
+        const file_path = join(tempDir(), "secrets.toml");
         const secrets_schema = schema({"api_key?": "string"});
 
         const result = await loadTomlSecrets(file_path, secrets_schema);
@@ -163,7 +147,7 @@ describe("@jiminp/stelaro secrets loader", () => {
     });
 
     it("throws SecretsValidationError when missing file yields invalid empty object", async () => {
-        const file_path = join(temp_dir, "secrets.toml");
+        const file_path = join(tempDir(), "secrets.toml");
         const secrets_schema = schema({api_key: "string"});
 
         await assert.rejects(
@@ -176,7 +160,7 @@ describe("@jiminp/stelaro secrets loader", () => {
     });
 
     it("throws SecretsFileError on invalid TOML", async () => {
-        const file_path = join(temp_dir, "secrets.toml");
+        const file_path = join(tempDir(), "secrets.toml");
         await writeFile(file_path, "not valid = = = toml");
 
         const secrets_schema = schema({api_key: "string"});
@@ -191,8 +175,8 @@ describe("@jiminp/stelaro secrets loader", () => {
     });
 
     it("deep-merges overlay onto base secrets", async () => {
-        const base_path = join(temp_dir, "secrets.toml");
-        const overlay_path = join(temp_dir, "secrets.prod.toml");
+        const base_path = join(tempDir(), "secrets.toml");
+        const overlay_path = join(tempDir(), "secrets.prod.toml");
         await writeFile(base_path, 'api_key = "sk-dev"\ndb_pass = "local"\n');
         await writeFile(overlay_path, 'db_pass = "prod-secret"\n');
 
@@ -206,8 +190,8 @@ describe("@jiminp/stelaro secrets loader", () => {
     });
 
     it("applies overlay even when base file is missing", async () => {
-        const base_path = join(temp_dir, "secrets.toml");
-        const overlay_path = join(temp_dir, "secrets.prod.toml");
+        const base_path = join(tempDir(), "secrets.toml");
+        const overlay_path = join(tempDir(), "secrets.prod.toml");
         await writeFile(overlay_path, 'api_key = "sk-prod"\n');
 
         const secrets_schema = schema({api_key: "string"});
@@ -220,8 +204,8 @@ describe("@jiminp/stelaro secrets loader", () => {
     });
 
     it("skips missing overlay file silently", async () => {
-        const base_path = join(temp_dir, "secrets.toml");
-        const overlay_path = join(temp_dir, "secrets.prod.toml");
+        const base_path = join(tempDir(), "secrets.toml");
+        const overlay_path = join(tempDir(), "secrets.prod.toml");
         await writeFile(base_path, 'api_key = "sk-123"\n');
 
         const secrets_schema = schema({api_key: "string"});

@@ -26,7 +26,6 @@ export class LifecycleStateError extends StelaroError {
     }
 }
 
-/** Mutable lifecycle state with a guard for allowed states. */
 export type LifecycleMachine = {
     readonly state: LifecycleState;
     /** Throws {@link LifecycleStateError} unless the current state is in `expected`. */

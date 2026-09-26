@@ -9,6 +9,7 @@ import {InvalidComponentIdError} from "../error.ts";
 import {
     CounterOutput,
     EmptyInput,
+    noopLoggerFactory,
     RenderOutput,
     SetCounterInput,
 } from "../test-util.ts";
@@ -18,8 +19,6 @@ import type {AnyComponent, CallInput, CallOutput} from "./types.ts";
 
 const ParsedInput = schema({value: "string.numeric.parse"});
 const DefaultedOutput = schema({count: "number = 0"});
-
-const silent_logger = {debug() {}, info() {}, warn() {}, error() {}};
 
 describe("@jiminp/stelaro component core", () => {
     it("defines component call references with stable public component ids and names", () => {
@@ -76,7 +75,7 @@ describe("@jiminp/stelaro component core", () => {
             },
         });
         const app = createApplication(
-            defineApplication({components: [ParseComponent], logger: () => silent_logger}),
+            defineApplication({components: [ParseComponent], logger: noopLoggerFactory}),
         );
         await app.start();
 

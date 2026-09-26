@@ -21,7 +21,7 @@ export type RateLimiter = {
  * @param limit - Maximum number of calls per key within the window
  * @param window_ms - Sliding window duration in milliseconds
  * @returns A new {@link RateLimiter}
- * @throws {RangeError} When `limit` is not a positive integer or `window_ms` is not a positive finite number
+ * @throws {RangeError} If `limit` is not a positive integer or `window_ms` is not a positive finite number
  * @category Utility
  */
 export function createRateLimiter(limit: number, window_ms: number): RateLimiter {
@@ -32,7 +32,7 @@ export function createRateLimiter(limit: number, window_ms: number): RateLimiter
         throw new RangeError(`window_ms must be a positive finite number; got ${window_ms}.`);
     }
 
-    // Keys are reinserted on every recorded call, so iteration order is oldest-newest-entry first.
+    // Keys are reinserted on every recorded call, so the map is ordered by each key's newest entry, oldest first.
     const timestamps = new Map<string, Deque<number>>();
 
     return {

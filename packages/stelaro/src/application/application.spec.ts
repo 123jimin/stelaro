@@ -5,7 +5,6 @@ import {describe, it} from "node:test";
 import type {Promisable} from "@jiminp/tooltool";
 import {TraversalError} from "arktype";
 
-import {parseArgs} from "../cli/args.ts";
 import {defineComponent, defineComponentCalls} from "../component/component.ts";
 import type {AnyComponentContext} from "../component/context.ts";
 import type {Logger} from "../component/logger.ts";
@@ -593,29 +592,33 @@ describe("@jiminp/stelaro application core", () => {
     });
 });
 
-type Operation = "start" | "stop" | "call" | "reloadConfig";
+type Operation = "start" | "stop" | "call" | "reloadConfig" | "reloadComponentConfig";
 
-const invalid_operations: readonly (readonly [Exclude<LifecycleState, "reloading">, readonly Operation[]])[] = [
-    ["idle", ["stop", "call", "reloadConfig"]],
-    ["starting", ["start", "stop", "call", "reloadConfig"]],
+const invalid_operations: readonly (readonly [LifecycleState, readonly Operation[]])[] = [
+    ["idle", ["stop", "call", "reloadConfig", "reloadComponentConfig"]],
+    ["starting", ["start", "stop", "call", "reloadConfig", "reloadComponentConfig"]],
     ["active", ["start"]],
-    ["failed", ["start", "call", "reloadConfig"]],
-    ["stopping", ["start", "stop", "call", "reloadConfig"]],
+    ["reloading", ["start", "stop", "reloadConfig", "reloadComponentConfig"]],
+    ["failed", ["start", "call", "reloadConfig", "reloadComponentConfig"]],
+    ["stopping", ["start", "stop", "call", "reloadConfig", "reloadComponentConfig"]],
 ];
 
-async function enterState(state: Exclude<LifecycleState, "reloading">) {
+async function enterState(state: LifecycleState) {
     const CounterCalls = defineCounterCalls("counter");
     let startHook = (): Promisable<void> => {};
     let stopHook = (): Promisable<void> => {};
+    let reloadHook = (): Promisable<void> => {};
     const app = createApplication(defineApplication({
         components: [defineCounterComponent(CounterCalls, {start: () => startHook(), stop: () => stopHook()})],
         logger: noopLoggerFactory,
+        onConfigReload: () => reloadHook(),
     }));
     const operations: Record<Operation, () => Promise<unknown>> = {
         start: () => app.start(),
         stop: () => app.stop(),
         call: () => app.call(CounterCalls.calls.current, {}),
         reloadConfig: () => app.reloadConfig(),
+        reloadComponentConfig: () => app.reloadComponentConfig("counter"),
     };
 
     let settle = async (): Promise<void> => {};
@@ -650,6 +653,18 @@ async function enterState(state: Exclude<LifecycleState, "reloading">) {
             settle = async () => {
                 gate.resolve();
                 await stopping;
+            };
+            break;
+        }
+        case "reloading": {
+            await app.start();
+            const gate = Promise.withResolvers<void>();
+            reloadHook = () => gate.promise;
+            const reloading = app.reloadConfig();
+            settle = async () => {
+                gate.resolve();
+                await reloading;
+                await app.stop();
             };
             break;
         }
@@ -717,9 +732,6 @@ function assertTypeBehavior() {
 
     // @ts-expect-error user code calls references, not string keys.
     void app.call(string_reference, {});
-
-    // CLI arguments are accepted as application options.
-    void createApplication(CounterApp, parseArgs([]));
 }
 
 void assertTypeBehavior;

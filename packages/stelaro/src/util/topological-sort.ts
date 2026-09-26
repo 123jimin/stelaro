@@ -1,11 +1,5 @@
 import {MinHeap} from "./min-heap.ts";
 
-/**
- * Thrown when a cycle prevents topological sort from completing.
- *
- * @typeParam T - Node type
- * @category Utility
- */
 export class TopologicalCycleError<T> extends Error {
     /** Nodes that could not be placed due to the cycle */
     readonly remaining: readonly T[];
@@ -17,21 +11,7 @@ export class TopologicalCycleError<T> extends Error {
     }
 }
 
-/**
- * Sorts nodes so every node comes after its dependencies.
- *
- * @typeParam T - Node type
- * @param nodes - Distinct nodes to sort
- * @param edges - Returns the dependencies of a node
- * @returns Nodes in dependency-first order
- * @throws {RangeError} When `nodes` contains a duplicate
- * @throws {TopologicalCycleError} When the dependency graph contains a cycle
- *
- * @remarks
- * Whenever several nodes are ready, the earliest in `nodes` comes first. Dependencies not in `nodes` are ignored.
- *
- * @category Utility
- */
+/** Ready nodes are emitted in `nodes` order; dependencies outside `nodes` are ignored. */
 export function topologicalSort<T>(
     nodes: readonly T[],
     edges: (node: T) => Iterable<T>,

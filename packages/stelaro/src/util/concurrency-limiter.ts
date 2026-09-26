@@ -25,7 +25,7 @@ type KeyState = {
  *
  * @param max_concurrent - Maximum concurrent slots per key
  * @returns A new {@link ConcurrencyLimiter}
- * @throws {RangeError} When `max_concurrent` is not a positive integer
+ * @throws {RangeError} If `max_concurrent` is not a positive integer
  * @category Utility
  */
 export function createConcurrencyLimiter(max_concurrent: number): ConcurrencyLimiter {

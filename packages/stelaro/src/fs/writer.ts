@@ -19,7 +19,7 @@ export type FileWriter = {
      * Serializes a value as JSON and writes it to the file.
      *
      * @param value - JSON-serializable value
-     * @throws {TypeError} When `value` has no JSON representation
+     * @throws {TypeError} If `value` has no JSON representation
      */
     json(value: unknown): Promise<void>;
     /** Serializes a value as TOML and writes it to the file */
