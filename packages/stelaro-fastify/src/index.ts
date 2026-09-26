@@ -66,51 +66,88 @@ export class RouteValidationError extends StelaroError {
     }
 }
 
-/** `schema`'s validated `value`, or null without a schema; throws {@link RouteValidationError}. */
-function validatePart(part: RouteRequestPart, schema: Nullable<ComponentCallSchema>, value: unknown): unknown {
-    if(schema == null) return null;
+/** `part_schema`'s validated `value`, or null without a schema; throws {@link RouteValidationError}. */
+function validatePart(part: RouteRequestPart, part_schema: Nullable<ComponentCallSchema>, value: unknown): unknown {
+    if(part_schema == null) return null;
     try {
-        return schema.assert(value);
+        return part_schema.assert(value);
     } catch (err) {
         throw new RouteValidationError(part, err);
     }
 }
 
-/** Extracts the output type of a schema, or `null` if the schema is `undefined`. */
+/** The validated type of a route's request-part schema, or `null` when the route declares none.
+ *
+ * @category Routes
+ */
 export type SchemaOutput<T> = T extends ComponentCallSchema ? T["infer"] : null;
 
-/** @category Routes */
+/**
+ * The context a route handler receives: the raw Fastify request and reply, the validated request
+ * parts, and helpers to call components and send responses.
+ *
+ * @typeParam TUses - Call surfaces `call` accepts references from (default: `readonly AnyComponentCalls[]`)
+ * @typeParam TParams - Validated params (default: `null`)
+ * @typeParam TBody - Validated body (default: `null`)
+ * @typeParam TQuerystring - Validated querystring (default: `null`)
+ *
+ * @category Routes
+ */
 export type GatewayHandlerContext<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TParams = null,
     TBody = null,
     TQuerystring = null,
 > = {
+    /** The raw Fastify request */
     readonly request: FastifyRequest;
+    /** The raw Fastify reply */
     readonly reply: FastifyReply;
+    /** Params validated by the route's `params` schema, or `null` without one */
     readonly params: TParams;
+    /** Body validated by the route's `body` schema, or `null` without one */
     readonly body: TBody;
+    /** Querystring validated by the route's `querystring` schema, or `null` without one */
     readonly querystring: TQuerystring;
+    /** Calls a component through a reference from `TUses` */
     call<TCall extends CallFrom<TUses[number]>>(
         reference: TCall,
         input: CallInput<TCall>,
     ): Promise<CallOutput<TCall>>;
+    /** Sends a redirect to `url` */
     redirect(url: string): void;
+    /** Sends `content` as HTML, as {@link sendHtml} does */
     html(content: string): void;
 };
 
-/** @category Routes */
+/**
+ * A route: its method and path, optional request-part schemas validated before `handle`, and any
+ * other Fastify `RouteOptions`, which are forwarded unchanged.
+ *
+ * @typeParam TUses - Call surfaces the handler's `call` accepts (default: `readonly AnyComponentCalls[]`)
+ * @typeParam TParams - Params schema, if any (default: `ComponentCallSchema | undefined`)
+ * @typeParam TBody - Body schema, if any (default: `ComponentCallSchema | undefined`)
+ * @typeParam TQuerystring - Querystring schema, if any (default: `ComponentCallSchema | undefined`)
+ *
+ * @category Routes
+ */
 export type GatewayRoute<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TParams extends ComponentCallSchema | undefined = ComponentCallSchema | undefined,
     TBody extends ComponentCallSchema | undefined = ComponentCallSchema | undefined,
     TQuerystring extends ComponentCallSchema | undefined = ComponentCallSchema | undefined,
 > = Omit<RouteOptions, "method" | "url" | "handler"> & {
+    /** HTTP method, or methods, the route answers */
     readonly method: HTTPMethods;
+    /** URL path in Fastify's syntax, e.g. `/users/:id` */
     readonly path: string;
+    /** Schema the request params must satisfy */
     readonly params?: TParams;
+    /** Schema the request body must satisfy */
     readonly body?: TBody;
+    /** Schema the request querystring must satisfy */
     readonly querystring?: TQuerystring;
+    /** Handles a request whose parts passed validation; its result is sent as the reply */
     handle(context: GatewayHandlerContext<
         TUses,
         SchemaOutput<TParams>,
@@ -119,28 +156,63 @@ export type GatewayRoute<
     >): Promisable<unknown>;
 };
 
-/** @category Routes */
+/**
+ * A group of routes and the call surfaces their handlers use, typically exported by the component
+ * the routes serve.
+ *
+ * @typeParam TUses - Call surfaces the routes' handlers may call (default: `readonly AnyComponentCalls[]`)
+ *
+ * @category Routes
+ */
 export type FastifyRouteGroup<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
 > = {
+    /** Call surfaces the routes' handlers may call */
     readonly uses: TUses;
     // Inferred from `uses` alone: `route()` erases its routes' uses, which would widen `TUses`.
+    /** Routes of the group */
     readonly routes: readonly GatewayRoute<NoInfer<TUses>>[];
 };
 
-/** @category Gateway */
+/**
+ * The definition {@link defineFastifyGateway} turns into a gateway component.
+ *
+ * @typeParam TUses - Call surfaces the gateway's own routes may call (default: `readonly AnyComponentCalls[]`)
+ * @typeParam TMounts - Route groups mounted alongside the gateway's own routes (default: `readonly FastifyRouteGroup[]`)
+ *
+ * @category Gateway
+ */
 export type FastifyGatewayDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
-    TContributions extends readonly FastifyRouteGroup[] = readonly FastifyRouteGroup[],
+    TMounts extends readonly FastifyRouteGroup[] = readonly FastifyRouteGroup[],
 > = {
+    /** Component id of the gateway */
     readonly id: ComponentId;
+    /** The Fastify instance to mount routes on and listen with */
     readonly server: FastifyInstance;
+    /** Call surfaces the gateway's own routes may call */
     readonly uses: TUses;
-    readonly mounts?: TContributions;
+    /** Route groups to mount, typically exported by other components */
+    readonly mounts?: TMounts;
+    /** The gateway's own routes */
     readonly routes?: readonly GatewayRoute<TUses>[];
 };
 
-/** @category Routes */
+/**
+ * Defines a route whose handler's request parts are inferred from its schemas.
+ *
+ * @typeParam TParams - Params schema, if any (default: `undefined`)
+ * @typeParam TBody - Body schema, if any (default: `undefined`)
+ * @typeParam TQuerystring - Querystring schema, if any (default: `undefined`)
+ * @param definition - The route
+ * @returns `definition`
+ *
+ * @remarks
+ * The handler's `call` accepts any component's reference; the calls it makes are not checked
+ * against the enclosing group's `uses`.
+ *
+ * @category Routes
+ */
 export function route<
     TParams extends ComponentCallSchema | undefined = undefined,
     TBody extends ComponentCallSchema | undefined = undefined,
@@ -149,7 +221,16 @@ export function route<
     return definition;
 }
 
-/** @category Routes */
+/**
+ * Defines a route group, inferring its `uses` so inline handlers' `call` accepts only those
+ * surfaces.
+ *
+ * @typeParam TUses - Call surfaces the routes' handlers may call
+ * @param definition - The route group
+ * @returns `definition`
+ *
+ * @category Routes
+ */
 export function defineFastifyRoutes<
     const TUses extends readonly AnyComponentCalls[],
 >(definition: FastifyRouteGroup<TUses>): FastifyRouteGroup<TUses> {
@@ -168,6 +249,7 @@ export const HTML_MEDIA_TYPE = "text/html; charset=utf-8";
  * @param reply - The reply to send on
  * @param content - The HTML document or fragment
  * @returns `reply`
+ *
  * @category Routes
  */
 export function sendHtml(reply: FastifyReply, content: string): FastifyReply {
@@ -176,10 +258,12 @@ export function sendHtml(reply: FastifyReply, content: string): FastifyReply {
 
 /** Options for {@link mountFastifyRoutes}.
  *
+ * @typeParam TUses - Call surfaces the mounted handlers may call (default: `readonly AnyComponentCalls[]`)
+ *
  * @category Routes
  */
 export type MountFastifyRoutesOptions<TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[]> = {
-    /** Serves the handlers' `call`. */
+    /** Serves the handlers' `call` */
     readonly call: GatewayHandlerContext<TUses>["call"];
 };
 
@@ -188,17 +272,57 @@ function rejectCall(reference: CallFrom<AnyComponentCalls>): Promise<never> {
 }
 
 /**
- * Mounts `group`'s routes on `server`: validates params, body, and querystring against each
- * route's schemas (throwing {@link RouteValidationError} on failure), then calls its handler with
- * a {@link GatewayHandlerContext}. A group that uses components needs `options.call`; one that
- * uses none takes no options, since its handlers cannot call.
+ * Mounts a route group that uses no components on `server`, validating each request's params,
+ * body, and querystring before calling the handler with a {@link GatewayHandlerContext}.
+ *
+ * A part failing its schema raises {@link RouteValidationError} to the server's error handling.
  *
  * @param server - The Fastify instance to mount on
- * @param group - The route group to mount
- * @param options - How the handlers' `call` is served
+ * @param group - The route group to mount, with empty `uses`
+ *
+ * @example
+ * ```ts
+ * const server = Fastify();
+ * mountFastifyRoutes(server, defineFastifyRoutes({
+ *     uses: [],
+ *     routes: [{method: "GET", path: "/health", handle: () => ({ok: true})}],
+ * }));
+ * await server.listen({port: 3000});
+ * ```
+ *
  * @category Routes
  */
 export function mountFastifyRoutes(server: FastifyInstance, group: FastifyRouteGroup<readonly []>): void;
+/**
+ * Mounts a route group that uses components on `server`, serving its handlers' `call` with
+ * `options.call`; validation and handler context are as for a group without `uses`.
+ *
+ * @typeParam TUses - Call surfaces the group's handlers may call
+ * @param server - The Fastify instance to mount on
+ * @param group - The route group to mount
+ * @param options - How the handlers' `call` is served
+ *
+ * @example
+ * ```ts
+ * const server = Fastify();
+ * const counter_routes = defineFastifyRoutes({
+ *     uses: [CounterCalls],
+ *     routes: [{method: "GET", path: "/count", handle: ({call}) => call(CounterCalls.calls.current, {})}],
+ * });
+ *
+ * const web = defineComponent({
+ *     calls: defineComponentCalls("web", {}),
+ *     uses: [CounterCalls],
+ *     handlers: {},
+ *     async start(context) {
+ *         mountFastifyRoutes(server, counter_routes, {call: context.call});
+ *         await server.listen({port: 3000});
+ *     },
+ * });
+ * ```
+ *
+ * @category Routes
+ */
 export function mountFastifyRoutes<const TUses extends readonly AnyComponentCalls[]>(
     server: FastifyInstance,
     group: FastifyRouteGroup<TUses>,
@@ -242,16 +366,43 @@ export function mountFastifyRoutes(
     }
 }
 
-/** @category Gateway */
+/**
+ * Defines a gateway component that mounts its own routes and every route group in `mounts` on
+ * `server` at start, listens on the configured `port` and optional `host`, and closes the server
+ * at stop.
+ *
+ * @typeParam TUses - Call surfaces the gateway's own routes may call
+ * @typeParam TMounts - Route groups mounted alongside the gateway's own routes
+ * @param definition - The gateway's id, server, `uses`, own routes, and mounts
+ * @returns A component whose `uses` is the deduplicated union of the gateway's and the mounts' `uses`
+ *
+ * @example
+ * ```ts
+ * const counter_routes = defineFastifyRoutes({
+ *     uses: [CounterCalls],
+ *     routes: [{method: "GET", path: "/count", handle: ({call}) => call(CounterCalls.calls.current, {})}],
+ * });
+ *
+ * export const web = defineFastifyGateway({
+ *     id: "web",
+ *     server: Fastify(),
+ *     uses: [],
+ *     mounts: [counter_routes],
+ *     routes: [{method: "GET", path: "/", handle: ({html}) => html("<h1>Hello</h1>")}],
+ * });
+ * ```
+ *
+ * @category Gateway
+ */
 export function defineFastifyGateway<
     const TUses extends readonly AnyComponentCalls[],
-    const TContributions extends readonly FastifyRouteGroup[],
->(definition: FastifyGatewayDefinition<TUses, TContributions>) {
+    const TMounts extends readonly FastifyRouteGroup[],
+>(definition: FastifyGatewayDefinition<TUses, TMounts>) {
     const gateway_calls = defineComponentCalls(definition.id, {});
 
     const all_uses = [...new Set([
         ...definition.uses,
-        ...(definition.mounts ?? []).flatMap((c) => c.uses),
+        ...(definition.mounts ?? []).flatMap((mount) => mount.uses),
     ])];
     const groups: readonly FastifyRouteGroup[] = [
         {uses: definition.uses, routes: definition.routes ?? []},
