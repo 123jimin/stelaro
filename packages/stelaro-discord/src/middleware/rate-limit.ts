@@ -1,6 +1,6 @@
 import type {KeyExtractor} from "./key.ts";
 
-/** Default ephemeral message sent when a rate limit is exceeded. */
+/** Ephemeral message sent when a rate limit is exceeded. */
 export const RATE_LIMIT_MESSAGE = "You are being rate limited. Please try again later.";
 
 /**

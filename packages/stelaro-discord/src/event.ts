@@ -8,7 +8,7 @@ import type {BaseHandlerContext} from "./types.ts";
  * Context passed to a Discord gateway event handler.
  *
  * @typeParam TUses - Declared component call surfaces
- * @typeParam TEvent - Discord event name
+ * @typeParam TEvent - Discord event name (default: `keyof ClientEvents`)
  * @category Events
  */
 export type EventHandlerContext<
@@ -22,8 +22,8 @@ export type EventHandlerContext<
 /**
  * Defines a handler for a Discord gateway event.
  *
- * @typeParam TUses - Declared component call surfaces
- * @typeParam TEvent - Discord event name
+ * @typeParam TUses - Declared component call surfaces (default: `readonly AnyComponentCalls[]`)
+ * @typeParam TEvent - Discord event name (default: `keyof ClientEvents`)
  * @category Events
  */
 export type EventDefinition<
@@ -39,14 +39,20 @@ export type EventDefinition<
 };
 
 /**
- * Creates a type-erased {@link EventDefinition} for use in mount groups.
+ * Defines an event handler whose arguments are typed from the event name.
  *
+ * @typeParam TEvent - Discord event name
  * @param definition - Event definition
- * @returns Type-erased event definition
+ * @returns `definition`
+ *
+ * @remarks
+ * The handler's `call` accepts any component's reference; the calls it makes are not checked
+ * against the enclosing mount's `uses`.
+ *
  * @category Events
  */
 export function event<
     TEvent extends keyof ClientEvents,
 >(definition: EventDefinition<readonly AnyComponentCalls[], TEvent>): EventDefinition {
-    return definition as EventDefinition;
+    return definition;
 }

@@ -20,7 +20,9 @@
     "clean": "rimraf dist tsconfig.tsbuildinfo",
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "pretest": "pnpm build",
+    "test": "node --test \"dist/**/*.spec.js\""
   },
   "keywords": [],
   "author": "Jimin Park (github.com/123jimin)",

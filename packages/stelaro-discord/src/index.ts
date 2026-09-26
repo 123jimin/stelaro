@@ -1,4 +1,5 @@
 export type {
+    AnySlashCommandData,
     AutocompleteChoice,
     AutocompleteFallback,
     AutocompleteFallbackContext,
@@ -23,7 +24,11 @@ export type {
     InteractionParams,
 } from "./interaction.ts";
 export {interaction} from "./interaction.ts";
-export * from "./middleware/index.ts";
+export type {ConcurrencyOptions} from "./middleware/concurrency.ts";
+export type {Guard, GuardContext} from "./middleware/guard.ts";
+export type {KeyExtractor} from "./middleware/key.ts";
+export {perChannel, perGuild, perUser} from "./middleware/key.ts";
+export type {RateLimitOptions} from "./middleware/rate-limit.ts";
 export type {DiscordMountGroup} from "./mount.ts";
 export {defineDiscordMounts} from "./mount.ts";
-export type {BaseHandlerContext, CallFn, SchemaOutput} from "./types.ts";
+export type {BaseHandlerContext, SchemaOutput} from "./types.ts";

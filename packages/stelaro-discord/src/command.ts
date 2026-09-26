@@ -1,21 +1,27 @@
-import type {AnyComponentCalls, ComponentCallSchema} from "@jiminp/stelaro";
+import type {AnyComponentCalls, ComponentCallFn, ComponentCallSchema} from "@jiminp/stelaro";
 import type {Promisable} from "@jiminp/tooltool";
-import type {
-    AutocompleteInteraction,
-    ChatInputCommandInteraction,
-    ContextMenuCommandBuilder,
-    ContextMenuCommandInteraction,
-    SlashCommandBuilder,
-    SlashCommandOptionsOnlyBuilder,
-    SlashCommandSubcommandsOnlyBuilder,
+import {
+    ApplicationCommandOptionType,
+    type AutocompleteInteraction,
+    type ChatInputCommandInteraction,
+    type ContextMenuCommandBuilder,
+    type ContextMenuCommandInteraction,
+    type SlashCommandBuilder,
+    type SlashCommandOptionsOnlyBuilder,
+    type SlashCommandSubcommandsOnlyBuilder,
 } from "discord.js";
 
 import type {ConcurrencyOptions} from "./middleware/concurrency.ts";
 import type {Guard} from "./middleware/guard.ts";
 import type {RateLimitOptions} from "./middleware/rate-limit.ts";
-import type {BaseHandlerContext, CallFn, SchemaOutput} from "./types.ts";
+import type {BaseHandlerContext, SchemaOutput} from "./types.ts";
 
-type AnySlashCommandData = SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder;
+/**
+ * Slash command builder types accepted as command data.
+ *
+ * @category Commands
+ */
+export type AnySlashCommandData = SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder | SlashCommandOptionsOnlyBuilder;
 
 type CommandInteractionOf<TData> =
     TData extends ContextMenuCommandBuilder ? ContextMenuCommandInteraction
@@ -25,8 +31,8 @@ type CommandInteractionOf<TData> =
  * Context passed to a slash or context-menu command handler.
  *
  * @typeParam TUses - Declared component call surfaces
- * @typeParam TData - Command builder type that determines the interaction type
- * @typeParam TOptions - Optional schema for validated command options
+ * @typeParam TData - Command builder type that determines the interaction type (default: `SlashCommandBuilder | ContextMenuCommandBuilder`)
+ * @typeParam TOptions - Optional schema for validated command options (default: `undefined`)
  * @category Commands
  */
 export type CommandHandlerContext<
@@ -71,44 +77,63 @@ export type AutocompleteHandlerContext<
     /** The autocomplete interaction */
     readonly interaction: AutocompleteInteraction;
     /** Dispatches a typed call to a stelaro component */
-    call: CallFn<TUses>;
+    call: ComponentCallFn<TUses>;
 };
 
-/** Context passed to the autocomplete fallback handler. */
+/**
+ * Context passed to the single autocomplete handler of a command.
+ *
+ * @typeParam TUses - Declared component call surfaces
+ * @category Commands
+ */
 export type AutocompleteFallbackContext<
     TUses extends readonly AnyComponentCalls[],
 > = {
+    /** The autocomplete interaction */
     readonly interaction: AutocompleteInteraction;
-    call: CallFn<TUses>;
+    /** Dispatches a typed call to a stelaro component */
+    call: ComponentCallFn<TUses>;
 };
 
-/** An autocomplete handler for a single option. */
+/**
+ * Autocomplete handler for a single option, returning the suggestions to show.
+ *
+ * @typeParam TUses - Declared component call surfaces
+ * @category Commands
+ */
 export type AutocompleteHandler<TUses extends readonly AnyComponentCalls[]> =
     (context: AutocompleteHandlerContext<TUses>) => Promisable<AutocompleteResult>;
 
-/** Maps option names to their autocomplete handlers.
+/**
+ * Autocomplete handlers keyed by option name, or `subcommand/option` for subcommand options.
  *
+ * @typeParam TUses - Declared component call surfaces
  * @category Commands
  */
 export type AutocompleteMap<TUses extends readonly AnyComponentCalls[]> =
     Record<string, AutocompleteHandler<TUses>>;
 
-/** Fallback handler invoked when no per-option autocomplete handler matches. */
+/**
+ * Single autocomplete handler used instead of a per-option map; it responds to the interaction itself.
+ *
+ * @typeParam TUses - Declared component call surfaces
+ * @category Commands
+ */
 export type AutocompleteFallback<TUses extends readonly AnyComponentCalls[]> =
     (context: AutocompleteFallbackContext<TUses>) => Promisable<void>;
 
 /**
  * Defines a slash or context-menu command with handler and optional autocomplete.
  *
- * @typeParam TUses - Declared component call surfaces
- * @typeParam TData - Command builder type
- * @typeParam TOptions - Optional schema for validated command options
+ * @typeParam TUses - Declared component call surfaces (default: `readonly AnyComponentCalls[]`)
+ * @typeParam TData - Command builder type (default: `AnySlashCommandData | ContextMenuCommandBuilder`)
+ * @typeParam TOptions - Optional schema for validated command options (default: `ComponentCallSchema | undefined`)
  * @category Commands
  */
 export type CommandDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
     TData extends AnySlashCommandData | ContextMenuCommandBuilder = AnySlashCommandData | ContextMenuCommandBuilder,
-    TOptions extends ComponentCallSchema | undefined = undefined,
+    TOptions extends ComponentCallSchema | undefined = ComponentCallSchema | undefined,
 > = {
     /** Discord.js command builder with name, description, and options */
     readonly data: TData;
@@ -127,49 +152,52 @@ export type CommandDefinition<
 };
 
 /**
- * Creates a type-erased {@link CommandDefinition} for use in mount groups.
+ * Defines a command whose interaction and options are typed from its builder and schema.
  *
+ * @typeParam TData - Command builder type
+ * @typeParam TOptions - Options schema, if any (default: `undefined`)
  * @param definition - Command definition
- * @returns Type-erased command definition
+ * @returns `definition`
+ *
+ * @remarks
+ * The handler's `call` accepts any component's reference; the calls it makes are not checked
+ * against the enclosing mount's `uses`.
+ *
+ * @example
+ * ```ts
+ * const ping = command({
+ *     data: new SlashCommandBuilder().setName("ping").setDescription("Replies with pong"),
+ *     async handle({interaction}) {
+ *         await interaction.reply("pong");
+ *     },
+ * });
+ * ```
+ *
  * @category Commands
  */
 export function command<
     TData extends AnySlashCommandData | ContextMenuCommandBuilder,
     TOptions extends ComponentCallSchema | undefined = undefined,
 >(definition: CommandDefinition<readonly AnyComponentCalls[], TData, TOptions>): CommandDefinition {
-    return definition as unknown as CommandDefinition;
+    return definition;
 }
 
-const MAX_AUTOCOMPLETE_NAME_LENGTH = 100;
 const MAX_AUTOCOMPLETE_CHOICES = 25;
+const MAX_AUTOCOMPLETE_TEXT_LENGTH = 100;
 
-/**
- * Normalizes autocomplete results into choices, truncating names and capping at 25 entries.
- *
- * @param result - Raw autocomplete result from a handler
- * @returns Normalized choices safe to send to Discord
- */
+function truncateAutocompleteText(text: string, ellipsis: string): string {
+    return text.length > MAX_AUTOCOMPLETE_TEXT_LENGTH
+        ? text.slice(0, MAX_AUTOCOMPLETE_TEXT_LENGTH - ellipsis.length) + ellipsis
+        : text;
+}
+
+/** Normalizes autocomplete results into at most 25 choices, ellipsizing names and cutting values to 100 characters. */
 export function normalizeAutocompleteResult(result: AutocompleteResult): AutocompleteChoice[] {
-    const choices: AutocompleteChoice[] = [];
-    for(const item of result) {
-        if(choices.length >= MAX_AUTOCOMPLETE_CHOICES) break;
-        if(typeof item === "string") {
-            choices.push({
-                name: item.length > MAX_AUTOCOMPLETE_NAME_LENGTH
-                    ? item.slice(0, MAX_AUTOCOMPLETE_NAME_LENGTH - 3) + "..."
-                    : item,
-                value: item,
-            });
-        } else {
-            choices.push({
-                name: item.name.length > MAX_AUTOCOMPLETE_NAME_LENGTH
-                    ? item.name.slice(0, MAX_AUTOCOMPLETE_NAME_LENGTH - 3) + "..."
-                    : item.name,
-                value: item.value,
-            });
-        }
-    }
-    return choices;
+    return result.slice(0, MAX_AUTOCOMPLETE_CHOICES).map((item) => {
+        const {name, value} = typeof item === "string" ? {name: item, value: item} : item;
+        // A cut value stays a prefix of the original, so handlers can still match it.
+        return {name: truncateAutocompleteText(name, "..."), value: truncateAutocompleteText(value, "")};
+    });
 }
 
 /**
@@ -186,7 +214,10 @@ export function extractCommandOptions(
     const result: Record<string, unknown> = {};
     const data = interaction.options.data;
 
-    if(data.length > 0 && (data[0]!.type === 1 || data[0]!.type === 2)) {
+    if(data.length > 0 && (
+        data[0]!.type === ApplicationCommandOptionType.Subcommand
+        || data[0]!.type === ApplicationCommandOptionType.SubcommandGroup
+    )) {
         result["sub"] = data[0]!.name;
         for(const opt of data[0]!.options ?? []) {
             result[opt.name] = extractOptionValue(opt);

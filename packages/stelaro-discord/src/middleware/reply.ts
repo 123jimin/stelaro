@@ -1,28 +1,11 @@
-import {
-    type ButtonInteraction,
-    type ChatInputCommandInteraction,
-    type ContextMenuCommandInteraction,
-    MessageFlags,
-    type ModalSubmitInteraction,
-    type StringSelectMenuInteraction,
-} from "discord.js";
+import type {Logger} from "@jiminp/stelaro";
+import {MessageFlags, type RepliableInteraction} from "discord.js";
 
-/** Union of interaction types that support `reply` and `followUp`. */
-export type RepliableInteraction = ChatInputCommandInteraction | ContextMenuCommandInteraction
-    | ButtonInteraction | StringSelectMenuInteraction | ModalSubmitInteraction;
-
-/**
- * Sends an ephemeral error message, choosing the reply method based on interaction state.
- *
- * Uses `followUp` if the interaction was already replied or deferred, otherwise `reply`.
- * Silently ignores failures (e.g. expired interactions).
- *
- * @param interaction - The interaction to reply to
- * @param message - Error message content
- */
+/** Sends an ephemeral message with `followUp` once replied or deferred, otherwise `reply`, logging failures. */
 export async function replyUserError(
     interaction: RepliableInteraction,
     message: string,
+    log: Logger,
 ): Promise<void> {
     const payload = {content: message, flags: MessageFlags.Ephemeral} as const;
     try {
@@ -31,7 +14,7 @@ export async function replyUserError(
         } else {
             await interaction.reply(payload);
         }
-    } catch{
-        // Interaction may have expired
+    } catch (error) {
+        log.warn("Failed to send ephemeral error reply:", error);
     }
 }

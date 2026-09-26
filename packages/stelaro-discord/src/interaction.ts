@@ -11,26 +11,26 @@ import type {Guard} from "./middleware/guard.ts";
 import type {RateLimitOptions} from "./middleware/rate-limit.ts";
 import type {BaseHandlerContext} from "./types.ts";
 
-type ParamKeys<P extends string> =
-    P extends `${string}{${infer Name}}${infer Rest}`
-        ? Name | ParamKeys<Rest>
-        : never;
+type SegmentParam<TSegment extends string> = TSegment extends `{${infer Name}}` ? Name : never;
 
-/** Extracts named parameter keys from a colon-delimited `customId` pattern.
+type ParamKeys<P extends string> =
+    string extends P ? string
+        : P extends `${infer Segment}:${infer Rest}` ? SegmentParam<Segment> | ParamKeys<Rest>
+            : SegmentParam<P>;
+
+/**
+ * Parameters of a colon-delimited `customId` pattern, keyed by its whole-segment `{name}` placeholders.
  *
- * @typeParam P - Pattern string with `{name}` placeholders
+ * @typeParam P - Pattern string
  * @category Interactions
  */
-export type InteractionParams<P extends string> =
-    [ParamKeys<P>] extends [never]
-        ? Record<string, never>
-        : {readonly [K in ParamKeys<P>]: string};
+export type InteractionParams<P extends string> = {readonly [K in ParamKeys<P>]: string};
 
 /**
  * Context passed to a component interaction handler (buttons, selects, modals).
  *
  * @typeParam TUses - Declared component call surfaces
- * @typeParam TPattern - Colon-delimited `customId` pattern
+ * @typeParam TPattern - Colon-delimited `customId` pattern (default: `string`)
  * @category Interactions
  */
 export type InteractionHandlerContext<
@@ -48,8 +48,8 @@ export type InteractionHandlerContext<
  *
  * Pattern segments wrapped in `{braces}` are extracted as named parameters.
  *
- * @typeParam TUses - Declared component call surfaces
- * @typeParam TPattern - Colon-delimited `customId` pattern
+ * @typeParam TUses - Declared component call surfaces (default: `readonly AnyComponentCalls[]`)
+ * @typeParam TPattern - Colon-delimited `customId` pattern (default: `string`)
  * @category Interactions
  */
 export type InteractionDefinition<
@@ -69,16 +69,32 @@ export type InteractionDefinition<
 };
 
 /**
- * Creates a type-erased {@link InteractionDefinition} for use in mount groups.
+ * Defines a persistent component interaction handler whose `params` are typed from its pattern.
  *
+ * @typeParam TPattern - Colon-delimited `customId` pattern
  * @param definition - Interaction definition
- * @returns Type-erased interaction definition
+ * @returns `definition`
+ *
+ * @remarks
+ * The handler's `call` accepts any component's reference; the calls it makes are not checked
+ * against the enclosing mount's `uses`.
+ *
+ * @example
+ * ```ts
+ * const vote = interaction({
+ *     pattern: "poll:{poll_id}:vote:{option}",
+ *     async handle({interaction, params}) {
+ *         await interaction.reply(`Voted ${params.option} in poll ${params.poll_id}.`);
+ *     },
+ * });
+ * ```
+ *
  * @category Interactions
  */
 export function interaction<
     TPattern extends string,
 >(definition: InteractionDefinition<readonly AnyComponentCalls[], TPattern>): InteractionDefinition {
-    return definition as InteractionDefinition;
+    return definition;
 }
 
 export type CompiledPattern = {
@@ -86,24 +102,27 @@ export type CompiledPattern = {
     readonly param_indices: ReadonlyMap<number, string>;
 };
 
-/**
- * Compiles a colon-delimited `customId` pattern into segments and parameter indices.
- *
- * @param pattern - Pattern string with literal segments and `{name}` placeholders
- * @returns Compiled pattern for matching
- */
+/** Compiles a colon-delimited `customId` pattern, throwing on stray braces, non-word names, or duplicate names. */
 export function compilePattern(pattern: string): CompiledPattern {
     const segments: string[] = [];
     const param_indices = new Map<number, string>();
+    const param_names = new Set<string>();
 
     for(const [i, segment] of pattern.split(":").entries()) {
-        const match = /^\{(\w+)\}$/.exec(segment);
-        if(match != null) {
-            segments.push("");
-            param_indices.set(i, match[1]!);
-        } else {
+        const name = /^\{(\w+)\}$/.exec(segment)?.[1];
+        if(name == null) {
+            if(/[{}]/.test(segment)) {
+                throw new Error(`Invalid segment "${segment}" in interaction pattern "${pattern}".`);
+            }
             segments.push(segment);
+            continue;
         }
+        if(param_names.has(name)) {
+            throw new Error(`Duplicate parameter "${name}" in interaction pattern "${pattern}".`);
+        }
+        param_names.add(name);
+        segments.push("");
+        param_indices.set(i, name);
     }
 
     return {segments, param_indices};
