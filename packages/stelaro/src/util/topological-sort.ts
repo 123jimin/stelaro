@@ -18,12 +18,19 @@ export class TopologicalCycleError<T> extends Error {
 }
 
 /**
- * Sorts nodes in dependency-first order using Kahn's algorithm.
+ * Sorts nodes so every node comes after its dependencies.
  *
- * @param nodes - Input array. Insertion order is used as tiebreaker for unrelated nodes.
- * @param edges - Returns the dependencies of a node (nodes that must come before it). Edge targets not present in {@link nodes} are ignored.
- * @returns Nodes in topological order.
- * @throws {TopologicalCycleError} When the dependency graph contains a cycle.
+ * @typeParam T - Node type
+ * @param nodes - Distinct nodes to sort
+ * @param edges - Returns the dependencies of a node
+ * @returns Nodes in dependency-first order
+ * @throws {RangeError} When `nodes` contains a duplicate
+ * @throws {TopologicalCycleError} When the dependency graph contains a cycle
+ *
+ * @remarks
+ * Whenever several nodes are ready, the earliest in `nodes` comes first. Dependencies not in `nodes` are ignored.
+ *
+ * @category Utility
  */
 export function topologicalSort<T>(
     nodes: readonly T[],
@@ -31,7 +38,9 @@ export function topologicalSort<T>(
 ): T[] {
     const index_of = new Map<T, number>();
     for(let i = 0; i < nodes.length; i++) {
-        index_of.set(nodes[i]!, i);
+        const node = nodes[i]!;
+        if(index_of.has(node)) throw new RangeError(`Duplicate node at index ${i}.`);
+        index_of.set(node, i);
     }
 
     const dependents = new Map<T, T[]>();
@@ -59,8 +68,8 @@ export function topologicalSort<T>(
 
     const result: T[] = [];
 
-    let node: T | null;
-    while((node = queue.pop()) != null) {
+    while(queue.size > 0) {
+        const node = queue.pop() as T;
         result.push(node);
 
         for(const dependent of dependents.get(node)!) {

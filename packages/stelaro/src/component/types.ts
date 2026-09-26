@@ -1,6 +1,7 @@
 import type {Promisable} from "@jiminp/tooltool";
 
 import type {ConfigSchema} from "../config/types.ts";
+import type {Schema} from "../schema.ts";
 import type {
     AnyComponentContext,
     ComponentContext,
@@ -18,17 +19,13 @@ export type ComponentId = string;
  */
 export type ComponentCallName = string;
 
-import type {Schema} from "../schema.ts";
-
 /**
  * Schema contract for component call boundaries.
- *
- * `inferIn` is the input accepted at a call boundary, `infer` is the
- * validated output, and `assert` performs runtime validation.
  *
  * @category Component
  */
 export interface ComponentCallSchema extends Schema {
+    /** Input type accepted before validation */
     readonly inferIn: unknown;
 }
 
@@ -37,9 +34,10 @@ type ValueOf<T extends object> = T extends unknown ? T[keyof T] : never;
 /**
  * Runtime value used to call a component API without stringly typed keys.
  *
- * References carry the component id, call name, and the schemas that define
- * the call boundary.
- *
+ * @typeParam TId - Owning component id
+ * @typeParam TCallName - Call name within the component
+ * @typeParam TInputSchema - Schema validating call input
+ * @typeParam TOutputSchema - Schema validating call output
  * @category Component
  */
 export type ComponentCallReference<
@@ -58,7 +56,7 @@ export type ComponentCallReference<
     readonly output: TOutputSchema;
 };
 
-/** Type-erased call reference used internally by the framework.
+/** Type-erased call reference accepted by application APIs.
  *
  * @category Component
  */
@@ -84,13 +82,17 @@ export type ComponentCallDeclarations = Record<
 /**
  * Declared call surface for a component id.
  *
+ * @typeParam TId - Owning component id
+ * @typeParam TDeclarations - Per-call input/output schemas
  * @category Component
  */
 export type ComponentCalls<
     TId extends ComponentId,
     TDeclarations extends ComponentCallDeclarations,
 > = {
+    /** Owning component id */
     readonly id: TId;
+    /** Call references keyed by call name */
     readonly calls: {
         readonly [TCallName in keyof TDeclarations & ComponentCallName]: ComponentCallReference<
             TId,
@@ -101,7 +103,7 @@ export type ComponentCalls<
     };
 };
 
-/** Type-erased component call surface.
+/** Type-erased component call surface accepted by application APIs.
  *
  * @category Component
  */
@@ -109,36 +111,46 @@ export type AnyComponentCalls = ComponentCalls<ComponentId, ComponentCallDeclara
 
 /** Extracts the union of call references from a component's call surface.
  *
+ * @typeParam TCalls - Call surface to extract references from
  * @category Component
  */
 export type CallFrom<TCalls extends AnyComponentCalls> = ValueOf<TCalls["calls"]>;
 
-/** Extracts the input type accepted by a call reference.
+/** Extracts the input type a caller passes to a call reference.
  *
+ * @typeParam TCall - Call reference
  * @category Component
  */
 export type CallInput<TCall extends AnyComponentCallReference> = TCall["input"]["inferIn"];
 
-/** Extracts the output type produced by a call reference.
+/** Extracts the validated output type a caller receives from a call reference.
  *
+ * @typeParam TCall - Call reference
  * @category Component
  */
 export type CallOutput<TCall extends AnyComponentCallReference> = TCall["output"]["infer"];
 
+/**
+ * Typed call dispatcher restricted to references from the given call surfaces.
+ *
+ * @typeParam TUses - Call surfaces whose references may be dispatched
+ * @category Component
+ */
+export type ComponentCallFn<TUses extends readonly AnyComponentCalls[]> = <TCall extends CallFrom<TUses[number]>>(
+    reference: TCall,
+    input: CallInput<TCall>,
+) => Promise<CallOutput<TCall>>;
+
 /** Factory function that creates fresh state for a component instance.
  *
+ * @typeParam TState - Created state type
  * @category Component
  */
 export type StateFactory<TState> = () => TState;
 
-type ConfigOf<T> = T extends ConfigSchema ? T["infer"] : undefined;
-type SecretsOf<T> = T extends ConfigSchema ? T["infer"] : undefined;
+type SchemaInfer<TSchema> = TSchema extends Schema ? TSchema["infer"] : undefined;
 
-/**
- * Bivariant call-handler function. Deriving the type from a method makes its
- * parameters checked bivariantly (as methods are), which keeps a concrete
- * `Component` assignable to `AnyComponent` — exactly how the object form behaves.
- */
+/** Method-derived so handler parameters are checked bivariantly, as in the object form. */
 type ComponentHandleFn<TContext, TInput, TOutput> = {
     handle(context: TContext, input: TInput): Promisable<TOutput>;
 }["handle"];
@@ -146,27 +158,23 @@ type ComponentHandleFn<TContext, TInput, TOutput> = {
 /**
  * A single call handler: either a bare callable `(context, input) => …` or an
  * object exposing a `handle(context, input)` method. Both forms dispatch
- * identically; the object form leaves room for future per-handler metadata.
+ * identically.
  *
+ * @typeParam TContext - Component context passed to the handler
+ * @typeParam TInput - Validated call input
+ * @typeParam TOutput - Output accepted by the call's output schema
  * @category Component
  */
 export type ComponentHandler<TContext, TInput, TOutput> =
     | ComponentHandleFn<TContext, TInput, TOutput>
     | {handle: ComponentHandleFn<TContext, TInput, TOutput>};
 
-/**
- * Component definition with a public call surface, declared dependencies, and
- * one handler per exposed call. Stateful components include a state factory.
- * Components with a config schema receive validated config through context.
- *
- * @category Component
- */
-export type Component<
+type ComponentBody<
     TCalls extends AnyComponentCalls,
     TUses extends readonly AnyComponentCalls[],
-    TState = undefined,
-    TConfigSchema extends ConfigSchema | undefined = undefined,
-    TSecretsSchema extends ConfigSchema | undefined = undefined,
+    TConfigSchema extends ConfigSchema | undefined,
+    TSecretsSchema extends ConfigSchema | undefined,
+    TContext,
 > = {
     /** This component's public call surface */
     readonly calls: TCalls;
@@ -177,34 +185,72 @@ export type Component<
     /** Secrets schema for this component */
     readonly secrets?: TSecretsSchema;
     /** Called during application startup after config and secrets are loaded */
-    readonly start?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>) => Promisable<void>;
+    readonly start?: (context: TContext) => Promisable<void>;
     /** Called during application shutdown in reverse dependency order */
-    readonly stop?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>) => Promisable<void>;
+    readonly stop?: (context: TContext) => Promisable<void>;
     /** Called after this component's config is reloaded */
-    readonly onConfigReload?: (context: ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>) => Promisable<void>;
+    readonly onConfigReload?: (context: TContext) => Promisable<void>;
     /** One handler per call in the call surface (a bare callable or an object with `handle`) */
     readonly handlers: {
         readonly [TCallName in keyof TCalls["calls"] & ComponentCallName]: ComponentHandler<
-            ComponentContext<TUses, TState, ConfigOf<TConfigSchema>, SecretsOf<TSecretsSchema>>,
-            CallInput<TCalls["calls"][TCallName]>,
-            CallOutput<TCalls["calls"][TCallName]>
+            TContext,
+            TCalls["calls"][TCallName]["input"]["infer"],
+            TCalls["calls"][TCallName]["output"]["inferIn"]
         >;
     };
-} & ([TState] extends [undefined] ? unknown : {readonly state: StateFactory<TState>});
+};
 
-/** Type-erased component definition used internally by the framework.
+/**
+ * Component definition with a public call surface, declared dependencies, and
+ * one handler per exposed call. Handlers receive validated input and return
+ * values accepted by the output schema.
+ *
+ * @typeParam TCalls - This component's call surface
+ * @typeParam TUses - Call surfaces this component may invoke
+ * @typeParam TState - State factory return type (default: `undefined`)
+ * @typeParam TConfigSchema - Config schema (default: `undefined`)
+ * @typeParam TSecretsSchema - Secrets schema (default: `undefined`)
+ * @category Component
+ */
+export type Component<
+    TCalls extends AnyComponentCalls,
+    TUses extends readonly AnyComponentCalls[],
+    TState = undefined,
+    TConfigSchema extends ConfigSchema | undefined = undefined,
+    TSecretsSchema extends ConfigSchema | undefined = undefined,
+> = ComponentBody<
+    TCalls,
+    TUses,
+    TConfigSchema,
+    TSecretsSchema,
+    ComponentContext<TUses, NoInfer<TState>, SchemaInfer<TConfigSchema>, SchemaInfer<TSecretsSchema>>
+> & ([TState] extends [undefined] ? unknown : {
+    /** Creates this component's state once per application runtime */
+    readonly state: StateFactory<TState>;
+});
+
+/** Type-erased component definition accepted by application APIs.
  *
  * @category Component
  */
 export interface AnyComponent {
+    /** This component's public call surface */
     readonly calls: AnyComponentCalls;
+    /** Call surfaces of other components this component may invoke */
     readonly uses: readonly AnyComponentCalls[];
+    /** State factory, if the component is stateful */
     readonly state?: StateFactory<unknown> | undefined;
+    /** Config schema, if declared */
     readonly config?: ConfigSchema | undefined;
+    /** Secrets schema, if declared */
     readonly secrets?: ConfigSchema | undefined;
+    /** Called during application startup */
     start?(context: AnyComponentContext): Promisable<void>;
+    /** Called during application shutdown */
     stop?(context: AnyComponentContext): Promisable<void>;
+    /** Called after this component's config is reloaded */
     onConfigReload?(context: AnyComponentContext): Promisable<void>;
+    /** Handlers keyed by call name */
     readonly handlers: {
         readonly [name: ComponentCallName]: ComponentHandler<AnyComponentContext, unknown, unknown>;
     };

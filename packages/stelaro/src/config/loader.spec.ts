@@ -35,10 +35,11 @@ describe("@jiminp/stelaro config loader", () => {
         const config_schema = schema({host: "string"});
 
         await assert.rejects(
-            () => loadTomlConfig(file_path, config_schema),
+            () => loadTomlConfig(file_path, config_schema, "my-component"),
             (error: unknown) => {
                 assert.ok(error instanceof ConfigFileError);
                 assert.strictEqual(error.file_path, file_path);
+                assert.strictEqual(error.component_id, "my-component");
                 return true;
             },
         );
@@ -67,39 +68,10 @@ describe("@jiminp/stelaro config loader", () => {
         const config_schema = schema({host: "string"});
 
         await assert.rejects(
-            () => loadTomlConfig(file_path, config_schema),
+            () => loadTomlConfig(file_path, config_schema, "my-component"),
             (error: unknown) => {
                 assert.ok(error instanceof ConfigValidationError);
                 assert.strictEqual(error.file_path, file_path);
-                return true;
-            },
-        );
-    });
-
-    it("includes component_id in ConfigFileError when provided", async () => {
-        const file_path = join(temp_dir, "missing.toml");
-        const config_schema = schema({host: "string"});
-
-        await assert.rejects(
-            () => loadTomlConfig(file_path, config_schema, "my-component"),
-            (error: unknown) => {
-                assert.ok(error instanceof ConfigFileError);
-                assert.strictEqual(error.component_id, "my-component");
-                return true;
-            },
-        );
-    });
-
-    it("includes component_id in ConfigValidationError when provided", async () => {
-        const file_path = join(temp_dir, "invalid.toml");
-        await writeFile(file_path, 'host = 42\n');
-
-        const config_schema = schema({host: "string"});
-
-        await assert.rejects(
-            () => loadTomlConfig(file_path, config_schema, "my-component"),
-            (error: unknown) => {
-                assert.ok(error instanceof ConfigValidationError);
                 assert.strictEqual(error.component_id, "my-component");
                 return true;
             },
@@ -187,7 +159,7 @@ describe("@jiminp/stelaro secrets loader", () => {
 
         const result = await loadTomlSecrets(file_path, secrets_schema);
 
-        assert.strictEqual(result.base_found, false);
+        assert.deepStrictEqual(result, {value: {}, base_found: false});
     });
 
     it("throws SecretsValidationError when missing file yields invalid empty object", async () => {

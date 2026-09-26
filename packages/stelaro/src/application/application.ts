@@ -1,4 +1,4 @@
-import {join} from "node:path";
+import {join, resolve} from "node:path";
 
 import type {Promisable} from "@jiminp/tooltool";
 
@@ -8,9 +8,7 @@ import type {
     AnyComponent,
     AnyComponentCallReference,
     AnyComponentCalls,
-    CallFrom,
-    CallInput,
-    CallOutput,
+    ComponentCallFn,
     ComponentId,
 } from "../component/types.ts";
 import {loadTomlConfig, loadTomlSecrets} from "../config/loader.ts";
@@ -29,10 +27,7 @@ import {
 } from "./error.ts";
 import {createLifecycleMachine, type LifecycleMachine} from "./lifecycle.ts";
 
-/** Framework name used for the root logger.
- *
- * @category Application
- */
+/** Logger scope of framework records. */
 export const FRAMEWORK_NAME = "stelaro";
 
 /**
@@ -66,8 +61,8 @@ export type ApplicationDefinition<
  * @category Application
  */
 export type ApplicationOptions = {
-    /** Root directory for config, secrets, and data files (default: `"."`) */
-    readonly base_dir?: string;
+    /** Root directory for config, secrets, and data files (default: working directory) */
+    readonly base_dir?: string | undefined;
     /** Environment name used to select config/secrets overlays */
     readonly env?: string | null;
 };
@@ -89,17 +84,8 @@ export type Application<
     start(): Promise<void>;
     /** Stops active components in reverse dependency order */
     stop(): Promise<void>;
-    /**
-     * Dispatches a typed call to the owning component's handler.
-     *
-     * @param reference - Typed call reference
-     * @param input - Call input validated against the reference's input schema
-     * @returns The handler's output validated against the reference's output schema
-     */
-    call<TCall extends CallFrom<TComponents[number]["calls"]>>(
-        reference: TCall,
-        input: CallInput<TCall>,
-    ): Promise<CallOutput<TCall>>;
+    /** Dispatches a typed call to the owning component's handler */
+    readonly call: ComponentCallFn<readonly TComponents[number]["calls"][]>;
     /** Reloads all config files and invokes `onConfigReload` hooks */
     reloadConfig(): Promise<void>;
     /**
@@ -123,6 +109,8 @@ export type Application<
 type ComponentRuntime = {
     readonly component: AnyComponent;
     readonly id: ComponentId;
+    readonly dir: string;
+    readonly data: DataAccess;
     readonly lifecycle: LifecycleMachine;
     readonly log: Logger;
     readonly callable_references: ReadonlySet<AnyComponentCallReference>;
@@ -178,13 +166,13 @@ export function createApplication<
     const TAppSecrets extends ConfigSchema | undefined = undefined,
 >(definition: ApplicationDefinition<TComponents, TAppConfig, TAppSecrets>, options?: ApplicationOptions): Application<TComponents, TAppConfig, TAppSecrets> {
     const lifecycle = createLifecycleMachine();
-    const base_dir = options?.base_dir ?? ".";
+    const base_dir = resolve(options?.base_dir ?? ".");
     const env = options?.env ?? null;
     const loggerFactory = definition.logger ?? consoleLoggerFactory;
     const framework_log = loggerFactory(FRAMEWORK_NAME);
 
     const ordered_components = validateAndSort(definition.components);
-    const {runtimes, id_to_runtime, dispatchers} = buildRuntimes(ordered_components, loggerFactory);
+    const {runtimes, id_to_runtime, dispatchers} = buildRuntimes(ordered_components, loggerFactory, base_dir);
 
     const dispatchCall: DispatchFn = async (reference, input) => {
         lifecycle.require(["active", "reloading"], "call");
@@ -193,11 +181,24 @@ export function createApplication<
         if(entry == null) {
             throw new UnregisteredCallError(reference.component_id, reference.name);
         }
-        entry.runtime.lifecycle.require(["active", "reloading"], "call");
 
-        const context = buildContext(entry.runtime, dispatchCall, base_dir);
+        const context = buildContext(entry.runtime, dispatchCall);
         const result = await entry.handle(context, reference.input.assert(input));
         return reference.output.assert(result);
+    };
+
+    const loadConfig = (schema: ConfigSchema, runtime: ComponentRuntime | null): Promise<unknown> => {
+        const {base, overlay} = tomlPaths(runtime?.dir ?? base_dir, "config", env);
+        return loadTomlConfig(base, schema, runtime?.id ?? null, overlay);
+    };
+
+    const loadSecrets = async (schema: ConfigSchema, runtime: ComponentRuntime | null): Promise<unknown> => {
+        const {base, overlay} = tomlPaths(runtime?.dir ?? base_dir, "secrets", env);
+        const {value, base_found} = await loadTomlSecrets(base, schema, runtime?.id ?? null, overlay);
+        if(!base_found) {
+            (runtime?.log ?? framework_log).warn({event: "secrets.missing", file_path: base}, "No secrets file found.");
+        }
+        return value;
     };
 
     let app_config: unknown = null;
@@ -216,55 +217,25 @@ export function createApplication<
 
             try {
                 const loads: Promise<void>[] = [];
-
                 if(definition.config != null) {
-                    const {base, overlay} = tomlPaths(base_dir, "config", env);
-                    loads.push(
-                        loadTomlConfig(base, definition.config, null, overlay)
-                            .then((config) => { app_config = config; }),
-                    );
+                    loads.push(loadConfig(definition.config, null).then((value) => { app_config = value; }));
                 }
-
                 if(definition.secrets != null) {
-                    const {base, overlay} = tomlPaths(base_dir, "secrets", env);
-                    loads.push(
-                        loadTomlSecrets(base, definition.secrets, null, overlay)
-                            .then(({value, base_found}) => {
-                                if(!base_found) {
-                                    framework_log.warn(`No secrets file found for application: ${base}`);
-                                }
-                                app_secrets = value;
-                            }),
-                    );
+                    loads.push(loadSecrets(definition.secrets, null).then((value) => { app_secrets = value; }));
                 }
-
                 for(const runtime of runtimes) {
-                    const component_dir = join(base_dir, runtime.id);
-                    if(runtime.component.config != null) {
-                        const {base, overlay} = tomlPaths(component_dir, "config", env);
-                        loads.push(
-                            loadTomlConfig(base, runtime.component.config, runtime.id, overlay)
-                                .then((config) => { runtime.config = config; }),
-                        );
+                    const {config, secrets} = runtime.component;
+                    if(config != null) {
+                        loads.push(loadConfig(config, runtime).then((value) => { runtime.config = value; }));
                     }
-                    if(runtime.component.secrets != null) {
-                        const {base, overlay} = tomlPaths(component_dir, "secrets", env);
-                        loads.push(
-                            loadTomlSecrets(base, runtime.component.secrets, runtime.id, overlay)
-                                .then(({value, base_found}) => {
-                                    if(!base_found) {
-                                        runtime.log.warn(`No secrets file found: ${base}`);
-                                    }
-                                    runtime.secrets = value;
-                                }),
-                        );
+                    if(secrets != null) {
+                        loads.push(loadSecrets(secrets, runtime).then((value) => { runtime.secrets = value; }));
                     }
                 }
-
                 await Promise.all(loads);
 
                 for(const runtime of runtimes) {
-                    await startComponent(runtime, dispatchCall, base_dir);
+                    await startComponent(runtime, dispatchCall);
                 }
             } catch (error) {
                 lifecycle.enter("failed");
@@ -291,9 +262,9 @@ export function createApplication<
                 const runtime = runtimes[i]!;
                 if(runtime.lifecycle.state !== "active") continue;
 
-                const stop_error = await stopComponent(runtime, dispatchCall, base_dir);
-                if(stop_error != null) {
-                    errors.push(stop_error);
+                const failure = await stopComponent(runtime, dispatchCall);
+                if(failure != null) {
+                    errors.push(failure.error);
                 }
             }
 
@@ -308,12 +279,7 @@ export function createApplication<
             }
         },
 
-        call<TCall extends CallFrom<TComponents[number]["calls"]>>(
-            reference: TCall,
-            input: CallInput<TCall>,
-        ): Promise<CallOutput<TCall>> {
-            return dispatchCall(reference, input) as Promise<CallOutput<TCall>>;
-        },
+        call: dispatchCall as Application<TComponents, TAppConfig, TAppSecrets>["call"],
 
         async reloadConfig(): Promise<void> {
             lifecycle.require("active", "reloadConfig");
@@ -325,24 +291,17 @@ export function createApplication<
             const pending_component_configs = new Map<ComponentRuntime, unknown>();
 
             try {
-                const config_loads: Promise<void>[] = [];
+                const loads: Promise<void>[] = [];
                 if(definition.config != null) {
-                    const {base, overlay} = tomlPaths(base_dir, "config", env);
-                    config_loads.push(
-                        loadTomlConfig(base, definition.config, null, overlay)
-                            .then((config) => { pending_app_config = config; }),
-                    );
+                    loads.push(loadConfig(definition.config, null).then((value) => { pending_app_config = value; }));
                 }
                 for(const runtime of runtimes) {
-                    if(runtime.component.config != null) {
-                        const {base, overlay} = tomlPaths(join(base_dir, runtime.id), "config", env);
-                        config_loads.push(
-                            loadTomlConfig(base, runtime.component.config, runtime.id, overlay)
-                                .then((config) => { pending_component_configs.set(runtime, config); }),
-                        );
+                    const {config} = runtime.component;
+                    if(config != null) {
+                        loads.push(loadConfig(config, runtime).then((value) => { pending_component_configs.set(runtime, value); }));
                     }
                 }
-                await Promise.all(config_loads);
+                await Promise.all(loads);
             } catch (error) {
                 lifecycle.enter("active");
                 framework_log.error({event: "app.active", err: error}, "Configuration reload failed; configuration unchanged.");
@@ -358,8 +317,7 @@ export function createApplication<
 
             const results = await Promise.allSettled(runtimes.map(async (runtime) => {
                 if(runtime.component.onConfigReload != null) {
-                    const context = buildContext(runtime, dispatchCall, base_dir);
-                    await runtime.component.onConfigReload(context);
+                    await runtime.component.onConfigReload(buildContext(runtime, dispatchCall));
                 }
             }));
             const errors = results
@@ -402,32 +360,24 @@ export function createApplication<
                 framework_log.error({event: "app.active", component_id, err: error}, "Component configuration reload failed; unknown component.");
                 throw error;
             }
-            if(runtime.component.config == null) {
+            const schema = runtime.component.config;
+            if(schema == null) {
                 lifecycle.enter("active");
                 framework_log.info({event: "app.active", component_id, ms: performance.now() - reloaded_at}, "Component has no configuration to reload.");
                 return;
             }
 
-            let pending_config: unknown;
             try {
-                const {base, overlay} = tomlPaths(join(base_dir, runtime.id), "config", env);
-                pending_config = await loadTomlConfig(
-                    base,
-                    runtime.component.config,
-                    runtime.id,
-                    overlay,
-                );
+                runtime.config = await loadConfig(schema, runtime);
             } catch (error) {
                 lifecycle.enter("active");
                 framework_log.error({event: "app.active", component_id, err: error}, "Component configuration reload failed; configuration unchanged.");
                 throw error;
             }
-            runtime.config = pending_config;
 
             try {
                 if(runtime.component.onConfigReload != null) {
-                    const context = buildContext(runtime, dispatchCall, base_dir);
-                    await runtime.component.onConfigReload(context);
+                    await runtime.component.onConfigReload(buildContext(runtime, dispatchCall));
                 }
             } catch (error) {
                 lifecycle.enter("failed");
@@ -446,6 +396,7 @@ export function createApplication<
 function buildRuntimes(
     ordered_components: readonly AnyComponent[],
     loggerFactory: LoggerFactory,
+    base_dir: string,
 ): {
     runtimes: readonly ComponentRuntime[];
     id_to_runtime: ReadonlyMap<ComponentId, ComponentRuntime>;
@@ -463,11 +414,15 @@ function buildRuntimes(
             }
         }
 
+        const id = component.calls.id;
+        const dir = join(base_dir, id);
         const runtime: ComponentRuntime = {
             component,
-            id: component.calls.id,
+            id,
+            dir,
+            data: createDataAccess(join(dir, "data")),
             lifecycle: createLifecycleMachine(),
-            log: loggerFactory(component.calls.id),
+            log: loggerFactory(id),
             callable_references,
             state: component.state != null ? component.state() : null,
             config: null,
@@ -475,14 +430,10 @@ function buildRuntimes(
         };
 
         runtimes.push(runtime);
-        id_to_runtime.set(runtime.id, runtime);
+        id_to_runtime.set(id, runtime);
 
         for(const [name, reference] of Object.entries(component.calls.calls)) {
-            const handler = component.handlers[name];
-            if(handler == null) {
-                // unreachable after validateAndSort, kept as defensive check
-                throw new MissingHandlerError(component.calls.id, name);
-            }
+            const handler = component.handlers[name]!;
             dispatchers.set(reference, {
                 runtime,
                 handle: typeof handler === "function"
@@ -495,14 +446,10 @@ function buildRuntimes(
     return {runtimes, id_to_runtime, dispatchers};
 }
 
-function buildContext(
-    runtime: ComponentRuntime,
-    dispatchCall: DispatchFn,
-    base_dir: string,
-): AnyComponentContext {
+function buildContext(runtime: ComponentRuntime, dispatchCall: DispatchFn): AnyComponentContext {
     return {
         log: runtime.log,
-        data: createDataAccess(join(base_dir, runtime.id, "data")),
+        data: runtime.data,
         call(reference: AnyComponentCallReference, input: unknown) {
             if(!runtime.callable_references.has(reference)) {
                 throw new UndeclaredCallError(
@@ -519,28 +466,17 @@ function buildContext(
     };
 }
 
-/**
- * Starts a single component: enters `starting`, runs its `start` hook (if any), then enters
- * `active`, logging each transition. Throws — after entering `failed` and logging at error — if
- * the hook rejects. Factored out so one component can be started independently, e.g. for HMR
- * (s0006).
- */
-async function startComponent(
-    runtime: ComponentRuntime,
-    dispatchCall: DispatchFn,
-    base_dir: string,
-): Promise<void> {
+async function startComponent(runtime: ComponentRuntime, dispatchCall: DispatchFn): Promise<void> {
     runtime.lifecycle.enter("starting");
     runtime.log.debug({event: "component.starting"}, "Component starting.");
-    const component_started_at = performance.now();
+    const started_at = performance.now();
     try {
         if(runtime.component.start != null) {
-            const context = buildContext(runtime, dispatchCall, base_dir);
-            await runtime.component.start(context);
+            await runtime.component.start(buildContext(runtime, dispatchCall));
         }
         runtime.lifecycle.enter("active");
         runtime.log.debug(
-            {event: "component.active", ms: performance.now() - component_started_at},
+            {event: "component.active", ms: performance.now() - started_at},
             "Component active.",
         );
     } catch (error) {
@@ -550,45 +486,27 @@ async function startComponent(
     }
 }
 
-/**
- * Stops a single component: enters `stopping`, runs its `stop` hook (if any), then enters
- * `idle`, logging each transition. A throwing stop hook is logged at error and returned rather
- * than rethrown, so callers can continue best-effort. Factored out for reuse, e.g. for HMR
- * (s0006).
- *
- * @returns The error thrown by the stop hook, or `null` if it completed.
- */
-async function stopComponent(
-    runtime: ComponentRuntime,
-    dispatchCall: DispatchFn,
-    base_dir: string,
-): Promise<unknown> {
+/** Returns the stop hook's failure instead of throwing it, or `null` if the hook completed. */
+async function stopComponent(runtime: ComponentRuntime, dispatchCall: DispatchFn): Promise<{readonly error: unknown} | null> {
     runtime.lifecycle.enter("stopping");
     runtime.log.debug({event: "component.stopping"}, "Component stopping.");
-    const component_stopped_at = performance.now();
-    let stop_error: unknown = null;
+    const stopped_at = performance.now();
+    let failure: {readonly error: unknown} | null = null;
     if(runtime.component.stop != null) {
         try {
-            const context = buildContext(runtime, dispatchCall, base_dir);
-            await runtime.component.stop(context);
+            await runtime.component.stop(buildContext(runtime, dispatchCall));
         } catch (error) {
-            stop_error = error;
+            failure = {error};
         }
     }
     runtime.lifecycle.enter("idle");
-    const component_stop_ms = performance.now() - component_stopped_at;
-    if(stop_error != null) {
-        runtime.log.error(
-            {event: "component.idle", ms: component_stop_ms, err: stop_error},
-            "Component stop hook failed.",
-        );
+    const ms = performance.now() - stopped_at;
+    if(failure != null) {
+        runtime.log.error({event: "component.idle", ms, err: failure.error}, "Component stop hook failed.");
     } else {
-        runtime.log.debug(
-            {event: "component.idle", ms: component_stop_ms},
-            "Component idle.",
-        );
+        runtime.log.debug({event: "component.idle", ms}, "Component idle.");
     }
-    return stop_error;
+    return failure;
 }
 
 function validateAndSort(components: readonly AnyComponent[]): readonly AnyComponent[] {
@@ -629,18 +547,31 @@ function validateAndSort(components: readonly AnyComponent[]): readonly AnyCompo
         throw new DuplicateCallError([...duplicate_call_keys]);
     }
 
+    const dependenciesOf = (component: AnyComponent): AnyComponent[] =>
+        component.uses.map((used_calls) => calls_to_component.get(used_calls)!);
+
     try {
-        return topologicalSort(
-            [...components],
-            (component) => component.uses
-                .map((used_calls) => calls_to_component.get(used_calls))
-                .filter((dep): dep is AnyComponent => dep != null),
-        );
+        return topologicalSort(components, dependenciesOf);
     } catch (error) {
         if(error instanceof TopologicalCycleError) {
-            const ids = (error.remaining as AnyComponent[]).map((c) => c.calls.id);
-            throw new CircularDependencyError(ids);
+            const blocked = error.remaining as readonly AnyComponent[];
+            const cyclic_ids = blocked
+                .filter((component) => isOnCycle(component, dependenciesOf))
+                .map((component) => component.calls.id);
+            throw new CircularDependencyError(cyclic_ids);
         }
         throw error;
     }
+}
+
+function isOnCycle(start: AnyComponent, dependenciesOf: (component: AnyComponent) => readonly AnyComponent[]): boolean {
+    const visited = new Set<AnyComponent>();
+    const pending = [...dependenciesOf(start)];
+    for(let node = pending.pop(); node != null; node = pending.pop()) {
+        if(node === start) return true;
+        if(visited.has(node)) continue;
+        visited.add(node);
+        pending.push(...dependenciesOf(node));
+    }
+    return false;
 }

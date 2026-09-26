@@ -49,6 +49,15 @@ describe("topologicalSort", () => {
         assert.deepStrictEqual(result, ["x", "y", "z"]);
     });
 
+    it("places a newly ready node before later ready nodes by insertion order", () => {
+        const result = topologicalSort(["x", "a", "b"], (node) => node === "a" ? ["x"] : []);
+        assert.deepStrictEqual(result, ["x", "a", "b"]);
+    });
+
+    it("rejects duplicate nodes", () => {
+        assert.throws(() => topologicalSort(["a", "b", "a"], () => []), RangeError);
+    });
+
     it("throws TopologicalCycleError on self-cycle", () => {
         assert.throws(
             () => topologicalSort(["a"], (node) => [node]),

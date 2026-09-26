@@ -2,27 +2,24 @@ import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 
 import {assertEqualType} from "@jiminp/tooltool";
+import {type as schema} from "arktype";
 
+import {createApplication, defineApplication} from "../application/application.ts";
 import {InvalidComponentIdError} from "../error.ts";
-import {
-    consoleLoggerFactory,
-    type Logger,
-} from "../index.ts";
 import {
     CounterOutput,
     EmptyInput,
     RenderOutput,
     SetCounterInput,
 } from "../test-util.ts";
-import {
-    type AnyComponent,
-    type AnyComponentContext,
-    type CallInput,
-    type CallOutput,
-    type ComponentContext,
-    defineComponent,
-    defineComponentCalls,
-} from "./component.ts";
+import {defineComponent, defineComponentCalls} from "./component.ts";
+import type {AnyComponentContext, ComponentContext} from "./context.ts";
+import type {AnyComponent, CallInput, CallOutput} from "./types.ts";
+
+const ParsedInput = schema({value: "string.numeric.parse"});
+const DefaultedOutput = schema({count: "number = 0"});
+
+const silent_logger = {debug() {}, info() {}, warn() {}, error() {}};
 
 describe("@jiminp/stelaro component core", () => {
     it("defines component call references with stable public component ids and names", () => {
@@ -37,86 +34,6 @@ describe("@jiminp/stelaro component core", () => {
         assert.deepStrictEqual(CounterCalls.calls.current.name, "current");
         assert.deepStrictEqual(CounterCalls.calls.current.input, EmptyInput);
         assert.deepStrictEqual(CounterCalls.calls.current.output, CounterOutput);
-    });
-
-    it("defines components from call surfaces, declared uses, and handlers", () => {
-        const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-        });
-        const CounterComponent = defineComponent({
-            calls: CounterCalls,
-            uses: [],
-            handlers: {
-                current: {
-                    handle() {
-                        return {
-                            count: 0,
-                        };
-                    },
-                },
-            },
-        });
-
-        assert.deepStrictEqual(CounterComponent.calls, CounterCalls);
-        assert.deepStrictEqual(CounterComponent.uses, []);
-        const current_handler = CounterComponent.handlers.current;
-        assert.ok(typeof current_handler === "object");
-        assert.deepStrictEqual(typeof current_handler.handle, "function");
-    });
-
-    it("defines a component with an optional state factory", () => {
-        const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-        });
-        const CounterComponent = defineComponent({
-            calls: CounterCalls,
-            uses: [],
-            state: () => ({
-                count: 0,
-            }),
-            handlers: {
-                current: {
-                    handle({state}) {
-                        return {
-                            count: state.count,
-                        };
-                    },
-                },
-            },
-        });
-
-        assert.deepStrictEqual(typeof CounterComponent.state, "function");
-        assert.deepStrictEqual(CounterComponent.state(), {count: 0});
-    });
-
-    it("defines a component without state", () => {
-        const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-        });
-        const CounterComponent = defineComponent({
-            calls: CounterCalls,
-            uses: [],
-            handlers: {
-                current: {
-                    handle() {
-                        return {
-                            count: 0,
-                        };
-                    },
-                },
-            },
-        });
-
-        assert.deepStrictEqual("state" in CounterComponent, false);
     });
 
     it("accepts lowercase kebab-case component ids", () => {
@@ -143,13 +60,30 @@ describe("@jiminp/stelaro component core", () => {
         }
     });
 
-    it("exports a default console logger factory from the core package root", () => {
-        const log = consoleLoggerFactory("counter");
+    it("passes validated input to handlers and validates their output for callers", async () => {
+        const ParseCalls = defineComponentCalls("parse", {
+            run: {input: ParsedInput, output: DefaultedOutput},
+        });
+        let received: unknown = null;
+        const ParseComponent = defineComponent({
+            calls: ParseCalls,
+            uses: [],
+            handlers: {
+                run(_context, input) {
+                    received = input;
+                    return {};
+                },
+            },
+        });
+        const app = createApplication(
+            defineApplication({components: [ParseComponent], logger: () => silent_logger}),
+        );
+        await app.start();
 
-        assert.deepStrictEqual(typeof log.debug, "function");
-        assert.deepStrictEqual(typeof log.info, "function");
-        assert.deepStrictEqual(typeof log.warn, "function");
-        assert.deepStrictEqual(typeof log.error, "function");
+        assert.deepStrictEqual(await app.call(ParseCalls.calls.run, {value: "42"}), {count: 0});
+        assert.deepStrictEqual(received, {value: 42});
+
+        await app.stop();
     });
 });
 
@@ -279,18 +213,6 @@ function assertTypeBehavior() {
         },
     });
 
-    // AnyComponentContext includes state as a known optional property.
-    void ((_ctx: AnyComponentContext) => {
-        const _state: unknown = _ctx.state;
-        void _state;
-    });
-
-    // AnyComponentContext includes component-scoped logging.
-    void ((_ctx: AnyComponentContext) => {
-        const _log: Logger = _ctx.log;
-        void _log;
-    });
-
     // Stateful ComponentContext is assignable to AnyComponentContext.
     void ((_ctx: ComponentContext<[], {count: number}>) => {
         const _erased: AnyComponentContext = _ctx;
@@ -301,13 +223,6 @@ function assertTypeBehavior() {
     void ((_ctx: ComponentContext<[]>) => {
         const _erased: AnyComponentContext = _ctx;
         void _erased;
-    });
-
-    // ComponentContext includes component-scoped logging for component behavior.
-    void ((_ctx: ComponentContext<[]>) => {
-        const _log: Logger = _ctx.log;
-        _ctx.log.info("message", {count: 1}, ["extra"], 2);
-        void _log;
     });
 
     // Stateful component state is narrowed to the factory return type, not unknown.
@@ -379,6 +294,100 @@ function assertTypeBehavior() {
     });
     const _stateless_any: AnyComponent = stateless_component;
     void _stateless_any;
+
+    const ParseCalls = defineComponentCalls("parse", {
+        run: {input: ParsedInput, output: DefaultedOutput},
+    });
+
+    // Callers pass pre-validation input and receive validated output.
+    assertEqualType<CallInput<typeof ParseCalls.calls.run>, {value: string}>();
+    assertEqualType<CallOutput<typeof ParseCalls.calls.run>, {count: number}>();
+
+    // Handlers receive validated input and may return pre-validation output.
+    void defineComponent({
+        calls: ParseCalls,
+        uses: [],
+        handlers: {
+            run(_context, _input) {
+                assertEqualType<typeof _input, {value: number}>();
+
+                return {};
+            },
+        },
+    });
+
+    // `call` checks input and infers output for declared `uses` surfaces.
+    void defineComponent({
+        calls: PageCalls,
+        uses: [CounterCalls, ParseCalls],
+        handlers: {
+            render: {
+                async handle({call}) {
+                    const _counter = await call(CounterCalls.calls.set, {count: 1});
+                    assertEqualType<typeof _counter, {count: number}>();
+
+                    const _parsed = await call(ParseCalls.calls.run, {value: "1"});
+                    assertEqualType<typeof _parsed, {count: number}>();
+
+                    // @ts-expect-error call input is checked against the input schema.
+                    await call(CounterCalls.calls.set, {count: "1"});
+
+                    return {html: ""};
+                },
+            },
+        },
+    });
+
+    // Declared config and secrets are typed from their schemas.
+    void defineComponent({
+        calls: PageCalls,
+        uses: [],
+        config: schema({port: "number"}),
+        secrets: schema({api_key: "string"}),
+        handlers: {
+            render(_context) {
+                assertEqualType<typeof _context.config, {port: number}>();
+                assertEqualType<typeof _context.secrets, {api_key: string}>();
+
+                return {html: ""};
+            },
+        },
+    });
+
+    // Undeclared config and secrets are absent.
+    void defineComponent({
+        calls: PageCalls,
+        uses: [],
+        handlers: {
+            render(context) {
+                // @ts-expect-error components without a config schema do not receive config.
+                void context.config;
+                // @ts-expect-error components without a secrets schema do not receive secrets.
+                void context.secrets;
+
+                return {html: ""};
+            },
+        },
+    });
+
+    // Every call in the surface needs exactly one handler.
+    void defineComponent({
+        calls: CounterCalls,
+        uses: [],
+        // @ts-expect-error the `set` handler is missing.
+        handlers: {
+            current: () => ({count: 0}),
+        },
+    });
+    void defineComponent({
+        calls: PageCalls,
+        uses: [],
+        handlers: {
+            render: () => ({html: ""}),
+            // @ts-expect-error `extra` is not a call in the surface.
+            extra: () => ({html: ""}),
+        },
+    });
 }
 
 void assertTypeBehavior;

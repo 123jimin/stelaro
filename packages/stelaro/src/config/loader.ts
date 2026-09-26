@@ -1,8 +1,6 @@
-import {readFile} from "node:fs/promises";
-
 import {recursiveMerge} from "@jiminp/tooltool";
-import {parse} from "smol-toml";
 
+import {fluentPath} from "../fs/path.ts";
 import {
     ConfigFileError,
     ConfigValidationError,
@@ -11,119 +9,75 @@ import {
 } from "./error.ts";
 import type {ConfigSchema} from "./types.ts";
 
-function readToml(file_path: string): Promise<Record<string, unknown>> {
-    return readFile(file_path, "utf-8").then(parse);
-}
+type TomlTable = Record<string, unknown>;
 
-async function readOptionalToml(
+type TomlLoadResult = {
+    readonly value: unknown;
+    /** Whether the base file exists */
+    readonly base_found: boolean;
+};
+
+type TomlSourceKind = {
+    readonly base_required: boolean;
+    readonly FileError: typeof ConfigFileError | typeof SecretsFileError;
+    readonly ValidationError: typeof ConfigValidationError | typeof SecretsValidationError;
+};
+
+const CONFIG_SOURCE: TomlSourceKind = {
+    base_required: true,
+    FileError: ConfigFileError,
+    ValidationError: ConfigValidationError,
+};
+
+const SECRETS_SOURCE: TomlSourceKind = {
+    base_required: false,
+    FileError: SecretsFileError,
+    ValidationError: SecretsValidationError,
+};
+
+async function loadToml(
+    kind: TomlSourceKind,
     file_path: string,
-): Promise<Record<string, unknown> | null> {
-    try {
-        return await readToml(file_path);
-    } catch (error) {
-        if((error as NodeJS.ErrnoException).code === "ENOENT") {
-            return null;
+    overlay_path: string | null,
+    schema: ConfigSchema,
+    component_id: string | null,
+): Promise<TomlLoadResult> {
+    const readTable = async (path: string, optional: boolean): Promise<TomlTable | null> => {
+        try {
+            const reader = fluentPath(path).read();
+            return await (optional ? reader.optional().toml() : reader.toml()) as TomlTable | null;
+        } catch (error) {
+            throw new kind.FileError(path, component_id, error);
         }
-        throw error;
+    };
+
+    const base = await readTable(file_path, !kind.base_required);
+    const overlay = overlay_path != null ? await readTable(overlay_path, true) : null;
+
+    try {
+        return {value: schema.assert(recursiveMerge(base ?? {}, overlay)), base_found: base != null};
+    } catch (error) {
+        throw new kind.ValidationError(file_path, component_id, error);
     }
 }
 
-/**
- * Loads and validates a TOML config file, optionally merging an environment overlay.
- *
- * @param file_path - Path to the base config TOML file
- * @param schema - Schema to validate the merged result against
- * @param component_id - Owning component id for error context, or `null` for application-level
- * @param overlay_path - Optional environment-specific overlay file to merge
- * @returns Validated config value
- * @throws {ConfigFileError} If the base or overlay file cannot be read
- * @throws {ConfigValidationError} If the merged config fails schema validation
- */
+/** Loads a required TOML config file merged with an optional overlay, then validates it. */
 export async function loadTomlConfig(
     file_path: string,
     schema: ConfigSchema,
     component_id: string | null = null,
     overlay_path: string | null = null,
 ): Promise<unknown> {
-    let base: Record<string, unknown>;
-    try {
-        base = await readToml(file_path);
-    } catch (error) {
-        throw new ConfigFileError(file_path, component_id, error);
-    }
-
-    if(overlay_path != null) {
-        let overlay: Record<string, unknown> | null;
-        try {
-            overlay = await readOptionalToml(overlay_path);
-        } catch (error) {
-            throw new ConfigFileError(overlay_path, component_id, error);
-        }
-        if(overlay != null) {
-            base = recursiveMerge(base, overlay);
-        }
-    }
-
-    try {
-        return schema.assert(base);
-    } catch (error) {
-        throw new ConfigValidationError(file_path, component_id, error);
-    }
+    const {value} = await loadToml(CONFIG_SOURCE, file_path, overlay_path, schema, component_id);
+    return value;
 }
 
-/** Result of loading a secrets file, including whether the base file existed. */
-export type SecretsLoadResult = {
-    /** Validated secrets value */
-    readonly value: unknown;
-    /** `true` if the base secrets file was found on disk */
-    readonly base_found: boolean;
-};
-
-/**
- * Loads and validates a TOML secrets file, optionally merging an environment overlay.
- *
- * Unlike config, a missing base secrets file is not an error — the result
- * indicates whether the base file was found via `base_found`.
- *
- * @param file_path - Path to the base secrets TOML file
- * @param schema - Schema to validate the merged result against
- * @param component_id - Owning component id for error context, or `null` for application-level
- * @param overlay_path - Optional environment-specific overlay file to merge
- * @returns Validated secrets value and whether the base file existed
- * @throws {SecretsFileError} If a file exists but cannot be read
- * @throws {SecretsValidationError} If the merged secrets fail schema validation
- */
-export async function loadTomlSecrets(
+/** Loads an optional TOML secrets file merged with an optional overlay, then validates it. */
+export function loadTomlSecrets(
     file_path: string,
     schema: ConfigSchema,
     component_id: string | null = null,
     overlay_path: string | null = null,
-): Promise<SecretsLoadResult> {
-    let base: Record<string, unknown>;
-    let base_found: boolean;
-    try {
-        const result = await readOptionalToml(file_path);
-        base = result ?? {};
-        base_found = result != null;
-    } catch (error) {
-        throw new SecretsFileError(file_path, component_id, error);
-    }
-
-    if(overlay_path != null) {
-        let overlay: Record<string, unknown> | null;
-        try {
-            overlay = await readOptionalToml(overlay_path);
-        } catch (error) {
-            throw new SecretsFileError(overlay_path, component_id, error);
-        }
-        if(overlay != null) {
-            base = recursiveMerge(base, overlay);
-        }
-    }
-
-    try {
-        return {value: schema.assert(base), base_found};
-    } catch (error) {
-        throw new SecretsValidationError(file_path, component_id, error);
-    }
+): Promise<TomlLoadResult> {
+    return loadToml(SECRETS_SOURCE, file_path, overlay_path, schema, component_id);
 }

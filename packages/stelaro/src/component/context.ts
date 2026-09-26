@@ -1,37 +1,17 @@
 import type {DataAccess} from "../data/data.ts";
 import type {Logger} from "./logger.ts";
-import type {
-    AnyComponentCalls,
-    CallFrom,
-    CallInput,
-    CallOutput,
-} from "./types.ts";
-
-type BaseComponentContext<TUses extends readonly AnyComponentCalls[]> = {
-    /** Logger scoped to this component */
-    readonly log: Logger;
-    /** Component-scoped data directory access */
-    readonly data: DataAccess;
-    /**
-     * Dispatches a typed call to another component.
-     *
-     * @param reference - Typed call reference from a declared `uses` surface
-     * @param input - Call input
-     * @returns The handler's validated output
-     */
-    call<TCall extends CallFrom<TUses[number]>>(
-        reference: TCall,
-        input: CallInput<TCall>,
-    ): Promise<CallOutput<TCall>>;
-};
+import type {AnyComponentCalls, ComponentCallFn} from "./types.ts";
 
 /**
- * Runtime capabilities available to component handlers.
+ * Runtime capabilities available to component handlers and hooks.
  *
- * The `call` method is typed from the component's declared `uses` surfaces.
- * Stateful components also receive their `state` object.
- * Components with a config schema receive their validated `config` object.
+ * `call` accepts only references from the declared `uses` surfaces, and
+ * `state`, `config`, and `secrets` are present only when the component declares them.
  *
+ * @typeParam TUses - Call surfaces the component may invoke
+ * @typeParam TState - Component state type (default: `undefined`)
+ * @typeParam TConfig - Validated config type (default: `undefined`)
+ * @typeParam TSecrets - Validated secrets type (default: `undefined`)
  * @category Component
  */
 export type ComponentContext<
@@ -39,18 +19,33 @@ export type ComponentContext<
     TState = undefined,
     TConfig = undefined,
     TSecrets = undefined,
-> = BaseComponentContext<TUses>
-    & ([TState] extends [undefined] ? unknown : {readonly state: TState})
-    & ([TConfig] extends [undefined] ? unknown : {readonly config: TConfig})
-    & ([TSecrets] extends [undefined] ? unknown : {readonly secrets: TSecrets});
+> = {
+    /** Logger scoped to this component */
+    readonly log: Logger;
+    /** Component-scoped data directory access */
+    readonly data: DataAccess;
+    /** Dispatches a typed call to a component from a declared `uses` surface */
+    readonly call: ComponentCallFn<TUses>;
+} & ([TState] extends [undefined] ? unknown : {
+    /** State created by the component's state factory */
+    readonly state: TState;
+}) & ([TConfig] extends [undefined] ? unknown : {
+    /** Validated component config */
+    readonly config: TConfig;
+}) & ([TSecrets] extends [undefined] ? unknown : {
+    /** Validated component secrets */
+    readonly secrets: TSecrets;
+});
 
-/** Type-erased component context used internally by the framework.
+/** Type-erased component context accepted by application APIs.
  *
  * @category Component
  */
 export type AnyComponentContext = ComponentContext<readonly AnyComponentCalls[]> & {
-    readonly data: DataAccess;
+    /** Component state, if the component is stateful */
     readonly state?: unknown;
+    /** Validated component config, if declared */
     readonly config?: unknown;
+    /** Validated component secrets, if declared */
     readonly secrets?: unknown;
 };

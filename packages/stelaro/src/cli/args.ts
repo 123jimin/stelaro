@@ -24,6 +24,7 @@ function resolvePath(value: string | undefined): string | undefined {
  *
  * @param argv - Argument array (default: `process.argv.slice(2)`)
  * @returns Parsed arguments
+ * @throws {TypeError} If an unknown option, a positional argument, or an option without a value is supplied
  * @category Application
  */
 export function parseArgs(argv?: string[]): ParsedArgs {

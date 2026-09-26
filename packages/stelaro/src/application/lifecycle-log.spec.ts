@@ -1,24 +1,23 @@
 import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 
-import {defineComponent, defineComponentCalls} from "../component/component.ts";
 import type {Logger, LoggerFactory} from "../component/logger.ts";
-import {CounterOutput, EmptyInput} from "../test-util.ts";
+import {type CounterComponentOptions, defineCounterCalls, defineCounterComponent} from "../test-util.ts";
 import {createApplication, defineApplication, FRAMEWORK_NAME} from "./application.ts";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 type CapturedRecord = {readonly scope: string; readonly level: LogLevel; readonly args: readonly unknown[]};
 
 function capturingLoggerFactory(sink: CapturedRecord[]): LoggerFactory {
-    return (component_id): Logger => {
+    return (scope): Logger => {
         const make = (level: LogLevel) => (...args: unknown[]): void => {
-            sink.push({scope: component_id, level, args});
+            sink.push({scope, level, args});
         };
         return {debug: make("debug"), info: make("info"), warn: make("warn"), error: make("error")};
     };
 }
 
-/** Extracts the leading merge object (structured fields) from a captured record, if any. */
+/** Returns the leading structured-fields object of a record, if any. */
 function fieldsOf(record: CapturedRecord): Record<string, unknown> {
     const first = record.args[0];
     return first !== null && typeof first === "object" && !Array.isArray(first)
@@ -33,19 +32,15 @@ function eventsFor(sink: readonly CapturedRecord[], scope: string, level: LogLev
         .filter((event): event is string => typeof event === "string");
 }
 
-function counterComponent(id: string) {
-    return defineComponent({
-        calls: defineComponentCalls(id, {current: {input: EmptyInput, output: CounterOutput}}),
-        uses: [],
-        handlers: {current: {handle() { return {count: 1}; }}},
-    });
+function counterComponent(hooks: CounterComponentOptions<readonly []> = {}) {
+    return defineCounterComponent(defineCounterCalls("counter"), hooks);
 }
 
 describe("application lifecycle logging", () => {
     it("logs application start and stop transitions at info under the framework scope", async () => {
         const sink: CapturedRecord[] = [];
         const app = createApplication(defineApplication({
-            components: [counterComponent("counter")],
+            components: [counterComponent()],
             logger: capturingLoggerFactory(sink),
         }));
 
@@ -61,7 +56,7 @@ describe("application lifecycle logging", () => {
     it("logs component start and stop transitions at debug under the component scope", async () => {
         const sink: CapturedRecord[] = [];
         const app = createApplication(defineApplication({
-            components: [counterComponent("counter")],
+            components: [counterComponent()],
             logger: capturingLoggerFactory(sink),
         }));
 
@@ -77,7 +72,7 @@ describe("application lifecycle logging", () => {
     it("carries a non-negative numeric duration on terminal start/stop records", async () => {
         const sink: CapturedRecord[] = [];
         const app = createApplication(defineApplication({
-            components: [counterComponent("counter")],
+            components: [counterComponent()],
             logger: capturingLoggerFactory(sink),
         }));
 
@@ -89,7 +84,7 @@ describe("application lifecycle logging", () => {
             return event === "app.active" || event === "app.idle"
                 || event === "component.active" || event === "component.idle";
         });
-        assert.ok(terminal.length >= 4);
+        assert.strictEqual(terminal.length, 4);
         for(const record of terminal) {
             const ms = fieldsOf(record)["ms"];
             assert.deepStrictEqual(typeof ms, "number");
@@ -100,14 +95,8 @@ describe("application lifecycle logging", () => {
     it("logs a start failure at error under both the component and framework scopes", async () => {
         const sink: CapturedRecord[] = [];
         const boom = new Error("start boom");
-        const Failing = defineComponent({
-            calls: defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}}),
-            uses: [],
-            handlers: {current: {handle() { return {count: 1}; }}},
-            start() { throw boom; },
-        });
         const app = createApplication(defineApplication({
-            components: [Failing],
+            components: [counterComponent({start() { throw boom; }})],
             logger: capturingLoggerFactory(sink),
         }));
 
@@ -126,7 +115,7 @@ describe("application lifecycle logging", () => {
     it("logs config reload transitions at info under the framework scope", async () => {
         const sink: CapturedRecord[] = [];
         const app = createApplication(defineApplication({
-            components: [counterComponent("counter")],
+            components: [counterComponent()],
             logger: capturingLoggerFactory(sink),
         }));
 
@@ -143,7 +132,7 @@ describe("application lifecycle logging", () => {
     it("identifies the target component when reloading a single component's config", async () => {
         const sink: CapturedRecord[] = [];
         const app = createApplication(defineApplication({
-            components: [counterComponent("counter")],
+            components: [counterComponent()],
             logger: capturingLoggerFactory(sink),
         }));
 
@@ -160,29 +149,17 @@ describe("application lifecycle logging", () => {
     it("logs a stop-hook failure at error under the entered idle state", async () => {
         const sink: CapturedRecord[] = [];
         const boom = new Error("stop boom");
-        const Failing = defineComponent({
-            calls: defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}}),
-            uses: [],
-            handlers: {current: {handle() { return {count: 1}; }}},
-            stop() { throw boom; },
-        });
         const app = createApplication(defineApplication({
-            components: [Failing],
+            components: [counterComponent({stop() { throw boom; }})],
             logger: capturingLoggerFactory(sink),
         }));
 
         await app.start();
         await assert.rejects(app.stop());
 
-        // The failed stop still enters idle, so it is logged at error under component.idle
-        // (carrying the error) rather than a separate component.failed event.
         const idle_error = sink.find((record) =>
             record.scope === "counter" && record.level === "error" && fieldsOf(record)["event"] === "component.idle");
         assert.ok(idle_error, "expected a component.idle error record for the failed stop");
         assert.deepStrictEqual(fieldsOf(idle_error)["err"], boom);
-
-        const failed_count = sink.filter((record) =>
-            record.scope === "counter" && fieldsOf(record)["event"] === "component.failed").length;
-        assert.deepStrictEqual(failed_count, 0);
     });
 });

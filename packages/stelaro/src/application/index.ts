@@ -1,3 +1,9 @@
-export * from "./application.ts";
+export {
+    type Application,
+    type ApplicationDefinition,
+    type ApplicationOptions,
+    createApplication,
+    defineApplication,
+} from "./application.ts";
 export * from "./error.ts";
-export * from "./lifecycle.ts";
+export {type LifecycleState, LifecycleStateError} from "./lifecycle.ts";

@@ -2,26 +2,24 @@ import assert from "node:assert/strict";
 import {join, resolve} from "node:path";
 import {describe, it} from "node:test";
 
-import {
-    type AnyComponentContext,
-    type CallInput,
-    type CallOutput,
-    defineComponent,
-    defineComponentCalls,
-} from "../component/component.ts";
+import type {Promisable} from "@jiminp/tooltool";
+import {TraversalError} from "arktype";
+
+import {parseArgs} from "../cli/args.ts";
+import {defineComponent, defineComponentCalls} from "../component/component.ts";
+import type {AnyComponentContext} from "../component/context.ts";
 import type {Logger} from "../component/logger.ts";
-import {StelaroError} from "../error.ts";
+import type {CallInput, CallOutput} from "../component/types.ts";
 import {
     CounterOutput,
+    defineCounterCalls,
+    defineCounterComponent,
     EmptyInput,
+    noopLoggerFactory,
     RenderOutput,
     SetCounterInput,
 } from "../test-util.ts";
-import {
-    createApplication,
-    defineApplication,
-    FRAMEWORK_NAME,
-} from "./application.ts";
+import {createApplication, defineApplication} from "./application.ts";
 import {
     CircularDependencyError,
     DuplicateComponentIdError,
@@ -30,114 +28,21 @@ import {
     UndeclaredCallError,
     UnregisteredCallError,
 } from "./error.ts";
-import {LifecycleStateError} from "./lifecycle.ts";
+import {type LifecycleState, LifecycleStateError} from "./lifecycle.ts";
 
 type LoggerMethodName = "debug" | "info" | "warn" | "error";
 
 const logger_method_names = ["debug", "info", "warn", "error"] as const satisfies readonly LoggerMethodName[];
 
+function recordHooks(events: string[], id: string): {start: () => void; stop: () => void} {
+    return {
+        start: () => { events.push(`start ${id}`); },
+        stop: () => { events.push(`stop ${id}`); },
+    };
+}
+
 describe("@jiminp/stelaro application core", () => {
-    it("declares an application separately from creating the application runtime", () => {
-        const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-        });
-        const CounterComponent = defineComponent({
-            calls: CounterCalls,
-            uses: [],
-            handlers: {
-                current: {
-                    handle() {
-                        return {
-                            count: 1,
-                        };
-                    },
-                },
-            },
-        });
-
-        const CounterApp = defineApplication({
-            components: [
-                CounterComponent,
-            ],
-        });
-        const app = createApplication(CounterApp);
-
-        assert.deepStrictEqual(CounterApp.components, [CounterComponent]);
-        assert.deepStrictEqual(typeof app.call, "function");
-    });
-
-    it("dispatches typed component calls within one application", async () => {
-        let count = 0;
-        const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-            increment: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-            set: {
-                input: SetCounterInput,
-                output: CounterOutput,
-            },
-        });
-        const CounterComponent = defineComponent({
-            calls: CounterCalls,
-            uses: [],
-            handlers: {
-                current: {
-                    handle() {
-                        return {
-                            count,
-                        };
-                    },
-                },
-                increment: {
-                    async handle() {
-                        count += 1;
-
-                        return {
-                            count,
-                        };
-                    },
-                },
-                set: {
-                    handle(_context, input) {
-                        count = input.count;
-
-                        return {
-                            count,
-                        };
-                    },
-                },
-            },
-        });
-        const CounterApp = defineApplication({
-            components: [
-                CounterComponent,
-            ],
-        });
-        const app = createApplication(CounterApp);
-        await app.start();
-
-        assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {
-            count: 0,
-        });
-        assert.deepStrictEqual(await app.call(CounterCalls.calls.increment, {}), {
-            count: 1,
-        });
-        assert.deepStrictEqual(await app.call(CounterCalls.calls.set, {
-            count: 5,
-        }), {
-            count: 5,
-        });
-    });
-
-    it("dispatches a handler written as a bare callable identically to the object form", async () => {
+    it("dispatches object-form and callable-form handlers", async () => {
         let count = 0;
         const CounterCalls = defineComponentCalls("counter", {
             current: {input: EmptyInput, output: CounterOutput},
@@ -163,7 +68,7 @@ describe("@jiminp/stelaro application core", () => {
                 },
             },
         });
-        const app = createApplication(defineApplication({components: [CounterComponent]}));
+        const app = createApplication(defineApplication({components: [CounterComponent], logger: noopLoggerFactory}));
         await app.start();
 
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 0});
@@ -172,359 +77,146 @@ describe("@jiminp/stelaro application core", () => {
         assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 5});
     });
 
-    it("provides component behavior with context for declared typed calls", async () => {
-        const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-        });
+    it("lets a handler call a declared dependency through its context", async () => {
+        const CounterCalls = defineCounterCalls("counter");
         const PageCalls = defineComponentCalls("page", {
-            render: {
-                input: EmptyInput,
-                output: RenderOutput,
-            },
-        });
-        const CounterComponent = defineComponent({
-            calls: CounterCalls,
-            uses: [],
-            handlers: {
-                current: {
-                    handle() {
-                        return {
-                            count: 7,
-                        };
-                    },
-                },
-            },
+            render: {input: EmptyInput, output: RenderOutput},
         });
         const PageComponent = defineComponent({
             calls: PageCalls,
-            uses: [
-                CounterCalls,
-            ],
+            uses: [CounterCalls],
             handlers: {
-                render: {
-                    async handle({call}) {
-                        const {count: current_count} = await call(
-                            CounterCalls.calls.current,
-                            {},
-                        );
-
-                        return {
-                            html: String(current_count),
-                        };
-                    },
-                },
-            },
-        });
-        const CounterPageApp = defineApplication({
-            components: [
-                CounterComponent,
-                PageComponent,
-            ],
-        });
-        const app = createApplication(CounterPageApp);
-        await app.start();
-
-        assert.deepStrictEqual(await app.call(PageCalls.calls.render, {}), {
-            html: "7",
-        });
-    });
-
-    it("provides component-scoped logging to handlers and lifecycle hooks", async () => {
-        const observed_log_methods: LoggerMethodName[][] = [];
-        const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-        });
-        const CounterComponent = defineComponent({
-            calls: CounterCalls,
-            uses: [],
-            start({log}) {
-                observed_log_methods.push(loggerMethodNames(log));
-            },
-            stop({log}) {
-                observed_log_methods.push(loggerMethodNames(log));
-            },
-            handlers: {
-                current: {
-                    handle({log}) {
-                        observed_log_methods.push(loggerMethodNames(log));
-
-                        return {
-                            count: 0,
-                        };
-                    },
+                async render({call}) {
+                    const {count} = await call(CounterCalls.calls.current, {});
+                    return {html: String(count)};
                 },
             },
         });
         const app = createApplication(defineApplication({
-            components: [CounterComponent],
+            components: [defineCounterComponent(CounterCalls), PageComponent],
+            logger: noopLoggerFactory,
         }));
-
         await app.start();
-        await app.call(CounterCalls.calls.current, {});
-        await app.stop();
+        await app.call(CounterCalls.calls.increment, {});
 
-        assert.deepStrictEqual(observed_log_methods, [
-            ["debug", "info", "warn", "error"],
-            ["debug", "info", "warn", "error"],
-            ["debug", "info", "warn", "error"],
-        ]);
+        assert.deepStrictEqual(await app.call(PageCalls.calls.render, {}), {html: "1"});
     });
 
-    it("creates component-scoped loggers with the configured logger factory", async () => {
-        const factory_component_ids: string[] = [];
-        const logger_by_component_id = new Map<string, Logger>();
-        const received_logger_by_component_id = new Map<string, Logger>();
-        const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-        });
-        const PageCalls = defineComponentCalls("page", {
-            render: {
-                input: EmptyInput,
-                output: RenderOutput,
-            },
-        });
-        const CounterComponent = defineComponent({
-            calls: CounterCalls,
+    it("gives each component the logger its factory created for the component id", async () => {
+        const created = new Map<string, Logger>();
+        const received = new Map<string, Logger>();
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
+        const AComponent = defineComponent({
+            calls: ACalls,
             uses: [],
-            handlers: {
-                current: {
-                    handle({log}) {
-                        received_logger_by_component_id.set("counter", log);
-
-                        return {
-                            count: 3,
-                        };
-                    },
-                },
-            },
+            handlers: {get({log}) { received.set("a", log); return {count: 0}; }},
         });
-        const PageComponent = defineComponent({
-            calls: PageCalls,
+        const BComponent = defineComponent({
+            calls: BCalls,
             uses: [],
-            handlers: {
-                render: {
-                    handle({log}) {
-                        received_logger_by_component_id.set("page", log);
-
-                        return {
-                            html: "ok",
-                        };
-                    },
-                },
-            },
+            handlers: {get({log}) { received.set("b", log); return {count: 0}; }},
         });
         const app = createApplication(defineApplication({
-            components: [CounterComponent, PageComponent],
-            logger(component_id) {
-                factory_component_ids.push(component_id);
-
-                const logger = createRecordingLogger();
-                logger_by_component_id.set(component_id, logger);
-
-                return logger;
+            components: [AComponent, BComponent],
+            logger(scope) {
+                const log = {...noopLoggerFactory(scope)};
+                created.set(scope, log);
+                return log;
             },
         }));
         await app.start();
+        await app.call(ACalls.calls.get, {});
+        await app.call(BCalls.calls.get, {});
 
-        await app.call(CounterCalls.calls.current, {});
-        await app.call(PageCalls.calls.render, {});
-
-        assert.deepStrictEqual(new Set(factory_component_ids), new Set([FRAMEWORK_NAME, "counter", "page"]));
-        assert.deepStrictEqual(factory_component_ids.length, 3);
-        assert.deepStrictEqual(
-            received_logger_by_component_id.get("counter"),
-            logger_by_component_id.get("counter"),
-        );
-        assert.deepStrictEqual(
-            received_logger_by_component_id.get("page"),
-            logger_by_component_id.get("page"),
-        );
+        assert.strictEqual(received.get("a"), created.get("a"));
+        assert.strictEqual(received.get("b"), created.get("b"));
     });
 
     it("uses a component-scoped default console logger when no logger factory is provided", async () => {
-        const console_calls: Record<LoggerMethodName, unknown[][]> = {
-            debug: [],
-            info: [],
-            warn: [],
-            error: [],
-        };
+        const console_calls: Record<LoggerMethodName, unknown[][]> = {debug: [], info: [], warn: [], error: []};
         const original_console_methods: Record<LoggerMethodName, typeof console.debug> = {
             debug: console.debug,
             info: console.info,
             warn: console.warn,
             error: console.error,
         };
-        const structured_data = {
-            count: 1,
-        };
+        const structured_data = {count: 1};
         const extra_data = ["extra"];
         const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
+            current: {input: EmptyInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
             uses: [],
             handlers: {
-                current: {
-                    handle({log}) {
-                        log.debug("debug message", structured_data, extra_data);
-                        log.info("info message", structured_data, extra_data);
-                        log.warn("warn message", structured_data, extra_data);
-                        log.error("error message", structured_data, extra_data);
-
-                        return {
-                            count: 1,
-                        };
-                    },
+                current({log}) {
+                    log.debug("debug message", structured_data, extra_data);
+                    log.info("info message", structured_data, extra_data);
+                    log.warn("warn message", structured_data, extra_data);
+                    log.error("error message", structured_data, extra_data);
+                    return {count: 1};
                 },
             },
         });
 
         try {
             for(const method of logger_method_names) {
-                setConsoleMethod(method, (...args: unknown[]) => {
+                console[method] = (...args: unknown[]) => {
                     console_calls[method].push(args);
-                });
+                };
             }
 
-            const app = createApplication(defineApplication({
-                components: [CounterComponent],
-            }));
+            const app = createApplication(defineApplication({components: [CounterComponent]}));
             await app.start();
             await app.call(CounterCalls.calls.current, {});
         } finally {
             for(const method of logger_method_names) {
-                setConsoleMethod(method, original_console_methods[method]);
+                console[method] = original_console_methods[method];
             }
         }
 
         for(const method of logger_method_names) {
-            const method_calls = console_calls[method];
-
-            // Lifecycle logging now also routes through the default console logger, so locate the
-            // handler's own record (its message is the argument after the [id] prefix) rather than
-            // assuming it is the only call.
-            const handler_call = method_calls.find((args) => args[1] === `${method} message`);
+            const handler_call = console_calls[method].find((args) => args[1] === `${method} message`);
             assert.ok(handler_call, `expected a ${method} call from the handler`);
-
-            const [message, data] = handler_call;
-
-            assert.deepStrictEqual(typeof message, "string");
-            const message_text = message as string;
-
-            assert.match(message_text, /^\[counter\]/);
-            assert.deepStrictEqual(data, `${method} message`);
-            assert.deepStrictEqual(handler_call[2], structured_data);
-            assert.deepStrictEqual(handler_call[3], extra_data);
+            assert.match(String(handler_call[0]), /^\[counter\]/);
+            assert.deepStrictEqual(handler_call.slice(2), [structured_data, extra_data]);
         }
     });
 
-    it("initializes component state from the state factory during createApplication", async () => {
-        const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-            increment: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-        });
+    it("creates component state once at createApplication and keeps it across restarts", async () => {
+        let factory_calls = 0;
+        const CounterCalls = defineCounterCalls("counter");
         const CounterComponent = defineComponent({
             calls: CounterCalls,
             uses: [],
-            state: () => ({
-                count: 0,
-            }),
+            state: () => {
+                factory_calls += 1;
+                return {count: 0};
+            },
             handlers: {
-                current: {
-                    handle({state}) {
-                        return {
-                            count: state.count,
-                        };
-                    },
-                },
-                increment: {
-                    handle({state}) {
-                        state.count += 1;
-
-                        return {
-                            count: state.count,
-                        };
-                    },
+                current: ({state}) => ({count: state.count}),
+                increment: ({state}) => {
+                    state.count += 1;
+                    return {count: state.count};
                 },
             },
         });
-        const app = createApplication(defineApplication({
-            components: [CounterComponent],
-        }));
+        const app = createApplication(defineApplication({components: [CounterComponent], logger: noopLoggerFactory}));
+        assert.strictEqual(factory_calls, 1);
+
+        await app.start();
+        await app.call(CounterCalls.calls.increment, {});
+        await app.stop();
         await app.start();
 
-        assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {
-            count: 0,
-        });
-        assert.deepStrictEqual(await app.call(CounterCalls.calls.increment, {}), {
-            count: 1,
-        });
-        assert.deepStrictEqual(await app.call(CounterCalls.calls.increment, {}), {
-            count: 2,
-        });
-        assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {
-            count: 2,
-        });
+        assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 1});
+        assert.strictEqual(factory_calls, 1);
     });
 
     it("provides independent state per application runtime for the same component definition", async () => {
-        const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-            increment: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-        });
-        const CounterComponent = defineComponent({
-            calls: CounterCalls,
-            uses: [],
-            state: () => ({
-                count: 0,
-            }),
-            handlers: {
-                current: {
-                    handle({state}) {
-                        return {
-                            count: state.count,
-                        };
-                    },
-                },
-                increment: {
-                    handle({state}) {
-                        state.count += 1;
-
-                        return {
-                            count: state.count,
-                        };
-                    },
-                },
-            },
-        });
-        const definition = defineApplication({
-            components: [CounterComponent],
-        });
+        const CounterCalls = defineCounterCalls("counter");
+        const definition = defineApplication({components: [defineCounterComponent(CounterCalls)], logger: noopLoggerFactory});
         const app1 = createApplication(definition);
         const app2 = createApplication(definition);
         await app1.start();
@@ -533,177 +225,80 @@ describe("@jiminp/stelaro application core", () => {
         await app1.call(CounterCalls.calls.increment, {});
         await app1.call(CounterCalls.calls.increment, {});
 
-        assert.deepStrictEqual(await app1.call(CounterCalls.calls.current, {}), {
-            count: 2,
-        });
-        assert.deepStrictEqual(await app2.call(CounterCalls.calls.current, {}), {
-            count: 0,
-        });
+        assert.deepStrictEqual(await app1.call(CounterCalls.calls.current, {}), {count: 2});
+        assert.deepStrictEqual(await app2.call(CounterCalls.calls.current, {}), {count: 0});
     });
 
     it("does not provide state to stateless components", async () => {
         const CounterCalls = defineComponentCalls("counter", {
-            current: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
+            current: {input: EmptyInput, output: CounterOutput},
         });
-        let received_context: Record<string, unknown> = {};
+        let has_state: boolean | null = null;
         const CounterComponent = defineComponent({
             calls: CounterCalls,
             uses: [],
             handlers: {
-                current: {
-                    handle(context) {
-                        received_context = context as unknown as Record<string, unknown>;
-
-                        return {
-                            count: 0,
-                        };
-                    },
+                current(context) {
+                    has_state = "state" in context;
+                    return {count: 0};
                 },
             },
         });
-        const app = createApplication(defineApplication({
-            components: [CounterComponent],
-        }));
+        const app = createApplication(defineApplication({components: [CounterComponent], logger: noopLoggerFactory}));
         await app.start();
-
         await app.call(CounterCalls.calls.current, {});
-        assert.deepStrictEqual("state" in received_context, false);
+
+        assert.strictEqual(has_state, false);
     });
 
     it("does not share state between different components", async () => {
-        const ACalls = defineComponentCalls("a", {
-            get: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-            increment: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-        });
-        const BCalls = defineComponentCalls("b", {
-            get: {
-                input: EmptyInput,
-                output: CounterOutput,
-            },
-        });
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            state: () => ({count: 0}),
-            handlers: {
-                get: {
-                    handle({state}) {
-                        return {count: state.count};
-                    },
-                },
-                increment: {
-                    handle({state}) {
-                        state.count += 1;
-
-                        return {count: state.count};
-                    },
-                },
-            },
-        });
-        const BComponent = defineComponent({
-            calls: BCalls,
-            uses: [],
-            state: () => ({count: 100}),
-            handlers: {
-                get: {
-                    handle({state}) {
-                        return {count: state.count};
-                    },
-                },
-            },
-        });
+        const ACalls = defineCounterCalls("a");
+        const BCalls = defineCounterCalls("b");
         const app = createApplication(defineApplication({
-            components: [AComponent, BComponent],
+            components: [defineCounterComponent(ACalls), defineCounterComponent(BCalls)],
+            logger: noopLoggerFactory,
         }));
         await app.start();
 
         await app.call(ACalls.calls.increment, {});
 
-        assert.deepStrictEqual(await app.call(ACalls.calls.get, {}), {
-            count: 1,
-        });
-        assert.deepStrictEqual(await app.call(BCalls.calls.get, {}), {
-            count: 100,
-        });
+        assert.deepStrictEqual(await app.call(ACalls.calls.current, {}), {count: 1});
+        assert.deepStrictEqual(await app.call(BCalls.calls.current, {}), {count: 0});
     });
 
-    it("validates call inputs and outputs with the declared schemas", async () => {
+    it("validates call inputs before dispatch and outputs after it", async () => {
+        let handled = 0;
         const CounterCalls = defineComponentCalls("counter", {
-            set: {
-                input: SetCounterInput,
-                output: CounterOutput,
-            },
+            set: {input: SetCounterInput, output: CounterOutput},
         });
         const CounterComponent = defineComponent({
             calls: CounterCalls,
             uses: [],
             handlers: {
-                set: {
-                    handle() {
-                        return {
-                            count: "invalid",
-                        } as unknown as {
-                            count: number;
-                        };
-                    },
+                set() {
+                    handled += 1;
+                    return {count: "invalid"} as unknown as {count: number};
                 },
             },
         });
-        const CounterApp = defineApplication({
-            components: [
-                CounterComponent,
-            ],
-        });
-        const app = createApplication(CounterApp);
+        const app = createApplication(defineApplication({components: [CounterComponent], logger: noopLoggerFactory}));
         await app.start();
 
         await assert.rejects(
-            () => app.call(
-                CounterCalls.calls.set,
-                {} as unknown as CallInput<typeof CounterCalls.calls.set>,
-            ),
-            /count/,
+            () => app.call(CounterCalls.calls.set, {} as unknown as CallInput<typeof CounterCalls.calls.set>),
+            TraversalError,
         );
-        await assert.rejects(
-            () => app.call(CounterCalls.calls.set, {
-                count: 1,
-            }),
-            /count/,
-        );
+        assert.strictEqual(handled, 0);
+
+        await assert.rejects(() => app.call(CounterCalls.calls.set, {count: 1}), TraversalError);
+        assert.strictEqual(handled, 1);
     });
 
     it("throws MissingDependencyError when a component uses unregistered calls", () => {
-        const ACalls = defineComponentCalls("a", {
-            run: {input: EmptyInput, output: CounterOutput},
-        });
-        const BCalls = defineComponentCalls("b", {
-            get: {input: EmptyInput, output: CounterOutput},
-        });
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [BCalls],
-            handlers: {
-                run: {
-                    handle() {
-                        return {count: 0};
-                    },
-                },
-            },
-        });
+        const AComponent = defineCounterComponent(defineCounterCalls("a"), {uses: [defineCounterCalls("b")]});
 
         assert.throws(
-            () => createApplication(defineApplication({
-                components: [AComponent],
-            })),
+            () => createApplication(defineApplication({components: [AComponent]})),
             MissingDependencyError,
         );
     });
@@ -714,50 +309,27 @@ describe("@jiminp/stelaro application core", () => {
             missing: {input: EmptyInput, output: CounterOutput},
         });
         const partial_handlers = {
-            run: {
-                handle() {
-                    return {count: 0};
-                },
-            },
+            run: () => ({count: 0}),
         };
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
-            handlers: partial_handlers as typeof partial_handlers & {
-                missing: {handle(): {count: number}};
-            },
+            handlers: partial_handlers as typeof partial_handlers & {missing: () => {count: number}},
         });
 
         assert.throws(
-            () => createApplication(defineApplication({
-                components: [AComponent],
-            })),
+            () => createApplication(defineApplication({components: [AComponent]})),
             MissingHandlerError,
         );
     });
 
     it("throws DuplicateComponentIdError when components share the same id", () => {
-        const Calls = defineComponentCalls("shared", {
-            get: {input: EmptyInput, output: CounterOutput},
-        });
-        const A = defineComponent({
-            calls: Calls,
-            uses: [],
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const B = defineComponent({
-            calls: Calls,
-            uses: [],
-            handlers: {
-                get: {handle() { return {count: 1}; }},
-            },
-        });
-
         assert.throws(
             () => createApplication(defineApplication({
-                components: [A, B],
+                components: [
+                    defineCounterComponent(defineCounterCalls("shared")),
+                    defineCounterComponent(defineCounterCalls("shared")),
+                ],
             })),
             (error: unknown) => {
                 assert.ok(error instanceof DuplicateComponentIdError);
@@ -771,626 +343,357 @@ describe("@jiminp/stelaro application core", () => {
         const ACalls = defineComponentCalls("a", {
             run: {input: EmptyInput, output: CounterOutput},
         });
-        const BCalls = defineComponentCalls("b", {
-            get: {input: EmptyInput, output: CounterOutput},
-        });
+        const BCalls = defineCounterCalls("b");
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
             handlers: {
-                run: {
-                    async handle(context) {
-                        await (context as unknown as AnyComponentContext)
-                            .call(BCalls.calls.get, {});
-
-                        return {count: 0};
-                    },
-                },
-            },
-        });
-        const BComponent = defineComponent({
-            calls: BCalls,
-            uses: [],
-            handlers: {
-                get: {
-                    handle() {
-                        return {count: 0};
-                    },
+                async run(context) {
+                    await (context as unknown as AnyComponentContext).call(BCalls.calls.current, {});
+                    return {count: 0};
                 },
             },
         });
         const app = createApplication(defineApplication({
-            components: [AComponent, BComponent],
+            components: [AComponent, defineCounterComponent(BCalls)],
+            logger: noopLoggerFactory,
         }));
         await app.start();
 
-        await assert.rejects(
-            () => app.call(ACalls.calls.run, {}),
-            UndeclaredCallError,
-        );
+        await assert.rejects(() => app.call(ACalls.calls.run, {}), UndeclaredCallError);
     });
 
     it("throws UnregisteredCallError when dispatching an unregistered call", async () => {
-        const RegisteredCalls = defineComponentCalls("registered", {
-            get: {input: EmptyInput, output: CounterOutput},
-        });
-        const UnregisteredCalls = defineComponentCalls("unregistered", {
-            get: {input: EmptyInput, output: CounterOutput},
-        });
-        const RegisteredComponent = defineComponent({
-            calls: RegisteredCalls,
-            uses: [],
-            handlers: {
-                get: {
-                    handle() {
-                        return {count: 0};
-                    },
-                },
-            },
-        });
+        const UnregisteredCalls = defineCounterCalls("unregistered");
         const app = createApplication(defineApplication({
-            components: [RegisteredComponent],
+            components: [defineCounterComponent(defineCounterCalls("registered"))],
+            logger: noopLoggerFactory,
         }));
         await app.start();
 
         await assert.rejects(
             () => (app as unknown as {call(ref: unknown, input: unknown): Promise<unknown>})
-                .call(UnregisteredCalls.calls.get, {}),
+                .call(UnregisteredCalls.calls.current, {}),
             UnregisteredCallError,
         );
     });
 
-    it("starts components in topological dependency order", async () => {
-        const start_order: string[] = [];
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [BCalls],
-            start() {
-                start_order.push("a");
-            },
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const BComponent = defineComponent({
-            calls: BCalls,
-            uses: [],
-            start() {
-                start_order.push("b");
-            },
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
+    it("starts components in dependency order and stops them in reverse order", async () => {
+        const events: string[] = [];
+        const ACalls = defineCounterCalls("a");
+        const BCalls = defineCounterCalls("b");
         const app = createApplication(defineApplication({
-            components: [AComponent, BComponent],
+            components: [
+                defineCounterComponent(ACalls, {uses: [BCalls], ...recordHooks(events, "a")}),
+                defineCounterComponent(BCalls, recordHooks(events, "b")),
+            ],
+            logger: noopLoggerFactory,
         }));
 
         await app.start();
-
-        assert.deepStrictEqual(start_order, ["b", "a"]);
-    });
-
-    it("stops components in reverse topological order", async () => {
-        const stop_order: string[] = [];
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [BCalls],
-            stop() {
-                stop_order.push("a");
-            },
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const BComponent = defineComponent({
-            calls: BCalls,
-            uses: [],
-            stop() {
-                stop_order.push("b");
-            },
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(defineApplication({
-            components: [AComponent, BComponent],
-        }));
-        await app.start();
-
         await app.stop();
 
-        assert.deepStrictEqual(stop_order, ["a", "b"]);
+        assert.deepStrictEqual(events, ["start b", "start a", "stop a", "stop b"]);
     });
 
-    it("throws CircularDependencyError when the uses graph has a cycle", () => {
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [BCalls],
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const BComponent = defineComponent({
-            calls: BCalls,
-            uses: [ACalls],
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
+    it("reports only the components on the cycle in CircularDependencyError", () => {
+        const ACalls = defineCounterCalls("a");
+        const BCalls = defineCounterCalls("b");
+        const CCalls = defineCounterCalls("c");
 
         assert.throws(
             () => createApplication(defineApplication({
-                components: [AComponent, BComponent],
+                components: [
+                    defineCounterComponent(ACalls, {uses: [BCalls]}),
+                    defineCounterComponent(BCalls, {uses: [ACalls]}),
+                    defineCounterComponent(CCalls, {uses: [ACalls]}),
+                ],
             })),
             (error: unknown) => {
                 assert.ok(error instanceof CircularDependencyError);
-                assert.ok(error.component_ids.includes("a"));
-                assert.ok(error.component_ids.includes("b"));
+                assert.deepStrictEqual([...error.component_ids].sort(), ["a", "b"]);
                 return true;
             },
         );
     });
 
-    it("throws LifecycleStateError when calling before start", async () => {
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(defineApplication({
-            components: [AComponent],
-        }));
-
-        await assert.rejects(
-            () => app.call(ACalls.calls.get, {}),
-            (error: unknown) => {
-                assert.ok(error instanceof LifecycleStateError);
-                assert.deepStrictEqual(error.current_state, "idle");
-                assert.deepStrictEqual(error.operation, "call");
-                return true;
-            },
-        );
-    });
-
-    it("throws LifecycleStateError when calling after stop", async () => {
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(defineApplication({
-            components: [AComponent],
-        }));
-        await app.start();
-        await app.stop();
-
-        await assert.rejects(
-            () => app.call(ACalls.calls.get, {}),
-            (error: unknown) => {
-                assert.ok(error instanceof LifecycleStateError);
-                assert.deepStrictEqual(error.current_state, "idle");
-                return true;
-            },
-        );
-    });
-
-    it("throws LifecycleStateError when starting a non-idle application", async () => {
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(defineApplication({
-            components: [AComponent],
-        }));
-        await app.start();
-
-        await assert.rejects(
-            () => app.start(),
-            (error: unknown) => {
-                assert.ok(error instanceof LifecycleStateError);
-                assert.deepStrictEqual(error.current_state, "active");
-                assert.deepStrictEqual(error.operation, "start");
-                return true;
-            },
-        );
-    });
-
-    it("throws LifecycleStateError when stopping an idle application", async () => {
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(defineApplication({
-            components: [AComponent],
-        }));
-
-        await assert.rejects(
-            () => app.stop(),
-            (error: unknown) => {
-                assert.ok(error instanceof LifecycleStateError);
-                assert.deepStrictEqual(error.current_state, "idle");
-                assert.deepStrictEqual(error.operation, "stop");
-                return true;
-            },
-        );
-    });
-
-    it("provides lifecycle hooks with the same context as handlers", async () => {
-        let start_state: {count: number} | null = null;
-        let stop_state: {count: number} | null = null;
+    it("gives lifecycle hooks the same state and logger as handlers", async () => {
+        const seen: {readonly state: object; readonly log: Logger; readonly data_dir: string}[] = [];
         const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
             state: () => ({count: 42}),
-            start({state}) {
-                start_state = state;
+            start({state, log, data}) {
+                seen.push({state, log, data_dir: data.dir});
             },
-            stop({state}) {
-                stop_state = state;
-            },
-            handlers: {
-                get: {handle({state}) { return {count: state.count}; }},
-            },
-        });
-        const app = createApplication(defineApplication({
-            components: [AComponent],
-        }));
-
-        await app.start();
-        assert.deepStrictEqual(start_state, {count: 42});
-
-        await app.stop();
-        assert.deepStrictEqual(stop_state, {count: 42});
-    });
-
-    it("skips components without lifecycle hooks", async () => {
-        const start_order: string[] = [];
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            start() {
-                start_order.push("a");
+            stop({state, log, data}) {
+                seen.push({state, log, data_dir: data.dir});
             },
             handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const BComponent = defineComponent({
-            calls: BCalls,
-            uses: [],
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(defineApplication({
-            components: [AComponent, BComponent],
-        }));
-
-        await app.start();
-
-        assert.deepStrictEqual(start_order, ["a"]);
-    });
-
-    it("transitions to failed on start hook error without rolling back", async () => {
-        const stop_calls: string[] = [];
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            start() {
-                // succeeds
-            },
-            stop() {
-                stop_calls.push("a");
-            },
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const BComponent = defineComponent({
-            calls: BCalls,
-            uses: [],
-            start() {
-                throw new Error("b failed to start");
-            },
-            stop() {
-                stop_calls.push("b");
-            },
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(defineApplication({
-            components: [AComponent, BComponent],
-        }));
-
-        await assert.rejects(
-            () => app.start(),
-            {message: "b failed to start"},
-        );
-        assert.deepStrictEqual(stop_calls, []);
-
-        await assert.rejects(
-            () => app.call(ACalls.calls.get, {}),
-            LifecycleStateError,
-        );
-
-        await app.stop();
-        assert.deepStrictEqual(stop_calls, ["a"]);
-    });
-
-    it("rejects stop with AggregateError when stop hooks throw", async () => {
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            stop() {
-                throw new Error("a stop failed");
-            },
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const BComponent = defineComponent({
-            calls: BCalls,
-            uses: [],
-            stop() {
-                throw new Error("b stop failed");
-            },
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(defineApplication({
-            components: [AComponent, BComponent],
-        }));
-        await app.start();
-
-        await assert.rejects(
-            () => app.stop(),
-            (error: unknown) => {
-                assert.ok(error instanceof AggregateError);
-                assert.deepStrictEqual(error.errors.length, 2);
-                return true;
-            },
-        );
-    });
-
-    it("transitions to idle after stop even when stop hooks throw", async () => {
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            stop() {
-                throw new Error("stop failed");
-            },
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(defineApplication({
-            components: [AComponent],
-        }));
-        await app.start();
-
-        await assert.rejects(() => app.stop(), AggregateError);
-
-        await app.start();
-        assert.deepStrictEqual(await app.call(ACalls.calls.get, {}), {count: 0});
-    });
-
-    it("allows stop from failed state to clean up", async () => {
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            start() {
-                throw new Error("start failed");
-            },
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const app = createApplication(defineApplication({
-            components: [AComponent],
-        }));
-
-        await assert.rejects(() => app.start());
-
-        await app.stop();
-
-        // app is back to idle — start is valid again
-        await assert.rejects(
-            () => app.start(),
-            {message: "start failed"},
-        );
-    });
-
-    it("exposes application-level data access rooted at base_dir/data", () => {
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            handlers: {
-                get: {handle() { return {count: 0}; }},
-            },
-        });
-        const base_dir = resolve("test-base");
-        const app = createApplication(defineApplication({
-            components: [AComponent],
-        }), {base_dir});
-
-        assert.strictEqual(app.data.dir, join(base_dir, "data"));
-        assert.strictEqual(
-            app.data.resolve("templates"),
-            join(base_dir, "data", "templates"),
-        );
-    });
-
-    it("provides component-scoped data access in context", async () => {
-        let received_dir = "";
-        let received_resolved = "";
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            handlers: {
-                get: {
-                    handle({data}) {
-                        received_dir = data.dir;
-                        received_resolved = data.resolve("file.txt");
-                        return {count: 0};
-                    },
+                get({state, log, data}) {
+                    seen.push({state, log, data_dir: data.dir});
+                    return {count: state.count};
                 },
             },
         });
-        const base_dir = resolve("test-base");
-        const app = createApplication(defineApplication({
-            components: [AComponent],
-        }), {base_dir});
+        const app = createApplication(defineApplication({components: [AComponent], logger: noopLoggerFactory}));
+
         await app.start();
         await app.call(ACalls.calls.get, {});
+        await app.stop();
 
-        assert.strictEqual(received_dir, join(base_dir, "a", "data"));
-        assert.strictEqual(received_resolved, join(base_dir, "a", "data", "file.txt"));
-    });
-
-    it("provides different data directories per component", async () => {
-        const received_dirs: Record<string, string> = {};
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const BCalls = defineComponentCalls("b", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            handlers: {
-                get: {
-                    handle({data}) {
-                        received_dirs["a"] = data.dir;
-                        return {count: 0};
-                    },
-                },
-            },
-        });
-        const BComponent = defineComponent({
-            calls: BCalls,
-            uses: [],
-            handlers: {
-                get: {
-                    handle({data}) {
-                        received_dirs["b"] = data.dir;
-                        return {count: 0};
-                    },
-                },
-            },
-        });
-        const base_dir = resolve("test-base");
-        const app = createApplication(defineApplication({
-            components: [AComponent, BComponent],
-        }), {base_dir});
-        await app.start();
-        await app.call(ACalls.calls.get, {});
-        await app.call(BCalls.calls.get, {});
-
-        assert.strictEqual(received_dirs["a"], join(base_dir, "a", "data"));
-        assert.strictEqual(received_dirs["b"], join(base_dir, "b", "data"));
-        assert.notStrictEqual(received_dirs["a"], received_dirs["b"]);
-    });
-
-    it("throws errors that are instanceof StelaroError", () => {
-        const ACalls = defineComponentCalls("a", {
-            run: {input: EmptyInput, output: CounterOutput},
-        });
-        const BCalls = defineComponentCalls("b", {
-            get: {input: EmptyInput, output: CounterOutput},
-        });
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [BCalls],
-            handlers: {
-                run: {
-                    handle() {
-                        return {count: 0};
-                    },
-                },
-            },
-        });
-
-        try {
-            createApplication(defineApplication({
-                components: [AComponent],
-            }));
-            assert.fail("Expected StelaroError");
-        } catch (error) {
-            assert.ok(error instanceof StelaroError);
-            assert.ok(error instanceof Error);
+        assert.strictEqual(seen.length, 3);
+        for(const key of ["state", "log", "data_dir"] as const) {
+            assert.strictEqual(new Set(seen.map((capabilities) => capabilities[key])).size, 1, key);
         }
     });
+
+    it("starts, dispatches to, and stops a component without lifecycle hooks", async () => {
+        const events: string[] = [];
+        const ACalls = defineCounterCalls("a");
+        const BCalls = defineCounterCalls("b");
+        const app = createApplication(defineApplication({
+            components: [defineCounterComponent(ACalls, recordHooks(events, "a")), defineCounterComponent(BCalls)],
+            logger: noopLoggerFactory,
+        }));
+
+        await app.start();
+        assert.deepStrictEqual(await app.call(BCalls.calls.increment, {}), {count: 1});
+        await app.stop();
+
+        assert.deepStrictEqual(events, ["start a", "stop a"]);
+    });
+
+    it("leaves later components unstarted after a start failure and stops only active ones", async () => {
+        const events: string[] = [];
+        const start_error = new Error("b failed to start");
+        const ACalls = defineCounterCalls("a");
+        const BCalls = defineCounterCalls("b");
+        const CCalls = defineCounterCalls("c");
+        const b_hooks = recordHooks(events, "b");
+        const app = createApplication(defineApplication({
+            components: [
+                defineCounterComponent(ACalls, recordHooks(events, "a")),
+                defineCounterComponent(BCalls, {
+                    start: () => {
+                        b_hooks.start();
+                        throw start_error;
+                    },
+                    stop: b_hooks.stop,
+                }),
+                defineCounterComponent(CCalls, recordHooks(events, "c")),
+            ],
+            logger: noopLoggerFactory,
+        }));
+
+        await assert.rejects(app.start(), (error) => error === start_error);
+        assert.deepStrictEqual(events, ["start a", "start b"]);
+        await assert.rejects(app.call(ACalls.calls.current, {}), LifecycleStateError);
+
+        await app.stop();
+        assert.deepStrictEqual(events, ["start a", "start b", "stop a"]);
+
+        await assert.rejects(app.start(), (error) => error === start_error);
+    });
+
+    it("collects every stop hook failure into an AggregateError and still reaches idle", async () => {
+        const events: string[] = [];
+        const a_error = new Error("a stop failed");
+        const b_error = new Error("b stop failed");
+        const ACalls = defineCounterCalls("a");
+        const BCalls = defineCounterCalls("b");
+        const app = createApplication(defineApplication({
+            components: [
+                defineCounterComponent(ACalls, {stop: () => { events.push("stop a"); throw a_error; }}),
+                defineCounterComponent(BCalls, {stop: () => { events.push("stop b"); throw b_error; }}),
+            ],
+            logger: noopLoggerFactory,
+        }));
+        await app.start();
+
+        await assert.rejects(app.stop(), (error: unknown) => {
+            assert.ok(error instanceof AggregateError);
+            assert.strictEqual(error.errors.length, 2);
+            assert.ok(error.errors.includes(a_error));
+            assert.ok(error.errors.includes(b_error));
+            return true;
+        });
+        assert.deepStrictEqual(events, ["stop b", "stop a"]);
+
+        await app.start();
+    });
+
+    it("counts a stop hook rejecting with a nullish value as a failure", async () => {
+        const ACalls = defineCounterCalls("a");
+        const app = createApplication(defineApplication({
+            components: [defineCounterComponent(ACalls, {stop: () => Promise.reject(null)})],
+            logger: noopLoggerFactory,
+        }));
+        await app.start();
+
+        await assert.rejects(app.stop(), (error: unknown) => {
+            assert.ok(error instanceof AggregateError);
+            assert.deepStrictEqual(error.errors, [null]);
+            return true;
+        });
+    });
+
+    it("allows calls from onConfigReload hooks while reloading", async () => {
+        let reloaded_count: number | null = null;
+        const CounterCalls = defineCounterCalls("counter");
+        const WatcherCalls = defineComponentCalls("watcher", {
+            current: {input: EmptyInput, output: CounterOutput},
+        });
+        const WatcherComponent = defineComponent({
+            calls: WatcherCalls,
+            uses: [CounterCalls],
+            async onConfigReload({call}) {
+                reloaded_count = (await call(CounterCalls.calls.current, {})).count;
+            },
+            handlers: {
+                current: () => ({count: 0}),
+            },
+        });
+        const app = createApplication(defineApplication({
+            components: [defineCounterComponent(CounterCalls), WatcherComponent],
+            logger: noopLoggerFactory,
+        }));
+        await app.start();
+        await app.call(CounterCalls.calls.increment, {});
+
+        await app.reloadConfig();
+
+        assert.strictEqual(reloaded_count, 1);
+    });
+
+    it("roots application and component data access under the resolved base directory", async () => {
+        let component_data_dir: string | null = null;
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            handlers: {
+                get({data}) {
+                    component_data_dir = data.dir;
+                    return {count: 0};
+                },
+            },
+        });
+        const app = createApplication(
+            defineApplication({components: [AComponent], logger: noopLoggerFactory}),
+            {base_dir: "test-base"},
+        );
+        await app.start();
+        await app.call(ACalls.calls.get, {});
+
+        const base_dir = resolve("test-base");
+        assert.strictEqual(app.data.dir, join(base_dir, "data"));
+        assert.strictEqual(component_data_dir, join(base_dir, "a", "data"));
+    });
+});
+
+type Operation = "start" | "stop" | "call" | "reloadConfig";
+
+const invalid_operations: readonly (readonly [Exclude<LifecycleState, "reloading">, readonly Operation[]])[] = [
+    ["idle", ["stop", "call", "reloadConfig"]],
+    ["starting", ["start", "stop", "call", "reloadConfig"]],
+    ["active", ["start"]],
+    ["failed", ["start", "call", "reloadConfig"]],
+    ["stopping", ["start", "stop", "call", "reloadConfig"]],
+];
+
+async function enterState(state: Exclude<LifecycleState, "reloading">) {
+    const CounterCalls = defineCounterCalls("counter");
+    let startHook = (): Promisable<void> => {};
+    let stopHook = (): Promisable<void> => {};
+    const app = createApplication(defineApplication({
+        components: [defineCounterComponent(CounterCalls, {start: () => startHook(), stop: () => stopHook()})],
+        logger: noopLoggerFactory,
+    }));
+    const operations: Record<Operation, () => Promise<unknown>> = {
+        start: () => app.start(),
+        stop: () => app.stop(),
+        call: () => app.call(CounterCalls.calls.current, {}),
+        reloadConfig: () => app.reloadConfig(),
+    };
+
+    let settle = async (): Promise<void> => {};
+    switch(state) {
+        case "idle":
+            break;
+        case "active":
+            await app.start();
+            settle = () => app.stop();
+            break;
+        case "failed":
+            startHook = () => { throw new Error("start failed"); };
+            await assert.rejects(app.start());
+            settle = () => app.stop();
+            break;
+        case "starting": {
+            const gate = Promise.withResolvers<void>();
+            startHook = () => gate.promise;
+            const starting = app.start();
+            settle = async () => {
+                gate.resolve();
+                await starting;
+                await app.stop();
+            };
+            break;
+        }
+        case "stopping": {
+            await app.start();
+            const gate = Promise.withResolvers<void>();
+            stopHook = () => gate.promise;
+            const stopping = app.stop();
+            settle = async () => {
+                gate.resolve();
+                await stopping;
+            };
+            break;
+        }
+    }
+
+    return {operations, settle};
+}
+
+describe("@jiminp/stelaro application lifecycle guards", () => {
+    for(const [state, operations] of invalid_operations) {
+        for(const operation of operations) {
+            it(`rejects ${operation} while ${state} with LifecycleStateError`, async () => {
+                const entered = await enterState(state);
+
+                await assert.rejects(entered.operations[operation], (error: unknown) => {
+                    assert.ok(error instanceof LifecycleStateError);
+                    assert.strictEqual(error.current_state, state);
+                    assert.strictEqual(error.operation, operation);
+                    return true;
+                });
+
+                await entered.settle();
+            });
+        }
+    }
 });
 
 function assertTypeBehavior() {
     const CounterCalls = defineComponentCalls("counter", {
-        current: {
-            input: EmptyInput,
-            output: CounterOutput,
-        },
-        set: {
-            input: SetCounterInput,
-            output: CounterOutput,
-        },
+        current: {input: EmptyInput, output: CounterOutput},
+        set: {input: SetCounterInput, output: CounterOutput},
     });
     const CounterComponent = defineComponent({
         calls: CounterCalls,
         uses: [],
         handlers: {
-            current: {
-                handle() {
-                    return {
-                        count: 0,
-                    };
-                },
-            },
-            set: {
-                handle(_context, input) {
-                    const count: number = input.count;
-
-                    return {
-                        count,
-                    };
-                },
+            current: () => ({count: 0}),
+            set(_context, input) {
+                const count: number = input.count;
+                return {count};
             },
         },
     });
-    const CounterApp = defineApplication({
-        components: [
-            CounterComponent,
-        ],
-    });
+    const CounterApp = defineApplication({components: [CounterComponent]});
     const app = createApplication(CounterApp);
 
     type CurrentInput = CallInput<typeof CounterCalls.calls.current>;
@@ -1398,20 +701,14 @@ function assertTypeBehavior() {
     type CurrentOutput = CallOutput<typeof CounterCalls.calls.current>;
 
     const current_input: CurrentInput = {};
-    const set_input: SetInput = {
-        count: 1,
-    };
-    const current_output: CurrentOutput = {
-        count: 1,
-    };
+    const set_input: SetInput = {count: 1};
+    const current_output: CurrentOutput = {count: 1};
 
     void current_input;
     void set_input;
     void current_output;
     void app.call(CounterCalls.calls.current, {});
-    void app.call(CounterCalls.calls.set, {
-        count: 1,
-    });
+    void app.call(CounterCalls.calls.set, {count: 1});
 
     // @ts-expect-error `counter.set` requires `{count: number}` input.
     void app.call(CounterCalls.calls.set, {});
@@ -1420,44 +717,9 @@ function assertTypeBehavior() {
 
     // @ts-expect-error user code calls references, not string keys.
     void app.call(string_reference, {});
+
+    // CLI arguments are accepted as application options.
+    void createApplication(CounterApp, parseArgs([]));
 }
 
 void assertTypeBehavior;
-
-function loggerMethodNames(log: Logger): LoggerMethodName[] {
-    return logger_method_names.filter((method) => typeof log[method] === "function");
-}
-
-function createRecordingLogger(): Logger {
-    return {
-        debug() {
-            // Test logger intentionally records nothing.
-        },
-        info() {
-            // Test logger intentionally records nothing.
-        },
-        warn() {
-            // Test logger intentionally records nothing.
-        },
-        error() {
-            // Test logger intentionally records nothing.
-        },
-    };
-}
-
-function setConsoleMethod(method: LoggerMethodName, value: typeof console.debug): void {
-    switch(method) {
-        case "debug":
-            console.debug = value;
-            return;
-        case "info":
-            console.info = value;
-            return;
-        case "warn":
-            console.warn = value;
-            return;
-        case "error":
-            console.error = value;
-            return;
-    }
-}

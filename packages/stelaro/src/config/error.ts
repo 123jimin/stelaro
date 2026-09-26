@@ -1,24 +1,28 @@
 import {StelaroError} from "../error.ts";
 
-/**
- * Thrown when a config TOML file cannot be read from disk.
- *
- * @category Errors
- */
-export class ConfigFileError extends StelaroError {
-    /** Path of the file that failed to load */
+abstract class ConfigSourceError extends StelaroError {
+    /** Path of the TOML file involved in the failure */
     readonly file_path: string;
-    /** Owning component id, or `null` for application-level config */
+    /** Owning component id, or `null` for application-level files */
     readonly component_id: string | null;
 
-    constructor(file_path: string, component_id: string | null, cause: unknown) {
-        const target = component_id != null
-            ? `component "${component_id}"`
-            : "application";
-        super(`Failed to read config file for ${target}: ${file_path}`);
+    constructor(summary: string, file_path: string, component_id: string | null, cause: unknown) {
+        const target = component_id != null ? `component "${component_id}"` : "application";
+        super(`${summary} for ${target}: ${file_path}`);
         this.file_path = file_path;
         this.component_id = component_id;
         this.cause = cause;
+    }
+}
+
+/**
+ * Thrown when a config TOML file cannot be read or parsed.
+ *
+ * @category Errors
+ */
+export class ConfigFileError extends ConfigSourceError {
+    constructor(file_path: string, component_id: string | null, cause: unknown) {
+        super("Failed to read config file", file_path, component_id, cause);
     }
 }
 
@@ -27,42 +31,20 @@ export class ConfigFileError extends StelaroError {
  *
  * @category Errors
  */
-export class ConfigValidationError extends StelaroError {
-    /** Path of the validated config file */
-    readonly file_path: string;
-    /** Owning component id, or `null` for application-level config */
-    readonly component_id: string | null;
-
+export class ConfigValidationError extends ConfigSourceError {
     constructor(file_path: string, component_id: string | null, cause: unknown) {
-        const target = component_id != null
-            ? `component "${component_id}"`
-            : "application";
-        super(`Config validation failed for ${target}: ${file_path}`);
-        this.file_path = file_path;
-        this.component_id = component_id;
-        this.cause = cause;
+        super("Config validation failed", file_path, component_id, cause);
     }
 }
 
 /**
- * Thrown when a secrets TOML file cannot be read from disk.
+ * Thrown when a secrets TOML file cannot be read or parsed.
  *
  * @category Errors
  */
-export class SecretsFileError extends StelaroError {
-    /** Path of the file that failed to load */
-    readonly file_path: string;
-    /** Owning component id, or `null` for application-level secrets */
-    readonly component_id: string | null;
-
+export class SecretsFileError extends ConfigSourceError {
     constructor(file_path: string, component_id: string | null, cause: unknown) {
-        const target = component_id != null
-            ? `component "${component_id}"`
-            : "application";
-        super(`Failed to read secrets file for ${target}: ${file_path}`);
-        this.file_path = file_path;
-        this.component_id = component_id;
-        this.cause = cause;
+        super("Failed to read secrets file", file_path, component_id, cause);
     }
 }
 
@@ -71,19 +53,8 @@ export class SecretsFileError extends StelaroError {
  *
  * @category Errors
  */
-export class SecretsValidationError extends StelaroError {
-    /** Path of the validated secrets file */
-    readonly file_path: string;
-    /** Owning component id, or `null` for application-level secrets */
-    readonly component_id: string | null;
-
+export class SecretsValidationError extends ConfigSourceError {
     constructor(file_path: string, component_id: string | null, cause: unknown) {
-        const target = component_id != null
-            ? `component "${component_id}"`
-            : "application";
-        super(`Secrets validation failed for ${target}: ${file_path}`);
-        this.file_path = file_path;
-        this.component_id = component_id;
-        this.cause = cause;
+        super("Secrets validation failed", file_path, component_id, cause);
     }
 }

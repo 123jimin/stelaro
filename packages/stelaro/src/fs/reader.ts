@@ -12,26 +12,41 @@ import type {Schema} from "../schema.ts";
  */
 export type FileReader = {
     /**
-     * Returns an {@link OptionalFileReader} that yields `null` instead of
-     * throwing when the file does not exist.
+     * Selects reads that yield `null` instead of throwing when the file does not exist.
+     *
+     * @returns An {@link OptionalFileReader} for the same file
      */
     optional(): OptionalFileReader;
     /** Reads the file as a UTF-8 string */
     text(): Promise<string>;
     /** Reads the file as a raw `Buffer` */
     buffer(): Promise<Buffer>;
-    /** Parses the file as JSON, optionally validating against a schema */
+    /** Parses the file as JSON */
     json(): Promise<unknown>;
+    /**
+     * Parses the file as JSON and validates it against a schema.
+     *
+     * @typeParam TSchema - Schema that validates the parsed value
+     * @param schema - Schema whose `assert` validates the parsed value
+     * @returns The validated value
+     */
     json<TSchema extends Schema>(schema: TSchema): Promise<TSchema["infer"]>;
-    /** Parses the file as TOML, optionally validating against a schema */
+    /** Parses the file as TOML */
     toml(): Promise<unknown>;
+    /**
+     * Parses the file as TOML and validates it against a schema.
+     *
+     * @typeParam TSchema - Schema that validates the parsed value
+     * @param schema - Schema whose `assert` validates the parsed value
+     * @returns The validated value
+     */
     toml<TSchema extends Schema>(schema: TSchema): Promise<TSchema["infer"]>;
 };
 
 /**
  * File reader variant that returns `null` when the file does not exist.
  *
- * Non-ENOENT errors are still thrown.
+ * Other I/O, parsing, and validation errors are still thrown.
  *
  * @see {@link FileReader}
  * @category Fluent FS
@@ -43,75 +58,66 @@ export type OptionalFileReader = {
     buffer(): Promise<Buffer | null>;
     /** Parses the file as JSON, or `null` if missing */
     json(): Promise<unknown>;
+    /**
+     * Parses the file as JSON and validates it against a schema.
+     *
+     * @typeParam TSchema - Schema that validates the parsed value
+     * @param schema - Schema whose `assert` validates the parsed value
+     * @returns The validated value, or `null` if missing
+     */
     json<TSchema extends Schema>(schema: TSchema): Promise<TSchema["infer"] | null>;
     /** Parses the file as TOML, or `null` if missing */
     toml(): Promise<unknown>;
+    /**
+     * Parses the file as TOML and validates it against a schema.
+     *
+     * @typeParam TSchema - Schema that validates the parsed value
+     * @param schema - Schema whose `assert` validates the parsed value
+     * @returns The validated value, or `null` if missing
+     */
     toml<TSchema extends Schema>(schema: TSchema): Promise<TSchema["infer"] | null>;
 };
 
-async function nullOnFileNotFound<T>(fn: () => Promise<T>): Promise<T | null> {
+type Parse = (text: string) => unknown;
+
+async function nullOnFileNotFound<T>(read: () => Promise<T>): Promise<T | null> {
     try {
-        return await fn();
+        return await read();
     } catch (error) {
         if((error as NodeJS.ErrnoException).code === "ENOENT") return null;
         throw error;
     }
 }
 
-function parseValidate(text: string, parse: (text: string) => unknown, schema?: Schema): unknown {
+function parseValidate(text: string, parse: Parse, schema?: Schema): unknown {
     const value: unknown = parse(text);
     return schema != null ? schema.assert(value) : value;
 }
 
-/**
- * Creates a {@link FileReader} for the given file path.
- *
- * @param file_path - Absolute path to the target file
- * @returns A new {@link FileReader}
- * @category Fluent FS
- */
 export function createFileReader(file_path: string): FileReader {
-    function text(): Promise<string> {
-        return readFile(file_path, "utf-8");
+    const text = () => readFile(file_path, "utf-8");
+    const reader: FileReader = {
+        optional: () => createOptionalFileReader(reader),
+        text,
+        buffer: () => readFile(file_path),
+        json: async (schema?: Schema) => parseValidate(await text(), JSON.parse, schema),
+        toml: async (schema?: Schema) => parseValidate(await text(), parseToml, schema),
+    } as FileReader;
+    return reader;
+}
+
+function createOptionalFileReader(reader: FileReader): OptionalFileReader {
+    const text = () => nullOnFileNotFound(reader.text);
+
+    async function parseOptional(parse: Parse, schema?: Schema): Promise<unknown> {
+        const content = await text();
+        return content == null ? null : parseValidate(content, parse, schema);
     }
 
     return {
-        optional() {
-            return createOptionalFileReader(file_path, text);
-        },
         text,
-        buffer() {
-            return readFile(file_path);
-        },
-        async json(schema?: Schema) {
-            return parseValidate(await text(), JSON.parse, schema);
-        },
-        async toml(schema?: Schema) {
-            return parseValidate(await text(), parseToml, schema);
-        },
-    } as FileReader;
-}
-
-function createOptionalFileReader(
-    file_path: string,
-    readText: () => Promise<string>,
-): OptionalFileReader {
-    const textOptional = () => nullOnFileNotFound(readText);
-
-    return {
-        text: textOptional,
-        buffer() {
-            return nullOnFileNotFound(() => readFile(file_path));
-        },
-        async json(schema?: Schema) {
-            const text = await textOptional();
-            if(text == null) return null;
-            return parseValidate(text, JSON.parse, schema);
-        },
-        async toml(schema?: Schema) {
-            const text = await textOptional();
-            if(text == null) return null;
-            return parseValidate(text, parseToml, schema);
-        },
+        buffer: () => nullOnFileNotFound(reader.buffer),
+        json: (schema?: Schema) => parseOptional(JSON.parse, schema),
+        toml: (schema?: Schema) => parseOptional(parseToml, schema),
     } as OptionalFileReader;
 }

@@ -17,45 +17,24 @@ export class LifecycleStateError extends StelaroError {
     /** Name of the operation that was rejected */
     readonly operation: string;
 
-    constructor(currentState: LifecycleState, operation: string) {
+    constructor(current_state: LifecycleState, operation: string) {
         super(
-            `Cannot "${operation}" while application is "${currentState}".`,
+            `Cannot "${operation}" while application is "${current_state}".`,
         );
-        this.current_state = currentState;
+        this.current_state = current_state;
         this.operation = operation;
     }
 }
 
-/**
- * Tracks lifecycle state and guards operations against invalid transitions.
- *
- * @category Lifecycle
- */
+/** Mutable lifecycle state with a guard for allowed states. */
 export type LifecycleMachine = {
-    /** Current lifecycle state */
     readonly state: LifecycleState;
-    /**
-     * Throws {@link LifecycleStateError} if the current state is not in `expected`.
-     *
-     * @param expected - Allowed state or states
-     * @param operation - Name of the guarded operation, used in the error message
-     * @throws {LifecycleStateError} If the current state does not match
-     */
+    /** Throws {@link LifecycleStateError} unless the current state is in `expected`. */
     require(expected: LifecycleState | readonly LifecycleState[], operation: string): void;
-    /**
-     * Transitions to a new state unconditionally.
-     *
-     * @param state - Target state
-     */
     enter(state: LifecycleState): void;
 };
 
-/**
- * Creates a lifecycle state machine starting in the `"idle"` state.
- *
- * @returns A new {@link LifecycleMachine}
- * @category Lifecycle
- */
+/** Creates a lifecycle machine in the `idle` state. */
 export function createLifecycleMachine(): LifecycleMachine {
     let current: LifecycleState = "idle";
 

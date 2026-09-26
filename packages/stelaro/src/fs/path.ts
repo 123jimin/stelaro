@@ -1,7 +1,10 @@
-import {isAbsolute, join as pathJoin, resolve} from "node:path";
+import {join as pathJoin, resolve, win32} from "node:path";
 
 import {createFileReader, type FileReader} from "./reader.ts";
 import {createFileWriter, type FileWriter} from "./writer.ts";
+
+const SEPARATOR = /[/\\]/;
+const DRIVE_PREFIX = /^[a-zA-Z]:/;
 
 /**
  * Immutable path wrapper with fluent navigation and file I/O access.
@@ -12,32 +15,33 @@ export type FluentPath = {
     /** Resolved absolute path */
     readonly path: string;
     /**
-     * Joins path segments using standard path resolution.
+     * Appends segments without containment; the result may traverse above this path.
      *
      * @param segments - Path segments to append
      * @returns A new {@link FluentPath} at the joined location
      */
     join(...segments: string[]): FluentPath;
     /**
-     * Joins path segments while confining the result to this path as a base.
+     * Appends segments while confining the result to this path as a base.
      *
-     * Absolute segments reset to the base, and `..` is capped so the result
-     * never escapes the base directory.
+     * Both `/` and `\` are separators, surplus `..` stops at the base, and
+     * absolute or drive-rooted segments such as `/etc`, `C:\etc`, or UNC paths
+     * reset to the base.
      *
      * @param segments - Path segments to confine
-     * @returns A new {@link FluentPath} within the base directory
+     * @returns A new {@link FluentPath} at the base or one of its descendants
      */
     confine(...segments: string[]): FluentPath;
     /**
-     * Creates a {@link FileReader} for the file at this path.
+     * Creates a reader for the file at this path.
      *
-     * @see {@link FileReader}
+     * @returns A {@link FileReader} for this path
      */
     read(): FileReader;
     /**
-     * Creates a {@link FileWriter} for the file at this path.
+     * Creates a writer for the file at this path.
      *
-     * @see {@link FileWriter}
+     * @returns A {@link FileWriter} for this path
      */
     write(): FileWriter;
 };
@@ -75,17 +79,17 @@ function confinePath(base: string, segments: string[]): string {
     const parts: string[] = [];
 
     for(const segment of segments) {
-        if(isAbsolute(segment)) {
-            parts.length = 0;
-        }
+        // Rooted forms (`/x`, `\x`, `C:\x`, `C:/x`, UNC) are detected identically on every OS.
+        const rooted = win32.isAbsolute(segment);
+        if(rooted) parts.length = 0;
 
-        for(const part of segment.split(/[/\\]/)) {
+        const relative = rooted ? segment.replace(DRIVE_PREFIX, "") : segment;
+        for(const part of relative.split(SEPARATOR)) {
             if(part === "" || part === ".") continue;
             if(part === "..") {
-                if(parts.length > 0) parts.pop();
+                parts.pop();
                 continue;
             }
-            if(/^[a-zA-Z]:$/.test(part)) continue;
             parts.push(part);
         }
     }

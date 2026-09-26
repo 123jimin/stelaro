@@ -1,8 +1,5 @@
 /**
- * Minimal schema contract for runtime validation.
- *
- * Compatible with ArkType schemas. `infer` is the validated output type,
- * and `assert` performs runtime validation.
+ * Minimal ArkType-compatible schema contract for runtime validation.
  *
  * @category Utility
  */

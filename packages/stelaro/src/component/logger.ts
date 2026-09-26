@@ -1,5 +1,3 @@
-import type {ComponentId} from "./types.ts";
-
 /**
  * Structured logger with leveled output methods.
  *
@@ -16,38 +14,25 @@ export type Logger = {
     error(...args: unknown[]): void;
 };
 
-/** Creates a {@link Logger} scoped to the given component id.
+/** Creates a {@link Logger} for the given scope, such as a component id.
  *
  * @category Logging
  */
-export type LoggerFactory = (component_id: ComponentId) => Logger;
-
-type ConsoleLogMethod = (...args: unknown[]) => void;
+export type LoggerFactory = (scope: string) => Logger;
 
 /**
- * Creates a logger that writes to the console with a `[component_id]` prefix.
+ * Creates a logger that writes to the console with a `[scope]` prefix.
  *
- * @param component_id - Identifier prepended to every log line
+ * @param scope - Scope prepended to every log line
  * @returns A console-backed {@link Logger}
  * @category Logging
  */
-export function consoleLoggerFactory(component_id: ComponentId): Logger {
-    const debug = console.debug.bind(console);
-    const info = console.info.bind(console);
-    const warn = console.warn.bind(console);
-    const error = console.error.bind(console);
+export function consoleLoggerFactory(scope: string): Logger {
+    const prefix = `[${scope}]`;
     return {
-        debug(...args: unknown[]) { writeConsoleLog(debug, component_id, args); },
-        info(...args: unknown[]) { writeConsoleLog(info, component_id, args); },
-        warn(...args: unknown[]) { writeConsoleLog(warn, component_id, args); },
-        error(...args: unknown[]) { writeConsoleLog(error, component_id, args); },
+        debug: (...args) => console.debug(prefix, ...args),
+        info: (...args) => console.info(prefix, ...args),
+        warn: (...args) => console.warn(prefix, ...args),
+        error: (...args) => console.error(prefix, ...args),
     };
-}
-
-function writeConsoleLog(
-    write: ConsoleLogMethod,
-    component_id: ComponentId,
-    args: unknown[],
-): void {
-    write(`[${component_id}]`, ...args);
 }

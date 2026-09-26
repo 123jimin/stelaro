@@ -1,1 +1,1 @@
-export * from "./data.ts";
+export type {DataAccess} from "./data.ts";

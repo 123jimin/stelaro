@@ -11,36 +11,28 @@ export type DataAccess = {
     /** Resolved absolute path of the data directory */
     readonly dir: string;
     /**
-     * Resolves a subpath confined within the data directory.
+     * Resolves a subpath confined to {@link DataAccess.dir} using {@link FluentPath.confine}.
      *
-     * `..` is capped at the data directory and cannot escape it; absolute
-     * segments reset to it.
-     *
-     * @param subpath - Relative path to resolve
-     * @returns Absolute path within the data directory
+     * @param subpath - Path to resolve within the data directory
+     * @returns Absolute path at the data directory or one of its descendants
      */
     resolve(subpath: string): string;
     /**
-     * Returns a {@link FileReader} for a file within the data directory.
+     * Creates a reader for a file within the data directory.
      *
-     * @param subpath - Relative path to the file
+     * @param subpath - Path to the file within the data directory
+     * @returns A {@link FileReader} for the confined path
      */
     read(subpath: string): FileReader;
     /**
-     * Returns a {@link FileWriter} for a file within the data directory.
+     * Creates a writer for a file within the data directory.
      *
-     * @param subpath - Relative path to the file
+     * @param subpath - Path to the file within the data directory
+     * @returns A {@link FileWriter} for the confined path
      */
     write(subpath: string): FileWriter;
 };
 
-/**
- * Creates a {@link DataAccess} rooted at the given base path.
- *
- * @param base_path - Root directory for data access
- * @returns A new {@link DataAccess} instance
- * @category Data
- */
 export function createDataAccess(base_path: string): DataAccess {
     const fp = fluentPath(base_path);
     return {

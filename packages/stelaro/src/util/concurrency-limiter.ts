@@ -7,10 +7,10 @@ import {Deque} from "@jiminp/tooltool";
  */
 export type ConcurrencyLimiter = {
     /**
-     * Acquires a concurrency slot for the given key, waiting in FIFO order if full.
+     * Acquires a slot for the key, waiting in FIFO order while the key is full.
      *
      * @param key - Concurrency bucket key
-     * @returns A release function that frees the slot
+     * @returns A release function that frees the slot; repeat calls are ignored
      */
     acquire(key: string): Promise<() => void>;
 };
@@ -21,55 +21,52 @@ type KeyState = {
 };
 
 /**
- * Creates a keyed concurrency limiter backed by a FIFO queue per key.
+ * Creates a keyed limiter that grants at most `max_concurrent` slots per key in FIFO order.
  *
- * Key state is cleaned up automatically when all slots are released and the
- * queue is empty.
- *
- * @param max_concurrent - Maximum concurrent acquires per key
+ * @param max_concurrent - Maximum concurrent slots per key
  * @returns A new {@link ConcurrencyLimiter}
+ * @throws {RangeError} When `max_concurrent` is not a positive integer
  * @category Utility
  */
 export function createConcurrencyLimiter(max_concurrent: number): ConcurrencyLimiter {
-    const keys = new Map<string, KeyState>();
-
-    function getState(key: string): KeyState {
-        let state = keys.get(key);
-        if(state == null) {
-            state = {active: 0, queue: new Deque()};
-            keys.set(key, state);
-        }
-        return state;
+    if(!Number.isInteger(max_concurrent) || max_concurrent < 1) {
+        throw new RangeError(`max_concurrent must be a positive integer; got ${max_concurrent}.`);
     }
 
-    function release(key: string): void {
-        const state = keys.get(key);
-        if(state == null) return;
+    const keys = new Map<string, KeyState>();
 
-        state.active--;
+    function createRelease(key: string, state: KeyState): () => void {
+        let released = false;
+        return () => {
+            if(released) return;
+            released = true;
 
-        const next = state.queue.shift();
-        if(next != null) {
-            state.active++;
-            next();
-        } else if(state.active === 0) {
-            keys.delete(key);
-        }
+            const next = state.queue.shift();
+            if(next != null) {
+                next();
+                return;
+            }
+
+            state.active--;
+            if(state.active === 0) keys.delete(key);
+        };
     }
 
     return {
         acquire(key: string): Promise<() => void> {
-            const state = getState(key);
+            let state = keys.get(key);
+            if(state == null) {
+                state = {active: 0, queue: new Deque()};
+                keys.set(key, state);
+            }
 
             if(state.active < max_concurrent) {
                 state.active++;
-                return Promise.resolve(() => { release(key); });
+                return Promise.resolve(createRelease(key, state));
             }
 
             return new Promise<() => void>((resolve) => {
-                state.queue.push(() => {
-                    resolve(() => { release(key); });
-                });
+                state.queue.push(() => { resolve(createRelease(key, state)); });
             });
         },
     };

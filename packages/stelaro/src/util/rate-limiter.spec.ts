@@ -19,6 +19,15 @@ describe("@jiminp/stelaro rate limiter", () => {
         mock.method(performance, "now", () => current_time);
     }
 
+    it("rejects an invalid limit or window", () => {
+        for(const limit of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+            assert.throws(() => createRateLimiter(limit, 1000), RangeError);
+        }
+        for(const window_ms of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+            assert.throws(() => createRateLimiter(1, window_ms), RangeError);
+        }
+    });
+
     it("allows calls within the limit", () => {
         useMockClock();
         const limiter = createRateLimiter(3, 1000);
@@ -37,15 +46,14 @@ describe("@jiminp/stelaro rate limiter", () => {
         assert.strictEqual(limiter.check("a"), false);
     });
 
-    it("allows calls again after the window expires", () => {
+    it("allows calls again once exactly window_ms has passed", () => {
         useMockClock();
         const limiter = createRateLimiter(1, 100);
 
         assert.strictEqual(limiter.check("a"), true);
+        advance(99);
         assert.strictEqual(limiter.check("a"), false);
-
-        advance(101);
-
+        advance(1);
         assert.strictEqual(limiter.check("a"), true);
     });
 
@@ -73,17 +81,19 @@ describe("@jiminp/stelaro rate limiter", () => {
         // At t=101, the first call (t=0) has expired, but the second (t=60) hasn't
         advance(41);
         assert.strictEqual(limiter.check("a"), true);
+        assert.strictEqual(limiter.check("a"), false);
     });
 
-    it("prunes expired entries on check", () => {
+    it("keeps limiting active keys while other keys expire", () => {
         useMockClock();
-        const limiter = createRateLimiter(1, 50);
+        const limiter = createRateLimiter(1, 100);
 
-        limiter.check("a");
-        advance(51);
-        limiter.check("a");
-        advance(51);
-
+        assert.strictEqual(limiter.check("a"), true);
+        advance(50);
+        assert.strictEqual(limiter.check("b"), true);
+        advance(50);
+        assert.strictEqual(limiter.check("c"), true);
+        assert.strictEqual(limiter.check("b"), false);
         assert.strictEqual(limiter.check("a"), true);
     });
 });

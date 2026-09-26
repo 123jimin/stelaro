@@ -42,22 +42,26 @@ describe("@jiminp/stelaro fluent path", () => {
         assert.strictEqual(fp.confine("sub", "file.txt").path, join(base, "sub", "file.txt"));
     });
 
-    it("clamps .. at the base in confine", () => {
-        const base = resolve("/base");
-        const fp = fluentPath(base);
-        assert.strictEqual(fp.confine("..", "..", "etc").path, join(base, "etc"));
-    });
-
     it("resolves .. within confine without escaping", () => {
         const base = resolve("/base");
         const fp = fluentPath(base);
         assert.strictEqual(fp.confine("a", "b", "..", "c").path, join(base, "a", "c"));
     });
 
-    it("resets to base on absolute segments in confine", () => {
+    it("resets to base on absolute and drive-rooted segments in confine", () => {
         const base = resolve("/base");
         const fp = fluentPath(base);
         assert.strictEqual(fp.confine("a", "/etc", "passwd").path, join(base, "etc", "passwd"));
+        assert.strictEqual(fp.confine("a", "\\etc").path, join(base, "etc"));
+        assert.strictEqual(fp.confine("a", "C:\\etc").path, join(base, "etc"));
+        assert.strictEqual(fp.confine("a", "C:/etc").path, join(base, "etc"));
+        assert.strictEqual(fp.confine("a", "\\\\server\\share\\g").path, join(base, "server", "share", "g"));
+    });
+
+    it("keeps a drive-like part after the start of a segment as a name", () => {
+        const base = resolve("/base");
+        const fp = fluentPath(base);
+        assert.strictEqual(fp.confine("a/C:/b").path, join(base, "a", "C:", "b"));
     });
 
     it("returns the base when confine resolves to nothing", () => {
