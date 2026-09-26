@@ -1,25 +1,20 @@
-import {format} from "node:util";
+import {inspect} from "node:util";
 
 import type {Logger, LoggerFactory} from "@jiminp/stelaro";
 import type {Logger as PinoLogger} from "pino";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
-/**
- * Maps the core {@link Logger}'s variadic call onto pino's `(mergeObject?, message?)`
- * convention. A leading non-null, non-array object is pino's merge target; the remaining
- * arguments are formatted into the message the same way the default console logger formats
- * them, so backend swaps do not change message composition. Arrays and primitives are message
- * content, never merge targets.
- */
 function emit(child: PinoLogger, level: LogLevel, args: unknown[]): void {
+    if(!child.isLevelEnabled(level)) return;
     const [first, ...rest] = args;
-    if(typeof first === "object" && first !== null && !Array.isArray(first)) {
-        if(rest.length > 0) child[level](first, format(...rest));
-        else child[level](first);
-    } else {
-        child[level](format(...args));
-    }
+    const merge = typeof first === "object" && first !== null && !Array.isArray(first);
+    const message_args = merge ? rest : args;
+    // Matches `console.*(prefix, ...args)`: arguments after the prefix are never printf-formatted.
+    const message = message_args.map((arg) => typeof arg === "string" ? arg : inspect(arg)).join(" ");
+    if(!merge) child[level](message);
+    else if(message_args.length > 0) child[level](first, message);
+    else child[level](first);
 }
 
 /**
@@ -28,8 +23,7 @@ function emit(child: PinoLogger, level: LogLevel, args: unknown[]): void {
  * @category Logging
  */
 export type PinoLoggerFactory = LoggerFactory & {
-    /** A pino child of the root with `component_id` bound as `component`, as the component's
-     *  logger has. */
+    /** Returns a new pino child of the root bound to `component_id` as `component` */
     childPinoLogger(component_id: string): PinoLogger;
 };
 
@@ -42,6 +36,20 @@ export type PinoLoggerFactory = LoggerFactory & {
  *
  * @param root - A configured pino root logger
  * @returns A {@link PinoLoggerFactory} producing component-scoped loggers
+ * @remarks
+ * A leading non-null, non-array object merges into the record; the remaining arguments form the
+ * message as the default console logger renders them.
+ * @example
+ * ```ts
+ * import {defineApplication} from "@jiminp/stelaro";
+ * import {definePinoLogger} from "@jiminp/stelaro-pino";
+ * import pino from "pino";
+ *
+ * const app = defineApplication({
+ *     components: [GreeterComponent],
+ *     logger: definePinoLogger(pino({level: "debug"})),
+ * });
+ * ```
  * @category Logging
  */
 export function definePinoLogger(root: PinoLogger): PinoLoggerFactory {

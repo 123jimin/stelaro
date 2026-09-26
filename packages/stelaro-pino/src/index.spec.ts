@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {describe, it} from "node:test";
+import {format} from "node:util";
 
 import pino from "pino";
 
@@ -20,15 +21,12 @@ function collect(options: pino.LoggerOptions = {}): {
     };
 }
 
-describe("definePinoLogger", () => {
-    it("produces a component-scoped logger exposing all four levels", () => {
-        const {factory} = collect();
-        const log = factory("my-comp");
-        for(const level of ["debug", "info", "warn", "error"] as const) {
-            assert.equal(typeof log[level], "function");
-        }
-    });
+/** The message the default console logger renders for `args`, without its `[scope]` prefix. */
+function consoleMessage(args: unknown[]): string {
+    return format("[c]", ...args).slice("[c] ".length);
+}
 
+describe("definePinoLogger", () => {
     it("tags every record with the component id", () => {
         const {factory, records} = collect();
         factory("my-comp").info("hello");
@@ -87,12 +85,33 @@ describe("definePinoLogger", () => {
         assert.equal(r["msg"], "count 5");
     });
 
-    it("applies printf-style format specifiers in the message", () => {
+    it("composes the message as the console logger renders it after its prefix", () => {
+        const cases: unknown[][] = [
+            ["x=%d", 5],
+            ["100%", "done"],
+            ["nested", {a: {b: {c: {d: 1}}}}],
+            [5, "items"],
+        ];
         const {factory, records} = collect();
-        factory("c").info("x=%d", 5);
+        for(const args of cases) factory("c").info(...args);
+        assert.deepEqual(records().map((r) => r["msg"]), cases.map(consoleMessage));
+    });
+
+    it("composes a leading null into the message", () => {
+        const {factory, records} = collect();
+        factory("c").info(null, "x");
         const [r] = records();
         assert.ok(r);
-        assert.equal(r["msg"], "x=5");
+        assert.equal(r["msg"], consoleMessage([null, "x"]));
+    });
+
+    it("composes every argument after a leading object into the message", () => {
+        const {factory, records} = collect();
+        factory("c").info({a: 1}, "x=%d", 2);
+        const [r] = records();
+        assert.ok(r);
+        assert.equal(r["a"], 1);
+        assert.equal(r["msg"], consoleMessage(["x=%d", 2]));
     });
 
     it("treats a leading array as message content, not a merge target", () => {
@@ -101,7 +120,25 @@ describe("definePinoLogger", () => {
         const [r] = records();
         assert.ok(r);
         assert.ok(!("0" in r), "array indices must not leak into the record");
-        assert.match(String(r["msg"]), /a/);
+        assert.equal(r["msg"], consoleMessage([["a", "b"]]));
+    });
+
+    it("maps each method to the matching pino level", () => {
+        const {factory, records} = collect({level: "debug"});
+        const log = factory("c");
+        log.debug("d");
+        log.info("i");
+        log.warn("w");
+        log.error("e");
+        assert.deepEqual(records().map((r) => r["level"]), [20, 30, 40, 50]);
+    });
+
+    it("applies root serializers to component records", () => {
+        const {factory, records} = collect({serializers: {user: (user: {id: number}) => user.id}});
+        factory("c").info({user: {id: 7, name: "x"}}, "hi");
+        const [r] = records();
+        assert.ok(r);
+        assert.equal(r["user"], 7);
     });
 
     it("emits pino structured error records for Error arguments", () => {

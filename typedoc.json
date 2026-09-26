@@ -4,6 +4,7 @@
         "packages/stelaro",
         "packages/stelaro-discord",
         "packages/stelaro-fastify",
+        "packages/stelaro-i18n",
         "packages/stelaro-pino"
     ],
     "entryPointStrategy": "packages",

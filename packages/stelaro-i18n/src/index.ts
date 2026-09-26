@@ -9,7 +9,7 @@ export type Locale = string;
 
 /**
  * A minimal structural logger. A component's `context.log` (`@jiminp/stelaro`) satisfies it, as does
- * `console`. The package defines its own so it carries no server-framework dependency (d0005).
+ * `console`.
  *
  * @category i18n
  */
@@ -26,26 +26,21 @@ export type Logger = {
 
 /**
  * Reads a catalog by subpath, resolving to its parsed JSON (or null/absent for a missing catalog).
- * The caller chooses the source: a component adapts its `DataAccess`, a browser uses `fetch`. This
- * is the seam that keeps the package gateway-agnostic — no server-framework dependency (d0005).
+ * The caller chooses the source: a component adapts its `DataAccess`, a browser uses `fetch`.
  *
  * @category i18n
  */
 export type CatalogReader = (subpath: string) => Promise<unknown>;
 
 /**
- * A source message: a stable id and its ICU MessageFormat source text.
+ * A source message: an optional id and its ICU MessageFormat source text.
  *
  * @category i18n
  */
 export type MessageDescriptor = {
-    /** Stable message key, unique within the component. Optional: an id-less descriptor is keyed
-     *  by its source text — `defaultMessage` is the key (gettext msgid semantics). */
+    /** Stable catalog key, unique within the component (default: `defaultMessage`) */
     readonly id?: string;
-    /**
-     * ICU source text and the final fallback. Intentionally camelCase, not snake_case, to mirror
-     * FormatJS's own descriptor fields so extraction is 1:1.
-     */
+    /** ICU source text and the final fallback */
     readonly defaultMessage: string;
     /** Optional translator context, carried through extraction. Never part of the key. */
     readonly description?: string;
@@ -64,37 +59,38 @@ export type Catalog = Record<string, string>;
  * @category i18n
  */
 export type I18nOptions = {
-    /** Source / fallback locale */
+    /** Source / fallback locale; must be a well-formed tag the runtime supports */
     readonly default_locale: Locale;
-    /** Locales whose catalogs `load` reads from files (default: just `default_locale`) */
+    /** Locales `load` requests from the reader (default: `[default_locale]`) */
     readonly locales?: readonly Locale[];
-    /** Catalog subpath under the component data directory (default: `"i18n"`) */
+    /** Subpath prefix passed to the reader (default: `"i18n"`) */
     readonly catalog_dir?: string;
-    /**
-     * In-memory catalogs seeded at construction — a gateway-agnostic alternative to {@link I18n.load}
-     * for a consumer that already holds the catalog (e.g. a browser), with no `DataAccess`. A seeded
-     * locale is usable by `t`/`bind` immediately, with no `load`. Independent of `locales`.
-     */
+    /** In-memory catalogs by locale, usable by `t`/`bind` without {@link I18n.load}; independent of `locales` */
     readonly messages?: Readonly<Partial<Record<Locale, Catalog>>>;
 };
 
-/** A value an ICU placeholder can interpolate. */
-type PrimitiveValue = string | number | boolean | Date;
-
-/**
- * The interpolation values an ICU source string `S` needs: a typed record of its simple
- * `{placeholder}` names, a loose record under ICU control syntax (plural / select), or `void`
- * when `S` has no placeholders. One traversal accumulates the names; a comma inside any `{...}`
- * means control syntax, which can't be refined precisely, so it degrades to a loose record.
- * Paired with tooltool's `OptionalIfVoid` so the values argument is required exactly when `S`
- * interpolates.
+/** A value an ICU placeholder can interpolate.
+ *
+ * @category i18n
  */
-type MessageValues<S extends string, Names extends string = never> =
+export type PrimitiveValue = string | number | boolean | Date;
+
+// Accumulates simple placeholder names; a comma inside any `{...}` means control syntax.
+type PlaceholderValues<S extends string, Names extends string> =
     S extends `${string}{${infer Inner}}${infer Rest}`
         ? Inner extends `${string},${string}`
             ? Record<string, PrimitiveValue>
-            : MessageValues<Rest, Names | Inner>
+            : PlaceholderValues<Rest, Names | Inner>
         : [Names] extends [never] ? void : {[K in Names]: PrimitiveValue};
+
+/**
+ * The values an ICU source string interpolates: typed simple placeholders, a loose record for
+ * plural/select syntax, or `void` when it has none.
+ *
+ * @typeParam S - ICU source text
+ * @category i18n
+ */
+export type MessageValues<S extends string> = PlaceholderValues<S, never>;
 
 /**
  * A component-scoped translator. Construct it synchronously with {@link createI18n}, load its
@@ -105,13 +101,13 @@ type MessageValues<S extends string, Names extends string = never> =
 export type I18n = {
     /**
      * Loads catalogs via a caller-supplied `read` (a component adapts its `DataAccess`, a browser
-     * uses `fetch`). Call once. The optional `log` routes non-fallback translation errors through it
-     * instead of the console.
+     * uses `fetch`). The optional `log` receives non-fallback translation errors instead of the console.
      */
     load(read: CatalogReader, log?: Logger): Promise<void>;
     /**
      * Translates `message` for an explicit `locale`. Synchronous; falls back to the message's
-     * source (`defaultMessage`) when a translation is missing or before {@link I18n.load}.
+     * source (`defaultMessage`) when a translation is missing or before {@link I18n.load}. A malformed
+     * or runtime-unsupported `locale` is reported and gets the source formatted in `default_locale`.
      */
     t<const D extends MessageDescriptor>(
         locale: Locale,
@@ -146,6 +142,16 @@ async function readCatalog(read: CatalogReader, subpath: string): Promise<Catalo
     return (raw as Catalog | null) ?? null;
 }
 
+// Malformed tags make `Intl` throw; well-formed tags without runtime locale data match nothing.
+function isSupportedLocale(locale: Locale): boolean {
+    try {
+        return Intl.NumberFormat.supportedLocalesOf(locale).length > 0
+            && Intl.DateTimeFormat.supportedLocalesOf(locale).length > 0;
+    } catch{
+        return false;
+    }
+}
+
 /**
  * The catalog key {@link createI18n} looks a descriptor up by: its `id`, else its source text
  * (`defaultMessage`).
@@ -162,35 +168,52 @@ export function catalogKey(descriptor: MessageDescriptor): string {
  * Creates a component-scoped {@link I18n} backed by FormatJS. Synchronous and safe to call inside
  * a component state factory; catalogs are read later by {@link I18n.load}.
  *
- * @param options - Default locale, loadable locales, and catalog directory
+ * @param options - Default locale, loadable locales, catalog directory, and seeded catalogs
  * @returns A new {@link I18n} holder
+ * @example
+ * ```ts
+ * const GreeterComponent = defineComponent({
+ *     calls: GreeterCalls,
+ *     uses: [],
+ *     state: () => ({i18n: createI18n({default_locale: "en", locales: ["en", "ko"]})}),
+ *     async start(context) {
+ *         await context.state.i18n.load((subpath) => context.data.read(subpath).optional().json(), context.log);
+ *     },
+ *     handlers: {
+ *         greet: (context, input) => ({
+ *             text: context.state.i18n.t(input.locale, {defaultMessage: "Hello, {name}!"}, {name: input.name}),
+ *         }),
+ *     },
+ * });
+ * ```
  * @category i18n
  */
 export function createI18n(options: I18nOptions): I18n {
     const cache = createIntlCache();
     const catalog_dir = options.catalog_dir ?? "i18n";
     const messages_by_locale = new Map<Locale, Catalog>();
-    // Seed in-memory catalogs (gateway-agnostic; usable by `t`/`bind` before/without `load`).
     if(options.messages != null) {
         for(const [locale, catalog] of Object.entries(options.messages)) {
             if(catalog != null) messages_by_locale.set(locale, catalog);
         }
     }
     const shapes = new Map<Locale, IntlShape>();
-    // Set by `load`; read lazily by `onError` at error-time. Null before `load` (or when `load`
-    // ran without a logger), in which case reporting degrades to the console.
     let logger: Logger | null = null;
 
     function shapeFor(locale: Locale): IntlShape {
         const cached = shapes.get(locale);
         if(cached != null) return cached;
+        const supported = isSupportedLocale(locale);
+        if(!supported) {
+            (logger ?? console).error(
+                `Unsupported locale "${locale}"; using source text formatted in "${options.default_locale}".`,
+            );
+        }
         const shape = createIntl({
-            locale,
+            locale: supported ? locale : options.default_locale,
             defaultLocale: options.default_locale,
-            messages: messages_by_locale.get(locale) ?? {},
+            messages: supported ? messages_by_locale.get(locale) ?? {} : {},
             onError(error) {
-                // A missing translation falls back to source by design; only surface real errors,
-                // through the component logger when one is set, else the console as a last resort.
                 if(error.code === IntlErrorCode.MISSING_TRANSLATION) return;
                 (logger ?? console).error(error);
             },
@@ -212,7 +235,6 @@ export function createI18n(options: I18nOptions): I18n {
             for(const locale of locales) {
                 const catalog = await readCatalog(read, `${catalog_dir}/${locale}.json`);
                 if(catalog != null) {
-                    // `load` overlays the seed at the id level: loaded ids win, seeded-only survive.
                     const seeded = messages_by_locale.get(locale);
                     messages_by_locale.set(locale, seeded != null ? {...seeded, ...catalog} : catalog);
                 }
@@ -237,7 +259,8 @@ export function createI18n(options: I18nOptions): I18n {
  * values argument of {@link I18n.t} is inferred, and a name that `@formatjs/cli` recognizes for
  * extraction.
  *
- * @param messages - Map of key to {@link MessageDescriptor}
+ * @typeParam T - Map of key to source message
+ * @param messages - Map of key to source message
  * @returns The same map, with literal types preserved
  * @category i18n
  */
