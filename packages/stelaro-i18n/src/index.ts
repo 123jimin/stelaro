@@ -1,5 +1,5 @@
 import {createIntl, createIntlCache, IntlErrorCode, type IntlShape} from "@formatjs/intl";
-import type {OptionalIfVoid} from "@jiminp/tooltool";
+import type {Nullable, OptionalIfVoid} from "@jiminp/tooltool";
 
 /** A BCP-47 language tag, e.g. `"en"`, `"ko"`, `"en-US"`.
  *
@@ -62,11 +62,11 @@ export type I18nOptions = {
     /** Source / fallback locale; must be a well-formed tag the runtime supports */
     readonly default_locale: Locale;
     /** Locales `load` requests from the reader (default: `[default_locale]`) */
-    readonly locales?: readonly Locale[];
+    readonly locales?: Nullable<readonly Locale[]>;
     /** Subpath prefix passed to the reader (default: `"i18n"`) */
-    readonly catalog_dir?: string;
+    readonly catalog_dir?: Nullable<string>;
     /** In-memory catalogs by locale, usable by `t`/`bind` without {@link I18n.load}; independent of `locales` */
-    readonly messages?: Readonly<Partial<Record<Locale, Catalog>>>;
+    readonly messages?: Nullable<Readonly<Partial<Record<Locale, Catalog>>>>;
 };
 
 /** A value an ICU placeholder can interpolate.

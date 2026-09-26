@@ -1,3 +1,5 @@
+import type {Nullable} from "@jiminp/tooltool";
+
 import type {KeyExtractor} from "./key.ts";
 
 /** Ephemeral message sent when a rate limit is exceeded. */
@@ -14,5 +16,5 @@ export type RateLimitOptions = {
     /** Sliding window duration in milliseconds */
     readonly window_ms: number;
     /** Key extraction strategy (default: {@link perUser}) */
-    readonly key?: KeyExtractor;
+    readonly key?: Nullable<KeyExtractor>;
 };

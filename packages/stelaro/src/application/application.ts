@@ -1,6 +1,6 @@
 import {join, resolve} from "node:path";
 
-import type {Promisable} from "@jiminp/tooltool";
+import type {Nullable, Promisable} from "@jiminp/tooltool";
 
 import type {AnyComponentContext} from "../component/context.ts";
 import {consoleLoggerFactory, type Logger, type LoggerFactory} from "../component/logger.ts";
@@ -62,9 +62,9 @@ export type ApplicationDefinition<
  */
 export type ApplicationOptions = {
     /** Root directory for config, secrets, and data files (default: working directory) */
-    readonly base_dir?: string | undefined;
-    /** Environment name used to select config/secrets overlays */
-    readonly env?: string | null;
+    readonly base_dir?: Nullable<string>;
+    /** Environment name used to select config/secrets overlays, or `null` for none (default: `null`) */
+    readonly env?: Nullable<string>;
 };
 
 /**

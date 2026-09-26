@@ -1,3 +1,5 @@
+import type {Nullable} from "@jiminp/tooltool";
+
 import {consoleLoggerFactory, type Logger, type LoggerFactory} from "../component/logger.ts";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -12,7 +14,7 @@ export type SignalHandlerOptions = {
     /** Maximum time in ms to wait for graceful shutdown before exiting with code 1, or `null` to wait indefinitely (default: `10000`) */
     readonly timeout?: number | null | undefined;
     /** Logger for shutdown messages (default: application's `signal` logger or console) */
-    readonly logger?: Logger;
+    readonly logger?: Nullable<Logger>;
 };
 
 /**

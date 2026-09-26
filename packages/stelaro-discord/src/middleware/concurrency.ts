@@ -1,3 +1,5 @@
+import type {Nullable} from "@jiminp/tooltool";
+
 import type {KeyExtractor} from "./key.ts";
 
 /**
@@ -9,5 +11,5 @@ export type ConcurrencyOptions = {
     /** Maximum concurrent handler executions per key */
     readonly max: number;
     /** Key extraction strategy (default: {@link perUser}) */
-    readonly key?: KeyExtractor;
+    readonly key?: Nullable<KeyExtractor>;
 };
