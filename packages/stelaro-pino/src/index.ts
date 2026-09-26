@@ -5,7 +5,7 @@ import type {Logger as PinoLogger} from "pino";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
-function emit(child: PinoLogger, level: LogLevel, args: unknown[]): void {
+function emit(child: PinoLogger, level: LogLevel, ...args: unknown[]): void {
     if(!child.isLevelEnabled(level)) return;
     const [first, ...rest] = args;
     const merge = typeof first === "object" && first !== null && !Array.isArray(first);
@@ -60,10 +60,10 @@ export function definePinoLogger(root: PinoLogger): PinoLoggerFactory {
     const factory: LoggerFactory = (scope): Logger => {
         const child = childPinoLogger(scope);
         return {
-            debug(...args: unknown[]) { emit(child, "debug", args); },
-            info(...args: unknown[]) { emit(child, "info", args); },
-            warn(...args: unknown[]) { emit(child, "warn", args); },
-            error(...args: unknown[]) { emit(child, "error", args); },
+            debug: emit.bind(null, child, "debug"),
+            info: emit.bind(null, child, "info"),
+            warn: emit.bind(null, child, "warn"),
+            error: emit.bind(null, child, "error"),
         };
     };
     return Object.assign(factory, {childPinoLogger});
