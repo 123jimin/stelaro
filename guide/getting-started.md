@@ -57,12 +57,12 @@ Route groups are co-located with the component they serve. Add `GreeterRoutes` t
 
 ```ts
 // src/greeter.ts (add to the end)
-import {defineFastifyRoutes, route} from "@jiminp/stelaro-fastify";
+import {defineFastifyRoute, defineFastifyRoutes} from "@jiminp/stelaro-fastify";
 
 export const GreeterRoutes = defineFastifyRoutes({
     uses: [GreeterCalls],
     routes: [
-        route({
+        defineFastifyRoute({
             method: "GET",
             path: "/greet/:name",
             params: schema({name: "string"}),
@@ -74,7 +74,7 @@ export const GreeterRoutes = defineFastifyRoutes({
 });
 ```
 
-The route group declares `uses: [GreeterCalls]`; the gateway component depends on every surface its route groups declare. Inline routes can only call what their group declares, but routes built with `route()` are not narrowed to the group's `uses`. The `params` schema validates the URL parameter before the handler runs.
+The route group declares `uses: [GreeterCalls]`; the gateway component depends on every surface its route groups declare. Inline routes can only call what their group declares, but routes built with `defineFastifyRoute()` are not narrowed to the group's `uses`. The `params` schema validates the URL parameter before the handler runs.
 
 Then define the gateway that mounts these route groups:
 

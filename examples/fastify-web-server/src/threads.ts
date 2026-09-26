@@ -1,5 +1,5 @@
 import {defineComponent} from "@jiminp/stelaro";
-import {defineFastifyRoutes, route, sendHtml} from "@jiminp/stelaro-fastify";
+import {defineFastifyRoute, defineFastifyRoutes, sendHtml} from "@jiminp/stelaro-fastify";
 import {type as schema} from "arktype";
 
 import {requireAuth} from "./auth.ts";
@@ -95,7 +95,7 @@ export const ThreadsRoutes = defineFastifyRoutes({
                 `);
             },
         },
-        route({
+        defineFastifyRoute({
             method: "GET",
             path: "/threads/:thread_id",
             params: schema({thread_id: "string"}),
@@ -133,7 +133,7 @@ export const ThreadsRoutes = defineFastifyRoutes({
                 `.html);
             },
         }),
-        route({
+        defineFastifyRoute({
             method: "POST",
             path: "/threads",
             preHandler: [requireAuth],

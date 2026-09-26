@@ -51,7 +51,7 @@ export type EventDefinition<
  *
  * @category Events
  */
-export function event<
+export function defineDiscordEvent<
     TEvent extends keyof ClientEvents,
 >(definition: EventDefinition<readonly AnyComponentCalls[], TEvent>): EventDefinition {
     return definition;

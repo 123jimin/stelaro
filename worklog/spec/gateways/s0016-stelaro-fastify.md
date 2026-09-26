@@ -53,7 +53,7 @@ const HTML_MEDIA_TYPE = "text/html; charset=utf-8";
 
 function defineFastifyGateway(definition: FastifyGatewayDefinition): Component;
 function defineFastifyRoutes(definition: FastifyRouteGroup): FastifyRouteGroup;
-function route(definition: GatewayRoute): GatewayRoute;
+function defineFastifyRoute(definition: GatewayRoute): GatewayRoute;
 function mountFastifyRoutes(
     server: FastifyInstance,
     group: FastifyRouteGroup<readonly []>,
@@ -91,8 +91,8 @@ class UnboundCallError extends StelaroError {
   400, the failing part as Fastify's `validationContext`, the Arktype error as
   `cause`) to the server's error handling, so without a custom error handler
   Fastify answers with its default 400 body. Success exposes inferred values;
-  undeclared parts are `null`. `route()` provides per-route inference;
-  schema-free routes may be inline.
+  undeclared parts are `null`. `defineFastifyRoute()` provides per-route
+  inference; schema-free routes may be inline.
 - Handlers receive raw Fastify request/reply objects. `redirect` sends a
   redirect; `html` sends HTML as `sendHtml` does, typed `HTML_MEDIA_TYPE`.
 - `mountFastifyRoutes` performs the registration, validation, and handler

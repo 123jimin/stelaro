@@ -17,13 +17,13 @@ import {
 } from "discord.js";
 
 import {
-    command,
+    defineDiscordCommand,
+    defineDiscordEvent,
     defineDiscordGateway,
+    defineDiscordInteraction,
     defineDiscordMounts,
     type DiscordGatewayDefinition,
-    event,
     type Guard,
-    interaction,
 } from "./index.ts";
 
 type Sent = {readonly method: "reply" | "followUp" | "respond"; readonly payload: unknown};
@@ -155,7 +155,7 @@ describe("handler call typing", () => {
         defineDiscordMounts({
             uses: [CounterCalls],
             commands: [
-                command({data: slashData("ping"), handle() {}}),
+                defineDiscordCommand({data: slashData("ping"), handle() {}}),
                 {
                     data: slashData("count"),
                     async handle({call}) {
@@ -174,8 +174,8 @@ describe("defineDiscordGateway", () => {
         const mounts = [defineDiscordMounts({
             uses: [],
             commands: [
-                command({data: slashData("ping"), handle() {}}),
-                command({data: new ContextMenuCommandBuilder().setName("Inspect").setType(ApplicationCommandType.User), handle() {}}),
+                defineDiscordCommand({data: slashData("ping"), handle() {}}),
+                defineDiscordCommand({data: new ContextMenuCommandBuilder().setName("Inspect").setType(ApplicationCommandType.User), handle() {}}),
             ],
         })];
 
@@ -189,7 +189,7 @@ describe("defineDiscordGateway", () => {
     });
 
     it("rejects two commands with the same type and name, even across mounts", () => {
-        const mount = () => defineDiscordMounts({uses: [], commands: [command({data: slashData("ping"), handle() {}})]});
+        const mount = () => defineDiscordMounts({uses: [], commands: [defineDiscordCommand({data: slashData("ping"), handle() {}})]});
 
         assert.throws(() => defineDiscordGateway({
             id: "discord",
@@ -205,8 +205,8 @@ describe("defineDiscordGateway", () => {
             mounts: [defineDiscordMounts({
                 uses: [],
                 commands: [
-                    command({data: slashData("info"), handle() { handled.push("slash"); }}),
-                    command({
+                    defineDiscordCommand({data: slashData("info"), handle() { handled.push("slash"); }}),
+                    defineDiscordCommand({
                         data: new ContextMenuCommandBuilder().setName("info").setType(ApplicationCommandType.User),
                         handle() { handled.push("user menu"); },
                     }),
@@ -227,7 +227,7 @@ describe("defineDiscordGateway", () => {
                 id: "discord",
                 client: new FakeClient() as unknown as Client,
                 uses: [],
-                mounts: [defineDiscordMounts({uses: [], interactions: [interaction({pattern, handle() {}})]})],
+                mounts: [defineDiscordMounts({uses: [], interactions: [defineDiscordInteraction({pattern, handle() {}})]})],
             }));
         });
     }
@@ -248,7 +248,7 @@ describe("guards", () => {
             mounts: [defineDiscordMounts({
                 uses: [],
                 guards: [recordingGuard(order, "mount")],
-                commands: [command({
+                commands: [defineDiscordCommand({
                     data: slashData("ping"),
                     guards: [recordingGuard(order, "command")],
                     handle() { order.push("handler"); },
@@ -268,7 +268,7 @@ describe("guards", () => {
             mounts: [defineDiscordMounts({
                 uses: [],
                 guards: [recordingGuard(order, "mount", true)],
-                commands: [command({
+                commands: [defineDiscordCommand({
                     data: slashData("ping"),
                     guards: [recordingGuard(order, "command")],
                     handle() { order.push("handler"); },
@@ -289,7 +289,7 @@ describe("guards", () => {
             mounts: [defineDiscordMounts({
                 uses: [],
                 guards: [recordingGuard(order, "mount", true)],
-                commands: [command({
+                commands: [defineDiscordCommand({
                     data: searchData(),
                     handle() {},
                     autocomplete: {query: () => { order.push("autocomplete"); return ["a"]; }},
@@ -311,7 +311,7 @@ describe("limits", () => {
         const {client} = await startGateway(t, {
             mounts: [defineDiscordMounts({
                 uses: [],
-                commands: [command({
+                commands: [defineDiscordCommand({
                     data: slashData("ping"),
                     rate_limit: {limit: 1, window_ms: 60_000},
                     handle() { handled++; },
@@ -334,7 +334,7 @@ describe("limits", () => {
         const {client} = await startGateway(t, {
             mounts: [defineDiscordMounts({
                 uses: [],
-                commands: [command({
+                commands: [defineDiscordCommand({
                     data: searchData(),
                     rate_limit: {limit: 1, window_ms: 60_000},
                     handle() {},
@@ -359,7 +359,7 @@ describe("limits", () => {
         const {client} = await startGateway(t, {
             mounts: [defineDiscordMounts({
                 uses: [],
-                commands: [command({
+                commands: [defineDiscordCommand({
                     data: slashData("ping"),
                     concurrency: {max: 1},
                     handle() {
@@ -382,7 +382,7 @@ describe("handler errors", () => {
         return startGateway(t, {
             mounts: [defineDiscordMounts({
                 uses: [],
-                commands: [command({data: slashData("ping"), handle() { throw error; }})],
+                commands: [defineDiscordCommand({data: slashData("ping"), handle() { throw error; }})],
             })],
         });
     }
@@ -426,8 +426,8 @@ describe("persistent interactions", () => {
             mounts: [defineDiscordMounts({
                 uses: [],
                 interactions: [
-                    interaction({pattern: "quote:delete:{quote_id}", handle({params}) { handled.push(["delete", params]); }}),
-                    interaction({pattern: "quote:list:{user}:{page}", handle({params}) { handled.push(["list", params]); }}),
+                    defineDiscordInteraction({pattern: "quote:delete:{quote_id}", handle({params}) { handled.push(["delete", params]); }}),
+                    defineDiscordInteraction({pattern: "quote:list:{user}:{page}", handle({params}) { handled.push(["list", params]); }}),
                 ],
             })],
         });
@@ -446,7 +446,7 @@ describe("autocomplete", () => {
         const {client} = await startGateway(t, {
             mounts: [defineDiscordMounts({
                 uses: [],
-                commands: [command({
+                commands: [defineDiscordCommand({
                     data: searchData(),
                     handle() {},
                     autocomplete: {query: () => [long, ...Array.from({length: 29}, (_, i) => `${i}`)]},
@@ -468,7 +468,7 @@ describe("autocomplete", () => {
         const {client} = await startGateway(t, {
             mounts: [defineDiscordMounts({
                 uses: [],
-                commands: [command({
+                commands: [defineDiscordCommand({
                     data: slashData("quote").addSubcommand((sub) => sub
                         .setName("search")
                         .setDescription("Search")
@@ -490,7 +490,7 @@ describe("autocomplete", () => {
         const {client} = await startGateway(t, {
             mounts: [defineDiscordMounts({
                 uses: [],
-                commands: [command({
+                commands: [defineDiscordCommand({
                     data: searchData(),
                     handle() {},
                     autocomplete: ({interaction: typing}) => { received.push(typing); },
@@ -514,8 +514,8 @@ describe("events", () => {
             mounts: [defineDiscordMounts({
                 uses: [],
                 events: [
-                    event({type: Events.MessageCreate, handle() { throw error; }}),
-                    event({type: Events.MessageCreate, handle({event: args}) { received.push(args); }}),
+                    defineDiscordEvent({type: Events.MessageCreate, handle() { throw error; }}),
+                    defineDiscordEvent({type: Events.MessageCreate, handle({event: args}) { received.push(args); }}),
                 ],
             })],
         });
@@ -531,7 +531,7 @@ describe("events", () => {
 describe("lifecycle", () => {
     const mounts = [defineDiscordMounts({
         uses: [],
-        events: [event({type: Events.MessageCreate, handle() {}})],
+        events: [defineDiscordEvent({type: Events.MessageCreate, handle() {}})],
     })];
 
     it("stop removes only the gateway's listeners and waits for the client to be destroyed", async (t) => {

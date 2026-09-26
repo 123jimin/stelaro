@@ -164,7 +164,7 @@ export type FastifyRouteGroup<
 > = {
     /** Call surfaces the routes' handlers may call */
     readonly uses: TUses;
-    // Inferred from `uses` alone: `route()` erases its routes' uses, which would widen `TUses`.
+    // Inferred from `uses` alone: `defineFastifyRoute()` erases its routes' uses, which would widen `TUses`.
     /** Routes of the group */
     readonly routes: readonly GatewayRoute<NoInfer<TUses>>[];
 };
@@ -208,7 +208,7 @@ export type FastifyGatewayDefinition<
  *
  * @category Routes
  */
-export function route<
+export function defineFastifyRoute<
     TParams extends ComponentCallSchema | undefined = undefined,
     TBody extends ComponentCallSchema | undefined = undefined,
     TQuerystring extends ComponentCallSchema | undefined = undefined,

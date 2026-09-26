@@ -10,12 +10,12 @@ export type {
     CommandDefinition,
     CommandHandlerContext,
 } from "./command.ts";
-export {command} from "./command.ts";
+export {defineDiscordCommand} from "./command.ts";
 export type {
     EventDefinition,
     EventHandlerContext,
 } from "./event.ts";
-export {event} from "./event.ts";
+export {defineDiscordEvent} from "./event.ts";
 export type {DiscordGatewayDefinition} from "./gateway.ts";
 export {defineDiscordGateway} from "./gateway.ts";
 export type {
@@ -23,7 +23,7 @@ export type {
     InteractionHandlerContext,
     InteractionParams,
 } from "./interaction.ts";
-export {interaction} from "./interaction.ts";
+export {defineDiscordInteraction} from "./interaction.ts";
 export type {ConcurrencyOptions} from "./middleware/concurrency.ts";
 export type {Guard, GuardContext} from "./middleware/guard.ts";
 export type {KeyExtractor} from "./middleware/key.ts";

@@ -165,7 +165,7 @@ export type CommandDefinition<
  *
  * @example
  * ```ts
- * const ping = command({
+ * const ping = defineDiscordCommand({
  *     data: new SlashCommandBuilder().setName("ping").setDescription("Replies with pong"),
  *     async handle({interaction}) {
  *         await interaction.reply("pong");
@@ -175,7 +175,7 @@ export type CommandDefinition<
  *
  * @category Commands
  */
-export function command<
+export function defineDiscordCommand<
     TData extends AnySlashCommandData | ContextMenuCommandBuilder,
     TOptions extends ComponentCallSchema | undefined = undefined,
 >(definition: CommandDefinition<readonly AnyComponentCalls[], TData, TOptions>): CommandDefinition {

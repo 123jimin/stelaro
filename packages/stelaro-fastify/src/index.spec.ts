@@ -7,10 +7,10 @@ import Fastify, {type FastifyInstance, type FastifyListenOptions, type InjectOpt
 
 import {
     defineFastifyGateway,
+    defineFastifyRoute,
     defineFastifyRoutes,
     HTML_MEDIA_TYPE,
     mountFastifyRoutes,
-    route,
     RouteValidationError,
     UnboundCallError,
 } from "./index.ts";
@@ -114,7 +114,7 @@ describe("defineFastifyGateway", () => {
         });
         const greeter_routes = defineFastifyRoutes({
             uses: [CounterCalls, GreeterCalls],
-            routes: [route({
+            routes: [defineFastifyRoute({
                 method: "POST",
                 path: "/greet",
                 body: schema({name: "string"}),
@@ -184,14 +184,14 @@ describe("mountFastifyRoutes", () => {
     const echo_routes = defineFastifyRoutes({
         uses: [],
         routes: [
-            route({
+            defineFastifyRoute({
                 method: "POST",
                 path: "/echo/:id",
                 params: schema({id: "string.numeric.parse"}),
                 body: schema({name: "string"}),
                 handle: ({params, body}) => ({params, body}),
             }),
-            route({
+            defineFastifyRoute({
                 method: "GET",
                 path: "/search",
                 querystring: schema({n: "string.numeric.parse"}),

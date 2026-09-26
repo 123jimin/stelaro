@@ -81,7 +81,7 @@ export type InteractionDefinition<
  *
  * @example
  * ```ts
- * const vote = interaction({
+ * const vote = defineDiscordInteraction({
  *     pattern: "poll:{poll_id}:vote:{option}",
  *     async handle({interaction, params}) {
  *         await interaction.reply(`Voted ${params.option} in poll ${params.poll_id}.`);
@@ -91,7 +91,7 @@ export type InteractionDefinition<
  *
  * @category Interactions
  */
-export function interaction<
+export function defineDiscordInteraction<
     TPattern extends string,
 >(definition: InteractionDefinition<readonly AnyComponentCalls[], TPattern>): InteractionDefinition {
     return definition;

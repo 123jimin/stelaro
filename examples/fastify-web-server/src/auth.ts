@@ -2,7 +2,7 @@ import {randomBytes} from "node:crypto";
 
 import {Authenticator} from "@fastify/passport";
 import fastifySecureSession from "@fastify/secure-session";
-import {defineFastifyRoutes, route} from "@jiminp/stelaro-fastify";
+import {defineFastifyRoute, defineFastifyRoutes} from "@jiminp/stelaro-fastify";
 import {type as schema} from "arktype";
 import {DiscordScope, Strategy as DiscordStrategy} from "discord-strategy";
 import type {FastifyInstance, FastifyReply, FastifyRequest} from "fastify";
@@ -180,7 +180,7 @@ export const AuthRoutes = defineFastifyRoutes({
                 return redirect("/");
             },
         },
-        route({
+        defineFastifyRoute({
             method: "POST",
             path: "/login/id",
             body: schema({name: "string"}),

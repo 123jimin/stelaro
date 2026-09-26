@@ -1,8 +1,8 @@
 import {
-    command,
+    defineDiscordCommand,
+    defineDiscordEvent,
+    defineDiscordInteraction,
     defineDiscordMounts,
-    event,
-    interaction,
 } from "@jiminp/stelaro-discord";
 import {
     ActionRowBuilder,
@@ -69,7 +69,7 @@ function buildPaginationRow(user_filter: string, page: number, total_pages: numb
 export const QuotesMounts = defineDiscordMounts({
     uses: [QuotesCalls, UsersCalls],
     commands: [
-        command({
+        defineDiscordCommand({
             data: new SlashCommandBuilder()
                 .setName("quote")
                 .setDescription("Quote board commands")
@@ -164,7 +164,7 @@ export const QuotesMounts = defineDiscordMounts({
             },
         }),
 
-        command({
+        defineDiscordCommand({
             data: new ContextMenuCommandBuilder()
                 .setName("Save as Quote")
                 .setType(ApplicationCommandType.Message)
@@ -200,7 +200,7 @@ export const QuotesMounts = defineDiscordMounts({
     ],
 
     events: [
-        event({
+        defineDiscordEvent({
             type: Events.MessageReactionAdd,
             async handle({event: [reaction, user], call, client}) {
                 if(user.bot) return;
@@ -247,7 +247,7 @@ export const QuotesMounts = defineDiscordMounts({
     ],
 
     interactions: [
-        interaction({
+        defineDiscordInteraction({
             pattern: "quote:delete:{quote_id}",
             async handle({interaction, call, params}) {
                 if(!interaction.isButton()) return;
@@ -263,7 +263,7 @@ export const QuotesMounts = defineDiscordMounts({
             },
         }),
 
-        interaction({
+        defineDiscordInteraction({
             pattern: "quote:list:{user_filter}:{page}",
             async handle({interaction, call, params}) {
                 if(!interaction.isButton()) return;

@@ -100,9 +100,9 @@ type DiscordGatewayDefinition = {
 
 function defineDiscordGateway(definition: DiscordGatewayDefinition): Component;
 function defineDiscordMounts(definition: DiscordMountGroup): DiscordMountGroup;
-function command(definition: CommandDefinition): CommandDefinition;
-function event(definition: EventDefinition): EventDefinition;
-function interaction(definition: InteractionDefinition): InteractionDefinition;
+function defineDiscordCommand(definition: CommandDefinition): CommandDefinition;
+function defineDiscordEvent(definition: EventDefinition): EventDefinition;
+function defineDiscordInteraction(definition: InteractionDefinition): InteractionDefinition;
 function perUser(interaction: BaseInteraction): string;
 function perGuild(interaction: BaseInteraction): string;
 function perChannel(interaction: BaseInteraction): string;
@@ -125,9 +125,9 @@ function perChannel(interaction: BaseInteraction): string;
 
 - Commands use discord.js slash/context-menu builders and register on start.
   With `guild_id` registration is guild-scoped; otherwise it is global.
-- `command()` narrows the interaction from the builder type. An optional
-  Arktype-compatible options schema validates before handling and types
-  `context.options`.
+- `defineDiscordCommand()` narrows the interaction from the builder type. An
+  optional Arktype-compatible options schema validates before handling and
+  types `context.options`.
 - Handlers receive the raw interaction, client, and typed `call`.
 - Autocomplete is either a map keyed by option name (`subcommand/option` for
   subcommands) or one fallback. Map handlers receive the focused value,

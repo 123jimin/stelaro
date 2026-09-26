@@ -1,5 +1,5 @@
 import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
-import {defineFastifyRoutes, route, sendHtml} from "@jiminp/stelaro-fastify";
+import {defineFastifyRoute, defineFastifyRoutes, sendHtml} from "@jiminp/stelaro-fastify";
 import {type as schema} from "arktype";
 
 import {requireAuth} from "./auth.ts";
@@ -75,7 +75,7 @@ export const CommentsComponent = defineComponent({
 export const CommentsRoutes = defineFastifyRoutes({
     uses: [CommentsCalls, UsersCalls],
     routes: [
-        route({
+        defineFastifyRoute({
             method: "POST",
             path: "/threads/:thread_id/comments",
             preHandler: [requireAuth],
