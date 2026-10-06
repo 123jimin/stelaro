@@ -18,7 +18,7 @@
     "@jiminp/tooltool": "^0.3.3",
     "arktype": "^2.2.3",
     "discord-strategy": "^2.5.0",
-    "fastify": "^5.10.0",
+    "fastify": "^5.12.5",
     "passport-google-oauth20": "^2.0.0"
   },
   "devDependencies": {
