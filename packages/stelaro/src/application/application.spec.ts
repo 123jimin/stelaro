@@ -20,6 +20,7 @@ import {
 } from "../test-util.ts";
 import {createApplication, defineApplication} from "./application.ts";
 import {
+    CallInputError,
     CircularDependencyError,
     DuplicateComponentIdError,
     MissingDependencyError,
@@ -265,7 +266,7 @@ describe("@jiminp/stelaro application core", () => {
         assert.deepStrictEqual(await app.call(BCalls.calls.current, {}), {count: 0});
     });
 
-    it("validates call inputs before dispatch and outputs after it", async () => {
+    it("validates call input before the handler runs and output after it", async () => {
         let handled = 0;
         const CounterCalls = defineComponentCalls("counter", {
             set: {input: SetCounterInput, output: CounterOutput},
@@ -285,7 +286,8 @@ describe("@jiminp/stelaro application core", () => {
 
         await assert.rejects(
             () => app.call(CounterCalls.calls.set, {} as unknown as CallInput<typeof CounterCalls.calls.set>),
-            TraversalError,
+            (err: unknown) => err instanceof CallInputError
+                && err.component_id === "counter" && err.call_name === "set" && err.cause instanceof TraversalError,
         );
         assert.strictEqual(handled, 0);
 

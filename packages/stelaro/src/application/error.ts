@@ -133,6 +133,26 @@ export class UndeclaredCallError extends StelaroError {
 }
 
 /**
+ * Thrown before the handler runs when a call's input fails its schema. The `cause` is the schema's
+ * error. Output failures are not wrapped (s0007).
+ *
+ * @category Errors
+ */
+export class CallInputError extends StelaroError {
+    /** Component id from the call reference */
+    readonly component_id: string;
+    /** Call name from the call reference */
+    readonly call_name: string;
+
+    constructor(component_id: string, call_name: string, cause: unknown) {
+        super(`Input to call "${component_id}.${call_name}" is invalid.`);
+        this.component_id = component_id;
+        this.call_name = call_name;
+        this.cause = cause;
+    }
+}
+
+/**
  * Thrown when the component dependency graph contains a cycle.
  *
  * @category Errors

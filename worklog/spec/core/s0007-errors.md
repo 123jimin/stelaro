@@ -19,6 +19,7 @@ paths = ["packages/stelaro/src/error.ts", "packages/stelaro/src/application/erro
   - `UnregisteredComponentError`: an operation targets an unregistered
     component.
   - `UndeclaredCallError`: a handler calls a reference absent from `uses`.
+  - `CallInputError`: a call's input fails its schema before the handler runs.
   - `CircularDependencyError`: the `uses` graph contains a cycle.
   - `LifecycleStateError`: an operation is invalid in the current lifecycle
     state.
@@ -28,7 +29,9 @@ paths = ["packages/stelaro/src/error.ts", "packages/stelaro/src/application/erro
   decides its presentation.
 - `ConfigFileError` and `SecretsFileError` report unreadable files.
   `ConfigValidationError` and `SecretsValidationError` report schema failures.
-- Arktype validation errors propagate unchanged rather than being wrapped.
+- Call output failures propagate as arktype errors unchanged. `CallInputError`
+  wraps a call input failure as its `cause` so a transport can tell a caller's
+  bad input from a handler's bad output.
 
 ## Constraints
 

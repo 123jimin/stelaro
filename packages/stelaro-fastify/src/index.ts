@@ -47,8 +47,8 @@ export class UnboundCallError extends StelaroError {
 export type RouteRequestPart = "params" | "body" | "querystring";
 
 /**
- * Thrown before a route's handler when a request part fails the route's schema. It carries HTTP
- * status `400`, so the server's error handler answers it; its `cause` is the schema error.
+ * Thrown when a request part fails validation. It carries HTTP status `400`, so the server's error
+ * handler answers it; its `cause` is the schema error.
  *
  * @category Errors
  */

@@ -3,6 +3,7 @@ import {describe, it} from "node:test";
 
 import {StelaroError, UserFacingError} from "../error.ts";
 import {
+    CallInputError,
     CircularDependencyError,
     DuplicateCallError,
     DuplicateComponentIdError,
@@ -24,6 +25,7 @@ describe("@jiminp/stelaro errors", () => {
             [new DuplicateCallError(["counter.get"]), "DuplicateCallError"],
             [new UnregisteredCallError("counter", "increment"), "UnregisteredCallError"],
             [new UndeclaredCallError("page", "counter", "current"), "UndeclaredCallError"],
+            [new CallInputError("counter", "set", new Error("bad")), "CallInputError"],
             [new CircularDependencyError(["a", "b"]), "CircularDependencyError"],
             [new LifecycleStateError("idle", "call"), "LifecycleStateError"],
             [new UserFacingError("Permission denied."), "UserFacingError"],

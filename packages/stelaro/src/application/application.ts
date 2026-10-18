@@ -16,6 +16,7 @@ import type {ConfigSchema} from "../config/types.ts";
 import {createDataAccess, type DataAccess} from "../data/data.ts";
 import {TopologicalCycleError, topologicalSort} from "../util/topological-sort.ts";
 import {
+    CallInputError,
     CircularDependencyError,
     DuplicateCallError,
     DuplicateComponentIdError,
@@ -182,8 +183,14 @@ export function createApplication<
             throw new UnregisteredCallError(reference.component_id, reference.name);
         }
 
+        let valid_input: unknown;
+        try {
+            valid_input = reference.input.assert(input);
+        } catch (err) {
+            throw new CallInputError(reference.component_id, reference.name, err);
+        }
         const context = buildContext(entry.runtime, dispatchCall);
-        const result = await entry.handle(context, reference.input.assert(input));
+        const result = await entry.handle(context, valid_input);
         return reference.output.assert(result);
     };
 
