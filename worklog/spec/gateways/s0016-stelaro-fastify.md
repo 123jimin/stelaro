@@ -8,8 +8,8 @@ paths = ["packages/stelaro-fastify/**"]
 ## Types
 
 Types are shown at their widest readable form. Implementations SHOULD infer
-request data from route schemas and narrow `call` to the gateway's effective
-`uses`. Fastify types are imported directly.
+request data from route schemas and narrow `call` to the route group's `uses`.
+Fastify types are imported directly.
 
 ```typescript
 type GatewayHandlerContext = {
@@ -82,8 +82,8 @@ class UnboundCallError extends StelaroError {
   supplies listen port and optional host.
 - It composes component-owned route groups with optional gateway routes. Its
   effective `uses` is the reference-deduplicated union of gateway and mount
-  dependencies, and exclusively types handler `call`. A group's `uses` type is
-  inferred from `uses` alone.
+  dependencies. Handler `call` is typed by its own group's `uses`, not by that
+  union. A group's `uses` type is inferred from `uses` alone.
 - Routes specify method and path. Every other standard `RouteOptions` field is
   forwarded without interpretation.
 - Optional Arktype-compatible `params`, `body`, and `querystring` schemas
@@ -113,7 +113,7 @@ class UnboundCallError extends StelaroError {
 - The gateway SHOULD NOT parallel Fastify request, reply, option, or hook types.
 - Standard Fastify options SHOULD pass through without validation or
   transformation.
-- Calls outside effective `uses` SHOULD be rejected at the type level.
+- Calls outside a group's `uses` SHOULD be rejected at the type level.
 
 ## Anticipated Changes
 
