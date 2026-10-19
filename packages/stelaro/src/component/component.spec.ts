@@ -5,7 +5,8 @@ import {assertEqualType} from "@jiminp/tooltool";
 import {type as schema} from "arktype";
 
 import {createApplication, defineApplication} from "../application/application.ts";
-import {InvalidComponentIdError} from "../error.ts";
+import {DuplicateCallError} from "../application/error.ts";
+import {InvalidComponentIdError, MismatchedComponentIdError} from "../error.ts";
 import {
     CounterOutput,
     EmptyInput,
@@ -13,7 +14,7 @@ import {
     RenderOutput,
     SetCounterInput,
 } from "../test-util.ts";
-import {defineComponent, defineComponentCalls} from "./component.ts";
+import {defineComponent, defineComponentCalls, mergeComponentCalls} from "./component.ts";
 import type {AnyComponentContext, ComponentContext} from "./context.ts";
 import type {AnyComponent, CallInput, CallOutput} from "./types.ts";
 
@@ -57,6 +58,50 @@ describe("@jiminp/stelaro component core", () => {
                 },
             );
         }
+    });
+
+    it("merges call surfaces of one component, keeping their call references", () => {
+        const PublicCalls = defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}});
+        const InternalCalls = defineComponentCalls("counter", {set: {input: SetCounterInput, output: CounterOutput}});
+        const AdminCalls = defineComponentCalls("counter", {reset: {input: EmptyInput, output: CounterOutput}});
+        const CounterCalls = mergeComponentCalls(PublicCalls, InternalCalls, AdminCalls);
+
+        assert.strictEqual(CounterCalls.id, "counter");
+        assert.strictEqual(CounterCalls.calls.current, PublicCalls.calls.current);
+        assert.strictEqual(CounterCalls.calls.set, InternalCalls.calls.set);
+        assert.strictEqual(CounterCalls.calls.reset, AdminCalls.calls.reset);
+        assert.deepStrictEqual(Object.keys(CounterCalls.calls), ["current", "set", "reset"]);
+        assertEqualType<CallInput<typeof CounterCalls.calls.set>, {count: number}>();
+        assert.deepStrictEqual(mergeComponentCalls(PublicCalls), {id: "counter", calls: PublicCalls.calls});
+    });
+
+    it("refuses to merge call surfaces of different components", () => {
+        const ACalls = defineComponentCalls("a", {run: {input: EmptyInput, output: CounterOutput}});
+        const A2Calls = defineComponentCalls("a", {stop: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("b", {stop: {input: EmptyInput, output: CounterOutput}});
+        assert.throws(
+            // @ts-expect-error -- the ids differ at the type level too
+            () => mergeComponentCalls(ACalls, A2Calls, BCalls),
+            (error: unknown) => {
+                assert.ok(error instanceof MismatchedComponentIdError);
+                assert.deepStrictEqual([error.component_id, error.other_component_id], ["a", "b"]);
+                return true;
+            },
+        );
+    });
+
+    it("refuses to merge call surfaces that declare the same call name", () => {
+        const ACalls = defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}, increment: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("counter", {set: {input: SetCounterInput, output: CounterOutput}});
+        const CCalls = defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}, set: {input: SetCounterInput, output: CounterOutput}});
+        assert.throws(
+            () => mergeComponentCalls(ACalls, BCalls, CCalls),
+            (error: unknown) => {
+                assert.ok(error instanceof DuplicateCallError);
+                assert.deepStrictEqual(error.duplicate_keys, ["counter.current", "counter.set"]);
+                return true;
+            },
+        );
     });
 
     it("passes validated input to handlers and validates their output for callers", async () => {

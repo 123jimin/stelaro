@@ -46,6 +46,10 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
   circular `uses` dependencies (`CircularDependencyError`). It computes a
   topological component order from the `uses` graph and initializes runtime
   state before dispatching calls.
+- A `uses` entry names the registered component with its `id` and may be
+  part of the surface the component was defined with (`mergeComponentCalls`, s0003).
+  - An unregistered id fails with `MissingDependencyError`.
+  - A reference the registered component does not have fails with `UnregisteredCallError`.
 - Components start in topological dependency order and stop in reverse order.
   A component is active when its start hook is absent or completes.
 - `start()` moves `idle → starting → active`. A start failure moves the app to

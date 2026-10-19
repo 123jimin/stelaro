@@ -54,3 +54,23 @@ export class InvalidComponentIdError extends StelaroError {
         this.component_id = component_id;
     }
 }
+
+/**
+ * Thrown when call surfaces of different components are merged into one.
+ *
+ * @category Errors
+ */
+export class MismatchedComponentIdError extends StelaroError {
+    /** Component id of the first surface */
+    readonly component_id: string;
+    /** Component id of the surface that does not match it */
+    readonly other_component_id: string;
+
+    constructor(component_id: string, other_component_id: string) {
+        super(
+            `Cannot merge call surfaces of different components "${component_id}" and "${other_component_id}".`,
+        );
+        this.component_id = component_id;
+        this.other_component_id = other_component_id;
+    }
+}

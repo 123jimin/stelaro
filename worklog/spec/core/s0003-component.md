@@ -51,6 +51,7 @@ type Component = {
 };
 
 function defineComponentCalls(id: ComponentId, declarations: ComponentCallDeclarations): ComponentCalls;
+function mergeComponentCalls(first: ComponentCalls, ...rest: ComponentCalls[]): ComponentCalls;
 function defineComponent(definition: Component): Component;
 ```
 
@@ -58,6 +59,8 @@ function defineComponent(definition: Component): Component;
 
 - Component calls provide typed IPC-like boundaries without requiring
   cross-process transport.
+- `mergeComponentCalls` combines several call surfaces with the same component id into one, for example a public surface and an internal surface.
+  - It throws `MismatchedComponentIdError` if the ids differ and `DuplicateCallError` if two inputs declare the same call name.
 - A handler may be a callable `(context, input) => ...` or an object with
   `handle(context, input)`; both dispatch identically.
 - UNIMPLEMENTED Components may use gateway capabilities through typed

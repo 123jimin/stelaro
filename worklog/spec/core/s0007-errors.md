@@ -14,8 +14,8 @@ paths = ["packages/stelaro/src/error.ts", "packages/stelaro/src/application/erro
   - `DuplicateComponentIdError`: duplicate registered component id.
   - `MissingDependencyError`: a `uses` surface is not registered.
   - `MissingHandlerError`: a declared call has no handler.
-  - `DuplicateCallError`: duplicate registered component call id.
-  - `UnregisteredCallError`: dispatch targets an unregistered call.
+  - `DuplicateCallError`: duplicate component call id, across registered components or within call surfaces being merged.
+  - `UnregisteredCallError`: dispatch, or a `uses` entry, targets an unregistered call.
   - `UnregisteredComponentError`: an operation targets an unregistered
     component.
   - `UndeclaredCallError`: a handler calls a reference absent from `uses`.
@@ -25,6 +25,7 @@ paths = ["packages/stelaro/src/error.ts", "packages/stelaro/src/application/erro
     state.
 - `InvalidComponentIdError` reports a component id that is not lowercase
   kebab-case.
+- `MismatchedComponentIdError` reports call surfaces of different components passed to `mergeComponentCalls`.
 - `UserFacingError.user_message` is safe to show to an end user; each gateway
   decides its presentation.
 - `ConfigFileError` and `SecretsFileError` report unreadable files.

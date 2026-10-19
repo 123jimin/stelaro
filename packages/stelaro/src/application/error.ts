@@ -72,7 +72,8 @@ export class MissingHandlerError extends StelaroError {
 }
 
 /**
- * Thrown when multiple components expose calls with identical qualified keys.
+ * Thrown when two call declarations share one `component_id.call_name` key, whether across
+ * registered components or within surfaces being merged.
  *
  * @category Errors
  */
@@ -82,14 +83,15 @@ export class DuplicateCallError extends StelaroError {
 
     constructor(duplicate_keys: readonly string[]) {
         super(
-            `Application contains duplicate component call ids: ${duplicate_keys.join(", ")}.`,
+            `Duplicate component call ids: ${duplicate_keys.join(", ")}.`,
         );
         this.duplicate_keys = duplicate_keys;
     }
 }
 
 /**
- * Thrown when dispatching a call reference not registered in the application.
+ * Thrown when a call reference is not registered in the application: at dispatch, or at
+ * `createApplication` for a reference in a component's `uses`.
  *
  * @category Errors
  */

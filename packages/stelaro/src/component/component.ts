@@ -1,5 +1,6 @@
+import {DuplicateCallError} from "../application/error.ts";
 import type {ConfigSchema} from "../config/types.ts";
-import {InvalidComponentIdError, isValidComponentId} from "../error.ts";
+import {InvalidComponentIdError, isValidComponentId, MismatchedComponentIdError} from "../error.ts";
 import type {
     AnyComponentCallReference,
     AnyComponentCalls,
@@ -8,6 +9,7 @@ import type {
     ComponentCallName,
     ComponentCalls,
     ComponentId,
+    MergedComponentCalls,
 } from "./types.ts";
 
 /**
@@ -44,6 +46,45 @@ export function defineComponentCalls<
         id,
         calls,
     } as ComponentCalls<TId, TDeclarations>;
+}
+
+/**
+ * Combines call surfaces of the same component into one, for example a public part that a
+ * gateway exposes and an internal part that only other components call. The result reuses the
+ * given surfaces' call references, so a reference from any part dispatches to the component
+ * defined with the merged surface.
+ *
+ * @typeParam TFirst - First call surface
+ * @typeParam TRest - Further call surfaces
+ * @param first - Call surface to merge
+ * @param rest - Further call surfaces to merge
+ * @returns A call surface with the component's id and every call of the given surfaces
+ * @throws {MismatchedComponentIdError} If the surfaces belong to different components
+ * @throws {DuplicateCallError} If two surfaces declare a call of the same name
+ * @category Component
+ */
+export function mergeComponentCalls<
+    const TFirst extends AnyComponentCalls,
+    const TRest extends readonly (AnyComponentCalls & {readonly id: TFirst["id"]})[],
+>(first: TFirst, ...rest: TRest): MergedComponentCalls<readonly [TFirst, ...TRest]> {
+    const calls: Record<ComponentCallName, AnyComponentCallReference> = {...first.calls};
+    const duplicate_keys: string[] = [];
+    for(const surface of rest) {
+        if(surface.id !== first.id) {
+            throw new MismatchedComponentIdError(first.id, surface.id);
+        }
+        for(const [name, reference] of Object.entries(surface.calls)) {
+            if(name in calls) {
+                duplicate_keys.push(`${first.id}.${name}`);
+            }
+            calls[name] = reference;
+        }
+    }
+    if(duplicate_keys.length > 0) {
+        throw new DuplicateCallError(duplicate_keys);
+    }
+
+    return {id: first.id, calls} as MergedComponentCalls<readonly [TFirst, ...TRest]>;
 }
 
 /**

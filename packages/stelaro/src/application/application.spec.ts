@@ -5,7 +5,7 @@ import {describe, it} from "node:test";
 import type {Promisable} from "@jiminp/tooltool";
 import {TraversalError} from "arktype";
 
-import {defineComponent, defineComponentCalls} from "../component/component.ts";
+import {defineComponent, defineComponentCalls, mergeComponentCalls} from "../component/component.ts";
 import type {AnyComponentContext} from "../component/context.ts";
 import type {Logger} from "../component/logger.ts";
 import type {CallInput, CallOutput} from "../component/types.ts";
@@ -301,6 +301,46 @@ describe("@jiminp/stelaro application core", () => {
         assert.throws(
             () => createApplication(defineApplication({components: [AComponent]})),
             MissingDependencyError,
+        );
+    });
+
+    it("resolves a `uses` entry by component id, so a component may use one part of a merged surface", async () => {
+        const PublicCalls = defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}});
+        const InternalCalls = defineComponentCalls("counter", {increment: {input: EmptyInput, output: CounterOutput}});
+        const CounterComponent = defineCounterComponent(mergeComponentCalls(PublicCalls, InternalCalls));
+        let current: unknown = null;
+        const PageCalls = defineComponentCalls("page", {render: {input: EmptyInput, output: RenderOutput}});
+        const PageComponent = defineComponent({
+            calls: PageCalls,
+            uses: [PublicCalls],
+            handlers: {
+                render: async ({call}) => {
+                    current = await call(PublicCalls.calls.current, {});
+                    return {html: "<p></p>"};
+                },
+            },
+        });
+        const app = createApplication(defineApplication({components: [CounterComponent, PageComponent], logger: noopLoggerFactory}));
+        await app.start();
+        await app.call(InternalCalls.calls.increment, {});
+        await app.call(PageCalls.calls.render, {});
+        assert.deepStrictEqual(current, {count: 1});
+        await app.stop();
+    });
+
+    it("throws UnregisteredCallError when a `uses` entry carries a reference the registered component does not have", () => {
+        const CounterComponent = defineCounterComponent(defineCounterCalls("counter"));
+        // Same id and names, but declared separately, so its references are not the component's.
+        const LookalikeCalls = defineCounterCalls("counter");
+        const PageComponent = defineCounterComponent(defineCounterCalls("page"), {uses: [LookalikeCalls]});
+
+        assert.throws(
+            () => createApplication(defineApplication({components: [CounterComponent, PageComponent]})),
+            (error: unknown) => {
+                assert.ok(error instanceof UnregisteredCallError);
+                assert.deepStrictEqual([error.component_id, error.call_name], ["counter", "current"]);
+                return true;
+            },
         );
     });
 

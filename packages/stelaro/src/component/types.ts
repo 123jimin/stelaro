@@ -107,6 +107,33 @@ export type ComponentCalls<
  */
 export type AnyComponentCalls = ComponentCalls<ComponentId, ComponentCallDeclarations>;
 
+/**
+ * The calls of every surface in `TSurfaces`, as one object type.
+ *
+ * @typeParam TSurfaces - Call surfaces of one component
+ * @category Component
+ */
+export type MergedCallReferences<TSurfaces extends readonly AnyComponentCalls[]> =
+    TSurfaces extends readonly [infer THead extends AnyComponentCalls, ...infer TTail extends readonly AnyComponentCalls[]]
+        ? THead["calls"] & MergedCallReferences<TTail>
+        : unknown;
+
+/**
+ * Call surface returned by `mergeComponentCalls`, carrying the shared component id and the
+ * calls of every given surface.
+ *
+ * @typeParam TSurfaces - Call surfaces of one component, first to last
+ * @category Component
+ */
+export type MergedComponentCalls<
+    TSurfaces extends readonly [AnyComponentCalls, ...AnyComponentCalls[]],
+> = {
+    /** Owning component id */
+    readonly id: TSurfaces[0]["id"];
+    /** Call references of every surface, keyed by call name */
+    readonly calls: MergedCallReferences<TSurfaces>;
+};
+
 /** Extracts the union of call references from a component's call surface.
  *
  * @typeParam TCalls - Call surface to extract references from

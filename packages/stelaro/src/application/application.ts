@@ -7,7 +7,6 @@ import {consoleLoggerFactory, type Logger, type LoggerFactory} from "../componen
 import type {
     AnyComponent,
     AnyComponentCallReference,
-    AnyComponentCalls,
     ComponentCallFn,
     ComponentId,
 } from "../component/types.ts";
@@ -517,23 +516,28 @@ async function stopComponent(runtime: ComponentRuntime, dispatchCall: DispatchFn
 }
 
 function validateAndSort(components: readonly AnyComponent[]): readonly AnyComponent[] {
-    const seen_ids = new Set<ComponentId>();
-    const calls_to_component = new Map<AnyComponentCalls, AnyComponent>();
+    const id_to_component = new Map<ComponentId, AnyComponent>();
     const registered_call_keys = new Set<string>();
     const duplicate_call_keys = new Set<string>();
 
     for(const component of components) {
-        if(seen_ids.has(component.calls.id)) {
+        if(id_to_component.has(component.calls.id)) {
             throw new DuplicateComponentIdError(component.calls.id);
         }
-        seen_ids.add(component.calls.id);
-        calls_to_component.set(component.calls, component);
+        id_to_component.set(component.calls.id, component);
     }
 
     for(const component of components) {
         for(const used_calls of component.uses) {
-            if(!calls_to_component.has(used_calls)) {
+            const used_component = id_to_component.get(used_calls.id);
+            if(used_component == null) {
                 throw new MissingDependencyError(component.calls.id, used_calls.id);
+            }
+            // A surface may be part of the registered one (see mergeComponentCalls), but every reference must be the registered component's.
+            for(const [name, reference] of Object.entries(used_calls.calls)) {
+                if(used_component.calls.calls[name] !== reference) {
+                    throw new UnregisteredCallError(used_calls.id, name);
+                }
             }
         }
 
@@ -555,7 +559,7 @@ function validateAndSort(components: readonly AnyComponent[]): readonly AnyCompo
     }
 
     const dependenciesOf = (component: AnyComponent): AnyComponent[] =>
-        component.uses.map((used_calls) => calls_to_component.get(used_calls)!);
+        component.uses.map((used_calls) => id_to_component.get(used_calls.id)!);
 
     try {
         return topologicalSort(components, dependenciesOf);
