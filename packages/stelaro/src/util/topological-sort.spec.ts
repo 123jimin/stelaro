@@ -54,6 +54,11 @@ describe("topologicalSort", () => {
         assert.deepStrictEqual(result, ["x", "a", "b"]);
     });
 
+    it("pulls a later dependency ahead of its dependent rather than deferring the dependent", () => {
+        const result = topologicalSort(["a", "b", "c"], (node) => node === "a" ? ["c"] : []);
+        assert.deepStrictEqual(result, ["c", "a", "b"]);
+    });
+
     it("rejects duplicate nodes", () => {
         assert.throws(() => topologicalSort(["a", "b", "a"], () => []), RangeError);
     });
