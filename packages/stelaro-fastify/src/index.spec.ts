@@ -9,10 +9,13 @@ import {
     defineFastifyGateway,
     defineFastifyRoute,
     defineFastifyRoutes,
+    FastifyGatewayConfig,
+    type GatewayHandlerContext,
     HTML_MEDIA_TYPE,
     mountFastifyRoutes,
     RouteValidationError,
     UnboundCallError,
+    UnboundConfigError,
 } from "./index.ts";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
@@ -45,7 +48,7 @@ function fakeServer() {
 }
 
 /** A gateway context whose logger captures records and whose `call` records its arguments. */
-function recordingContext(config: {port: number; host?: string}, answer: (reference: unknown) => unknown = () => null) {
+function recordingContext(config: {port: number; host?: string; [key: string]: unknown}, answer: (reference: unknown) => unknown = () => null) {
     const captured: CapturedRecord[] = [];
     const calls: RecordedCall[] = [];
     const make = (level: LogLevel) => (...args: unknown[]): void => {
@@ -150,6 +153,54 @@ describe("defineFastifyGateway", () => {
             [CounterCalls.calls.current, {}],
             [GreeterCalls.calls.greet, {name: "a"}],
         ]);
+    });
+
+    const CountConfig = schema({count: "string.numeric.parse"});
+    type CountContext = GatewayHandlerContext<readonly [], typeof CountConfig>;
+    const count_routes = defineFastifyRoutes({
+        uses: [],
+        routes: [{method: "GET", path: "/count", handle: (context: CountContext) => ({count: context.getConfig().count})}],
+    });
+    const WebConfig = FastifyGatewayConfig.and(CountConfig);
+
+    it("validates its configuration with `config`, FastifyGatewayConfig unless given", () => {
+        assert.strictEqual(defineFastifyGateway({id: "web", server: fakeServer().server, uses: []}).config, FastifyGatewayConfig);
+        assert.strictEqual(defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: WebConfig}).config, WebConfig);
+        // @ts-expect-error -- `config` must include the listen settings
+        defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: CountConfig});
+    });
+
+    it("serves handlers getConfig with the configuration as of the last reload, without listening again", async (t) => {
+        // eslint-disable-next-line new-cap -- Fastify's public API
+        const server = Fastify();
+        t.after(() => server.close());
+        const listen = t.mock.method(server, "listen", () => Promise.resolve(listen_address));
+        const gateway = defineFastifyGateway({id: "web", server, uses: [], config: WebConfig, mounts: [count_routes]});
+        assert.ok(gateway.start && gateway.onConfigReload);
+
+        await gateway.start(lifecycleContext(recordingContext(WebConfig.assert({port: 0, count: "3"})).context));
+        assert.deepStrictEqual((await server.inject({method: "GET", url: "/count"})).json(), {count: 3});
+
+        await gateway.onConfigReload(lifecycleContext(recordingContext(WebConfig.assert({port: 0, count: "4"})).context));
+        assert.deepStrictEqual((await server.inject({method: "GET", url: "/count"})).json(), {count: 4});
+        assert.strictEqual(listen.mock.callCount(), 1);
+    });
+
+    it("rejects a mount reading configuration its `config` lacks at the type level", () => {
+        // @ts-expect-error -- the gateway declares no `config`
+        defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], mounts: [count_routes]});
+        const OtherConfig = FastifyGatewayConfig.and({other: "string"});
+        // @ts-expect-error -- the gateway's `config` has no `count`
+        defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: OtherConfig, mounts: [count_routes]});
+        defineFastifyRoutes({
+            uses: [],
+            routes: [{
+                method: "GET",
+                path: "/",
+                // @ts-expect-error -- an unannotated handler reads no particular configuration
+                handle: (context) => context.getConfig().count,
+            }],
+        });
     });
 });
 
@@ -324,5 +375,20 @@ describe("mountFastifyRoutes", () => {
         const [error] = errors;
         assert.ok(error instanceof UnboundCallError);
         assert.deepStrictEqual([error.component_id, error.call_name], ["counter", "current"]);
+    });
+
+    it("serves handlers' getConfig through the `getConfig` option, and throws UnboundConfigError without one", async (t) => {
+        const CountConfig = schema({count: "number"});
+        type CountContext = GatewayHandlerContext<readonly [], typeof CountConfig>;
+        const reading = defineFastifyRoutes({
+            uses: [],
+            routes: [{method: "GET", path: "/count", handle: (context: CountContext) => context.getConfig()}],
+        });
+        const served = await serve(t, (s) => mountFastifyRoutes(s, reading, {getConfig: () => CountConfig.assert({count: 3})}));
+        assert.deepStrictEqual((await served.server.inject({method: "GET", url: "/count"})).json(), {count: 3});
+
+        const unserved = await serve(t, (s) => mountFastifyRoutes(s, reading));
+        assert.strictEqual((await unserved.server.inject({method: "GET", url: "/count"})).statusCode, 500);
+        assert.ok(unserved.errors[0] instanceof UnboundConfigError);
     });
 });
