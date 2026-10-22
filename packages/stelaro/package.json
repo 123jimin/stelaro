@@ -40,6 +40,6 @@
   "dependencies": {
     "@jiminp/tooltool": "^0.3.3",
     "arktype": "^2.2.3",
-    "smol-toml": "^1.7.0"
+    "smol-toml": "^1.7.1"
   }
 }
