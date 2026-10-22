@@ -12,8 +12,6 @@ request data from route schemas and narrow `call` to the route group's `uses`.
 Fastify types are imported directly.
 
 ```typescript
-type GatewayConfigSchema = Type<object>; // arktype
-
 type GatewayHandlerContext = {
     readonly request: FastifyRequest;
     readonly reply: FastifyReply;
@@ -21,7 +19,7 @@ type GatewayHandlerContext = {
     readonly body: unknown;
     readonly querystring: unknown;
     call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
-    getConfig(): object;
+    getConfig(): unknown;
     redirect(url: string): void;
     html(content: string): void;
 };
@@ -44,14 +42,14 @@ type FastifyGatewayDefinition = {
     readonly id: ComponentId;
     readonly server: FastifyInstance;
     readonly uses: readonly ComponentCalls[];
-    readonly config?: GatewayConfigSchema;
+    readonly config?: ConfigSchema;
     readonly mounts?: readonly FastifyRouteGroup[];
     readonly routes?: readonly GatewayRoute[];
 };
 
 type MountFastifyRoutesOptions = {
     readonly call: GatewayHandlerContext["call"];
-    readonly getConfig?: () => object;
+    readonly getConfig?: () => unknown;
 };
 
 const HTML_MEDIA_TYPE = "text/html; charset=utf-8";
@@ -85,16 +83,17 @@ class UnboundConfigError extends StelaroError {}
 ## Behavior
 
 - The gateway receives, but does not create, a `FastifyInstance`.
-  Its configuration is the listen settings, `port` and optional `host`, plus
-  the keys of `config` when given.
+  Its configuration is the listen settings, `port` and optional `host`, and
+  the output of `config` when given. `config` receives every key but the
+  listen settings.
 - It composes component-owned route groups with optional gateway routes. Its
   effective `uses` is the reference-deduplicated union of gateway and mount
   dependencies. Handler `call` is typed by its own group's `uses`, not by that
   union. A group's `uses` type is inferred from `uses` alone.
-- Handlers read the gateway's configuration through `getConfig()`,
-  typed by the schema a route's context type names, which the
-  gateway's `config` must satisfy. After a configuration reload it returns the
-  new configuration; the listen settings apply at start only.
+- Handlers read the gateway's configuration through `getConfig()`, typed by
+  the configuration type a route's context names. The output of the gateway's
+  `config` must satisfy that type. After a configuration reload `getConfig()`
+  returns the new configuration; the listen settings apply at start only.
 - Routes specify method and path. Every other standard `RouteOptions` field is
   forwarded without interpretation.
 - Optional Arktype-compatible `params`, `body`, and `querystring` schemas
@@ -114,7 +113,8 @@ class UnboundConfigError extends StelaroError {}
   `getConfig` serves the handlers' `getConfig`; on routes mounted without one it
   throws `UnboundConfigError`.
 - Start mounts the gateway's own routes and every mount through
-  `mountFastifyRoutes` with the component's `call`, then listens; stop closes
+  `mountFastifyRoutes` with the component's `call` and the current
+  configuration as `getConfig`, then listens; stop closes
   the server. Both transitions log the address/close at `info` through the
   component logger.
 - Access logging belongs to Fastify. Applications may unify it with Stelaro by

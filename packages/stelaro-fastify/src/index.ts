@@ -4,12 +4,13 @@ import {
     type ComponentCallFn,
     type ComponentCallSchema,
     type ComponentId,
+    type ConfigSchema,
     defineComponent,
     defineComponentCalls,
     StelaroError,
 } from "@jiminp/stelaro";
 import type {Nullable, Promisable} from "@jiminp/tooltool";
-import {type Type, type as schema} from "arktype";
+import {type as schema} from "arktype";
 import type {
     FastifyInstance,
     FastifyListenOptions,
@@ -24,13 +25,6 @@ const ListenConfig = schema({"port": "number", "host?": "string"});
 
 /** The configuration of a gateway without `config`. */
 const NoConfig = schema({});
-
-/**
- * An arktype object schema of gateway configuration.
- *
- * @category Gateway
- */
-export type GatewayConfigSchema = Type<object>;
 
 /**
  * The rejection of a handler's `call` on routes mounted without one. {@link mountFastifyRoutes}
@@ -107,7 +101,7 @@ export type SchemaOutput<T> = T extends ComponentCallSchema ? T["infer"] : null;
  * parts, and helpers to call components, read the gateway's configuration, and send responses.
  *
  * @typeParam TUses - Call surfaces `call` accepts references from (default: `readonly AnyComponentCalls[]`)
- * @typeParam TConfig - Schema of the gateway configuration the handler reads (default: `GatewayConfigSchema`)
+ * @typeParam TConfig - The gateway configuration the handler reads (default: `unknown`)
  * @typeParam TParams - Validated params (default: `null`)
  * @typeParam TBody - Validated body (default: `null`)
  * @typeParam TQuerystring - Validated querystring (default: `null`)
@@ -116,7 +110,7 @@ export type SchemaOutput<T> = T extends ComponentCallSchema ? T["infer"] : null;
  */
 export type GatewayHandlerContext<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
-    TConfig extends GatewayConfigSchema = GatewayConfigSchema,
+    TConfig = unknown,
     TParams = null,
     TBody = null,
     TQuerystring = null,
@@ -134,7 +128,7 @@ export type GatewayHandlerContext<
     /** Calls a component through a reference from `TUses` */
     readonly call: ComponentCallFn<TUses>;
     /** The gateway's current configuration */
-    getConfig(): TConfig["infer"];
+    getConfig(): TConfig;
     /** Sends a redirect to `url` */
     redirect(url: string): void;
     /** Sends `content` as HTML, as {@link sendHtml} does */
@@ -146,7 +140,7 @@ export type GatewayHandlerContext<
  * other Fastify `RouteOptions`, which are forwarded unchanged.
  *
  * @typeParam TUses - Call surfaces the handler's `call` accepts (default: `readonly AnyComponentCalls[]`)
- * @typeParam TConfig - Schema of the gateway configuration the handler reads (default: `GatewayConfigSchema`)
+ * @typeParam TConfig - The gateway configuration the handler reads (default: `unknown`)
  * @typeParam TParams - Params schema, if any (default: `ComponentCallSchema | undefined`)
  * @typeParam TBody - Body schema, if any (default: `ComponentCallSchema | undefined`)
  * @typeParam TQuerystring - Querystring schema, if any (default: `ComponentCallSchema | undefined`)
@@ -155,7 +149,7 @@ export type GatewayHandlerContext<
  */
 export interface GatewayRoute<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
-    in TConfig extends GatewayConfigSchema = GatewayConfigSchema,
+    in TConfig = unknown,
     TParams extends ComponentCallSchema | undefined = ComponentCallSchema | undefined,
     TBody extends ComponentCallSchema | undefined = ComponentCallSchema | undefined,
     TQuerystring extends ComponentCallSchema | undefined = ComponentCallSchema | undefined,
@@ -185,13 +179,13 @@ export interface GatewayRoute<
  * the routes serve.
  *
  * @typeParam TUses - Call surfaces the routes' handlers may call (default: `readonly AnyComponentCalls[]`)
- * @typeParam TConfig - Schema of the gateway configuration the handlers read (default: `GatewayConfigSchema`)
+ * @typeParam TConfig - The gateway configuration the handlers read (default: `unknown`)
  *
  * @category Routes
  */
 export type FastifyRouteGroup<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
-    TConfig extends GatewayConfigSchema = GatewayConfigSchema,
+    TConfig = unknown,
 > = {
     /** Call surfaces the routes' handlers may call */
     readonly uses: TUses;
@@ -203,15 +197,15 @@ export type FastifyRouteGroup<
  * The definition {@link defineFastifyGateway} turns into a gateway component.
  *
  * @typeParam TUses - Call surfaces the gateway's own routes may call (default: `readonly AnyComponentCalls[]`)
- * @typeParam TConfig - Schema of the gateway's configuration besides the listen settings (default: an empty object schema)
+ * @typeParam TConfigSchema - Schema of the gateway's configuration besides the listen settings (default: an empty object schema)
  * @typeParam TMounts - Route groups mounted alongside the gateway's own routes (default: `readonly FastifyRouteGroup[]`)
  *
  * @category Gateway
  */
 export type FastifyGatewayDefinition<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
-    TConfig extends GatewayConfigSchema = typeof NoConfig,
-    TMounts extends readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfig>[] = readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfig>[],
+    TConfigSchema extends ConfigSchema = typeof NoConfig,
+    TMounts extends readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfigSchema["infer"]>[] = readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfigSchema["infer"]>[],
 > = {
     /** Component id of the gateway */
     readonly id: ComponentId;
@@ -220,21 +214,21 @@ export type FastifyGatewayDefinition<
     /** Call surfaces the gateway's own routes may call */
     readonly uses: TUses;
     /** Schema of the gateway's configuration besides the listen settings */
-    readonly config?: TConfig;
+    readonly config?: TConfigSchema;
     /** Route groups to mount, typically exported by other components */
     readonly mounts?: TMounts;
     /** The gateway's own routes */
-    readonly routes?: readonly GatewayRoute<TUses, NoInfer<TConfig>>[];
+    readonly routes?: readonly GatewayRoute<TUses, NoInfer<TConfigSchema["infer"]>>[];
 };
 
 /**
  * Defines a route whose handler's request parts are inferred from its schemas, and whose gateway
  * configuration is inferred from the context type `handle` is annotated with.
  *
+ * @typeParam TConfig - The gateway configuration the handler reads (default: `unknown`)
  * @typeParam TParams - Params schema, if any (default: `undefined`)
  * @typeParam TBody - Body schema, if any (default: `undefined`)
  * @typeParam TQuerystring - Querystring schema, if any (default: `undefined`)
- * @typeParam TConfig - Schema of the gateway configuration the handler reads (default: `GatewayConfigSchema`)
  * @param definition - The route
  * @returns `definition`
  *
@@ -245,7 +239,7 @@ export type FastifyGatewayDefinition<
  * @category Routes
  */
 export function defineFastifyRoute<
-    TConfig extends GatewayConfigSchema = GatewayConfigSchema,
+    TConfig = unknown,
     TParams extends ComponentCallSchema | undefined = undefined,
     TBody extends ComponentCallSchema | undefined = undefined,
     TQuerystring extends ComponentCallSchema | undefined = undefined,
@@ -256,11 +250,11 @@ export function defineFastifyRoute<
 }
 
 /**
- * Defines a route group, inferring its `uses` so inline handlers' `call` accepts only those
- * surfaces, and the gateway configuration its routes read.
+ * Defines a route group. Its `uses` is inferred, so inline handlers' `call` accepts only those
+ * surfaces. The gateway configuration its routes read is inferred too.
  *
  * @typeParam TUses - Call surfaces the routes' handlers may call
- * @typeParam TConfig - Schema of the gateway configuration the handlers read
+ * @typeParam TConfig - The gateway configuration the handlers read
  * @param definition - The route group
  * @returns `definition`
  *
@@ -268,7 +262,7 @@ export function defineFastifyRoute<
  */
 export function defineFastifyRoutes<
     const TUses extends readonly AnyComponentCalls[],
-    TConfig extends GatewayConfigSchema = GatewayConfigSchema,
+    TConfig = unknown,
 >(definition: FastifyRouteGroup<TUses, TConfig>): FastifyRouteGroup<TUses, TConfig> {
     return definition;
 }
@@ -295,18 +289,19 @@ export function sendHtml(reply: FastifyReply, content: string): FastifyReply {
 /** Options for {@link mountFastifyRoutes}.
  *
  * @typeParam TUses - Call surfaces the mounted handlers may call (default: `readonly AnyComponentCalls[]`)
+ * @typeParam TConfig - The gateway configuration the mounted handlers read (default: `unknown`)
  *
  * @category Routes
  */
 export type MountFastifyRoutesOptions<
     TUses extends readonly AnyComponentCalls[] = readonly AnyComponentCalls[],
-    TConfig extends GatewayConfigSchema = GatewayConfigSchema,
+    TConfig = unknown,
 > = (TUses extends readonly [] ? {readonly call?: never} : {
     /** Serves the handlers' `call` */
     readonly call: GatewayHandlerContext<TUses>["call"];
 }) & {
     /** Serves the handlers' `getConfig` */
-    readonly getConfig?: () => TConfig["infer"];
+    readonly getConfig?: () => TConfig;
 };
 
 function rejectCall(reference: CallFrom<AnyComponentCalls>): Promise<never> {
@@ -323,7 +318,7 @@ function rejectConfig(): never {
  *
  * A part failing its schema raises {@link RouteValidationError} to the server's error handling.
  *
- * @typeParam TConfig - Schema of the gateway configuration the handlers read
+ * @typeParam TConfig - The gateway configuration the handlers read
  * @param server - The Fastify instance to mount on
  * @param group - The route group to mount, with empty `uses`
  *
@@ -339,14 +334,14 @@ function rejectConfig(): never {
  *
  * @category Routes
  */
-export function mountFastifyRoutes<TConfig extends GatewayConfigSchema>(server: FastifyInstance, group: FastifyRouteGroup<readonly [], TConfig>): void;
+export function mountFastifyRoutes<TConfig>(server: FastifyInstance, group: FastifyRouteGroup<readonly [], TConfig>): void;
 /**
  * Mounts a route group that uses components on `server`, serving its handlers' `call` with
  * `options.call` and their `getConfig` with `options.getConfig`; validation and handler context
  * are as for a group without `uses`.
  *
  * @typeParam TUses - Call surfaces the group's handlers may call
- * @typeParam TConfig - Schema of the gateway configuration the handlers read
+ * @typeParam TConfig - The gateway configuration the handlers read
  * @param server - The Fastify instance to mount on
  * @param group - The route group to mount
  * @param options - How the handlers' `call` and `getConfig` are served
@@ -374,7 +369,7 @@ export function mountFastifyRoutes<TConfig extends GatewayConfigSchema>(server: 
  */
 export function mountFastifyRoutes<
     const TUses extends readonly AnyComponentCalls[],
-    TConfig extends GatewayConfigSchema,
+    TConfig,
 >(
     server: FastifyInstance,
     group: FastifyRouteGroup<TUses, TConfig>,
@@ -427,7 +422,7 @@ export function mountFastifyRoutes(
  * `getConfig` as of the last reload.
  *
  * @typeParam TUses - Call surfaces the gateway's own routes may call
- * @typeParam TConfig - Schema of the gateway's configuration besides the listen settings
+ * @typeParam TConfigSchema - Schema of the gateway's configuration besides the listen settings
  * @typeParam TMounts - Route groups mounted alongside the gateway's own routes
  * @param definition - The gateway's id, server, `uses`, `config`, own routes, and mounts
  * @returns A component whose `uses` is the deduplicated union of the gateway's and the mounts' `uses`
@@ -444,7 +439,7 @@ export function mountFastifyRoutes(
  *     routes: [defineFastifyRoute({
  *         method: "GET",
  *         path: "/origin",
- *         handle: (context: GatewayHandlerContext<readonly [], typeof SiteConfig>) => context.getConfig().origin,
+ *         handle: (context: GatewayHandlerContext<readonly [], typeof SiteConfig.infer>) => context.getConfig().origin,
  *     })],
  * });
  *
@@ -462,18 +457,18 @@ export function mountFastifyRoutes(
  */
 export function defineFastifyGateway<
     const TUses extends readonly AnyComponentCalls[],
-    TConfig extends GatewayConfigSchema = typeof NoConfig,
-    const TMounts extends readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfig>[] = readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfig>[],
->(definition: FastifyGatewayDefinition<TUses, TConfig, TMounts>) {
+    TConfigSchema extends ConfigSchema = typeof NoConfig,
+    const TMounts extends readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfigSchema["infer"]>[] = readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfigSchema["infer"]>[],
+>(definition: FastifyGatewayDefinition<TUses, TConfigSchema, TMounts>) {
     const gateway_calls = defineComponentCalls(definition.id, {});
-    const ExtraConfig: GatewayConfigSchema = definition.config ?? NoConfig;
-    const GatewayConfig = ListenConfig.and(ExtraConfig);
+    const ExtraConfig: ConfigSchema = definition.config ?? NoConfig;
+    const GatewayConfig = ListenConfig.pipe(({port, host, ...extra}) => Object.assign({}, ExtraConfig.assert(extra), host == null ? {port} : {port, host}));
 
     const all_uses = [...new Set([
         ...definition.uses,
         ...(definition.mounts ?? []).flatMap((mount) => mount.uses),
     ])];
-    const groups: readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfig>[] = [
+    const groups: readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfigSchema["infer"]>[] = [
         {uses: definition.uses, routes: definition.routes ?? []},
         ...(definition.mounts ?? []),
     ];
@@ -487,8 +482,8 @@ export function defineFastifyGateway<
         handlers: {},
         async start(context) {
             current = context.config;
-            // `GatewayConfig` includes `TConfig`'s keys.
-            const getConfig = () => current as TConfig["infer"];
+            // `GatewayConfig` includes `TConfigSchema`'s output.
+            const getConfig = () => current as TConfigSchema["infer"];
             for(const group of groups) mountFastifyRoutes(definition.server, group, {call: context.call, getConfig});
 
             const listen_options: FastifyListenOptions = {port: context.config.port};

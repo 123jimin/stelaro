@@ -155,7 +155,7 @@ describe("defineFastifyGateway", () => {
     });
 
     const CountConfig = schema({count: "string.numeric.parse"});
-    type CountContext = GatewayHandlerContext<readonly [], typeof CountConfig>;
+    type CountContext = GatewayHandlerContext<readonly [], typeof CountConfig.infer>;
     const count_routes = defineFastifyRoutes({
         uses: [],
         routes: [{method: "GET", path: "/count", handle: (context: CountContext) => ({count: context.getConfig().count})}],
@@ -164,13 +164,17 @@ describe("defineFastifyGateway", () => {
     it("validates the listen settings and `config`'s keys", () => {
         const BareConfig = defineFastifyGateway({id: "web", server: fakeServer().server, uses: []}).config;
         assert.ok(BareConfig);
-        assert.ok(BareConfig.allows({port: 8080, host: "127.0.0.1"}));
-        assert.ok(!BareConfig.allows({host: "127.0.0.1"}));
+        assert.deepStrictEqual(BareConfig.assert({port: 8080, host: "127.0.0.1"}), {port: 8080, host: "127.0.0.1"});
+        assert.throws(() => BareConfig.assert({host: "127.0.0.1"}));
         const CountingConfig = defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: CountConfig}).config;
         assert.ok(CountingConfig);
         assert.deepStrictEqual(CountingConfig.assert({port: 8080, count: "3"}), {port: 8080, count: 3});
-        assert.ok(!CountingConfig.allows({port: 8080}));
-        assert.ok(!CountingConfig.allows({count: "3"}));
+        assert.throws(() => CountingConfig.assert({port: 8080}));
+        assert.throws(() => CountingConfig.assert({count: "3"}));
+        const StrictConfig = defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: schema({"+": "reject", "count": "number"})}).config;
+        assert.ok(StrictConfig);
+        assert.deepStrictEqual(StrictConfig.assert({port: 8080, host: "127.0.0.1", count: 3}), {port: 8080, host: "127.0.0.1", count: 3});
+        assert.throws(() => StrictConfig.assert({port: 8080, count: 3, other: ""}));
     });
 
     it("serves handlers getConfig with the configuration as of the last reload, without listening again", async (t) => {
@@ -198,7 +202,7 @@ describe("defineFastifyGateway", () => {
         const BothConfig = OtherConfig.and(CountConfig);
         const both_routes = defineFastifyRoutes({
             uses: [],
-            routes: [defineFastifyRoute({method: "GET", path: "/both", handle: (context: GatewayHandlerContext<readonly [], typeof BothConfig>) => context.getConfig()})],
+            routes: [defineFastifyRoute({method: "GET", path: "/both", handle: (context: GatewayHandlerContext<readonly [], typeof BothConfig.infer>) => context.getConfig()})],
         });
         // @ts-expect-error -- the gateway's `config` has no `other`
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: CountConfig, mounts: [both_routes]});
@@ -207,6 +211,10 @@ describe("defineFastifyGateway", () => {
         // @ts-expect-error -- the gateway declares no `config`, for its own route
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], routes: count_routes.routes});
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: BothConfig, mounts: [count_routes, both_routes], routes: count_routes.routes});
+        const mixed_routes = defineFastifyRoutes({uses: [], routes: [...count_routes.routes, ...both_routes.routes]});
+        defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: BothConfig, mounts: [mixed_routes]});
+        // @ts-expect-error -- the gateway's `config` has no `other`, which one of the group's routes reads
+        defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: CountConfig, mounts: [mixed_routes]});
         defineFastifyRoutes({
             uses: [],
             routes: [{
@@ -394,7 +402,7 @@ describe("mountFastifyRoutes", () => {
 
     it("serves handlers' getConfig through the `getConfig` option, and throws UnboundConfigError without one", async (t) => {
         const CountConfig = schema({count: "number"});
-        type CountContext = GatewayHandlerContext<readonly [], typeof CountConfig>;
+        type CountContext = GatewayHandlerContext<readonly [], typeof CountConfig.infer>;
         const reading = defineFastifyRoutes({
             uses: [],
             routes: [{method: "GET", path: "/count", handle: (context: CountContext) => context.getConfig()}],
