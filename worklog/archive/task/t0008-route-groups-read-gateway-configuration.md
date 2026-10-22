@@ -3,7 +3,7 @@ id = "t0008"
 title = "Route groups read gateway configuration"
 tags = ["gateway", "fastify"]
 modifies = ["s0016"]
-status = "active"
+status = "done"
 +++
 
 # Route groups read gateway configuration
@@ -69,8 +69,6 @@ class UnboundConfigError extends StelaroError {}            // getConfig() on ro
 
 ### Spec change (s0016)
 
-Marked `NEEDS APPROVAL` in the spec.
-
 Types block: `GatewayConfigSchema`, `FastifyGatewayConfig`, `getConfig()` on
 `GatewayHandlerContext`, `config?` on `FastifyGatewayDefinition`, `getConfig?` on
 `MountFastifyRoutesOptions`, and `UnboundConfigError`.
@@ -102,7 +100,7 @@ pass at the workspace root.
 
 ## Completion conditions
 
-- [ ] The human has approved the s0016 text above, or replaced it.
+- [x] The human has approved the s0016 text above, or replaced it.
 - [x] A mounted handler reads a value of the gateway's `config` after a reload; a mount reading a
       key the gateway lacks does not typecheck.
 - [x] `pnpm build`, `pnpm lint`, and `pnpm test` pass.
