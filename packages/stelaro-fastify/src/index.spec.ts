@@ -9,7 +9,6 @@ import {
     defineFastifyGateway,
     defineFastifyRoute,
     defineFastifyRoutes,
-    FastifyGatewayConfig,
     type GatewayHandlerContext,
     HTML_MEDIA_TYPE,
     mountFastifyRoutes,
@@ -161,13 +160,17 @@ describe("defineFastifyGateway", () => {
         uses: [],
         routes: [{method: "GET", path: "/count", handle: (context: CountContext) => ({count: context.getConfig().count})}],
     });
-    const WebConfig = FastifyGatewayConfig.and(CountConfig);
 
-    it("validates its configuration with `config`, FastifyGatewayConfig unless given", () => {
-        assert.strictEqual(defineFastifyGateway({id: "web", server: fakeServer().server, uses: []}).config, FastifyGatewayConfig);
-        assert.strictEqual(defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: WebConfig}).config, WebConfig);
-        // @ts-expect-error -- `config` must include the listen settings
-        defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: CountConfig});
+    it("validates the listen settings and `config`'s keys", () => {
+        const BareConfig = defineFastifyGateway({id: "web", server: fakeServer().server, uses: []}).config;
+        assert.ok(BareConfig);
+        assert.ok(BareConfig.allows({port: 8080, host: "127.0.0.1"}));
+        assert.ok(!BareConfig.allows({host: "127.0.0.1"}));
+        const CountingConfig = defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: CountConfig}).config;
+        assert.ok(CountingConfig);
+        assert.deepStrictEqual(CountingConfig.assert({port: 8080, count: "3"}), {port: 8080, count: 3});
+        assert.ok(!CountingConfig.allows({port: 8080}));
+        assert.ok(!CountingConfig.allows({count: "3"}));
     });
 
     it("serves handlers getConfig with the configuration as of the last reload, without listening again", async (t) => {
@@ -175,23 +178,35 @@ describe("defineFastifyGateway", () => {
         const server = Fastify();
         t.after(() => server.close());
         const listen = t.mock.method(server, "listen", () => Promise.resolve(listen_address));
-        const gateway = defineFastifyGateway({id: "web", server, uses: [], config: WebConfig, mounts: [count_routes]});
+        const gateway = defineFastifyGateway({id: "web", server, uses: [], config: CountConfig, mounts: [count_routes]});
         assert.ok(gateway.start && gateway.onConfigReload);
 
-        await gateway.start(lifecycleContext(recordingContext(WebConfig.assert({port: 0, count: "3"})).context));
+        await gateway.start(lifecycleContext(recordingContext({port: 0, count: 3}).context));
         assert.deepStrictEqual((await server.inject({method: "GET", url: "/count"})).json(), {count: 3});
 
-        await gateway.onConfigReload(lifecycleContext(recordingContext(WebConfig.assert({port: 0, count: "4"})).context));
+        await gateway.onConfigReload(lifecycleContext(recordingContext({port: 0, count: 4}).context));
         assert.deepStrictEqual((await server.inject({method: "GET", url: "/count"})).json(), {count: 4});
         assert.strictEqual(listen.mock.callCount(), 1);
     });
 
-    it("rejects a mount reading configuration its `config` lacks at the type level", () => {
+    it("accepts a mount reading part of its `config` and rejects one reading configuration it lacks at the type level", () => {
         // @ts-expect-error -- the gateway declares no `config`
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], mounts: [count_routes]});
-        const OtherConfig = FastifyGatewayConfig.and({other: "string"});
+        const OtherConfig = schema({other: "string"});
         // @ts-expect-error -- the gateway's `config` has no `count`
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: OtherConfig, mounts: [count_routes]});
+        const BothConfig = OtherConfig.and(CountConfig);
+        const both_routes = defineFastifyRoutes({
+            uses: [],
+            routes: [defineFastifyRoute({method: "GET", path: "/both", handle: (context: GatewayHandlerContext<readonly [], typeof BothConfig>) => context.getConfig()})],
+        });
+        // @ts-expect-error -- the gateway's `config` has no `other`
+        defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: CountConfig, mounts: [both_routes]});
+        // @ts-expect-error -- same, for the gateway's own route
+        defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: CountConfig, routes: both_routes.routes});
+        // @ts-expect-error -- the gateway declares no `config`, for its own route
+        defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], routes: count_routes.routes});
+        defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: BothConfig, mounts: [count_routes, both_routes], routes: count_routes.routes});
         defineFastifyRoutes({
             uses: [],
             routes: [{

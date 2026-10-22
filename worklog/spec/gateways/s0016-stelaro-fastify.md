@@ -13,7 +13,6 @@ Fastify types are imported directly.
 
 ```typescript
 type GatewayConfigSchema = Type<object>; // arktype
-const FastifyGatewayConfig: Type<{port: number; host?: string}>;
 
 type GatewayHandlerContext = {
     readonly request: FastifyRequest;
@@ -45,7 +44,7 @@ type FastifyGatewayDefinition = {
     readonly id: ComponentId;
     readonly server: FastifyInstance;
     readonly uses: readonly ComponentCalls[];
-    readonly config?: typeof FastifyGatewayConfig;
+    readonly config?: GatewayConfigSchema;
     readonly mounts?: readonly FastifyRouteGroup[];
     readonly routes?: readonly GatewayRoute[];
 };
@@ -86,8 +85,8 @@ class UnboundConfigError extends StelaroError {}
 ## Behavior
 
 - The gateway receives, but does not create, a `FastifyInstance`.
-  `config`, `FastifyGatewayConfig` unless given, validates its configuration and
-  includes the listen settings, `port` and optional `host`.
+  Its configuration is the listen settings, `port` and optional `host`, plus
+  the keys of `config` when given.
 - It composes component-owned route groups with optional gateway routes. Its
   effective `uses` is the reference-deduplicated union of gateway and mount
   dependencies. Handler `call` is typed by its own group's `uses`, not by that
@@ -128,7 +127,7 @@ class UnboundConfigError extends StelaroError {}
 - Standard Fastify options SHOULD pass through without validation or
   transformation.
 - Calls outside a group's `uses` SHOULD be rejected at the type level.
-- A mount reading configuration the gateway's `config` lacks SHOULD be rejected at the type level.
+- A route reading configuration the gateway's `config` lacks SHOULD be rejected at the type level.
 
 ## Anticipated Changes
 
