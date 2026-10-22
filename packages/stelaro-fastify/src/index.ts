@@ -462,8 +462,9 @@ export function mountFastifyRoutes(
  */
 export function defineFastifyGateway<
     const TUses extends readonly AnyComponentCalls[],
-    const TMounts extends readonly FastifyRouteGroup[],
->(definition: FastifyGatewayDefinition<TUses, TMounts>) {
+    TConfig extends Type<typeof FastifyGatewayConfig.infer> = typeof FastifyGatewayConfig,
+    const TMounts extends readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfig>[] = readonly FastifyRouteGroup<readonly AnyComponentCalls[], TConfig>[],
+>(definition: FastifyGatewayDefinition<TUses, TConfig, TMounts>) {
     const gateway_calls = defineComponentCalls(definition.id, {});
     const config: Type<typeof FastifyGatewayConfig.infer> = definition.config ?? FastifyGatewayConfig;
 
