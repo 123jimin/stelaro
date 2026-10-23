@@ -53,7 +53,7 @@ type Component = {
 function defineComponentCalls(id: ComponentId, declarations: ComponentCallDeclarations): ComponentCalls;
 function mergeComponentCalls(first: ComponentCalls, ...rest: ComponentCalls[]): ComponentCalls;
 function defineComponent(definition: Component): Component;
-const EmptyInput: ComponentCallSchema; // NEEDS APPROVAL
+const EmptyInput: ComponentCallSchema;
 ```
 
 ## Behavior

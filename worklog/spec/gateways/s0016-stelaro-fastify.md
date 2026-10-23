@@ -75,7 +75,7 @@ class RouteValidationError extends StelaroError {
     readonly statusCode: 400;
     readonly validationContext: RouteRequestPart;
 }
-class NotFoundError extends StelaroError { // NEEDS APPROVAL
+class NotFoundError extends StelaroError {
     readonly statusCode: 404;
 }
 class UnboundCallError extends StelaroError {

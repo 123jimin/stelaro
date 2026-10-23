@@ -16,7 +16,7 @@ type Schema = {
     assert(input: unknown): this["infer"];
 };
 
-type ReadOptions = { // NEEDS APPROVAL
+type ReadOptions = {
     readonly optional?: boolean;
 };
 
