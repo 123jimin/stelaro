@@ -105,6 +105,12 @@ function validatePart(part: RouteRequestPart, part_schema: Nullable<ComponentCal
     }
 }
 
+/** The status {@link GatewayHandlerContext.redirect} sends without an explicit one. */
+function redirectStatus(method: string, is_permanent: boolean): number {
+    if(is_permanent) return 308;
+    return method === "GET" || method === "HEAD" ? 307 : 303;
+}
+
 /** The validated type of a route's request-part schema, or `null` when the route declares none.
  *
  * @category Routes
@@ -144,8 +150,13 @@ export type GatewayHandlerContext<
     readonly call: ComponentCallFn<TUses>;
     /** The gateway's current configuration */
     getConfig(): TConfig;
-    /** Sends a redirect to `url` */
-    redirect(url: string): void;
+    /**
+     * Sends a redirect to `url`. A permanent redirect sends `308`. A temporary one sends `307` for
+     * GET and HEAD requests, and `303` for other methods so that the browser follows up with a GET.
+     */
+    redirect(url: string, is_permanent?: boolean): void;
+    /** Sends a redirect to `url` with `status` */
+    redirect(url: string, status: number): void;
     /** Sends `content` as HTML, as {@link sendHtml} does */
     html(content: string): void;
 };
@@ -418,8 +429,8 @@ export function mountFastifyRoutes(
                     querystring: validatePart("querystring", querystring_schema, request.query),
                     call,
                     getConfig,
-                    redirect(url) {
-                        reply.redirect(url);
+                    redirect(url: string, status_or_permanent: number | boolean = false) {
+                        reply.redirect(url, typeof status_or_permanent === "number" ? status_or_permanent : redirectStatus(request.method, status_or_permanent));
                     },
                     html(content) {
                         sendHtml(reply, content);

@@ -20,7 +20,8 @@ type GatewayHandlerContext = {
     readonly querystring: unknown;
     call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
     getConfig(): unknown;
-    redirect(url: string): void;
+    redirect(url: string, is_permanent?: boolean): void;
+    redirect(url: string, status: number): void;
     html(content: string): void;
 };
 
@@ -107,7 +108,10 @@ class UnboundConfigError extends StelaroError {}
   undeclared parts are `null`. `defineFastifyRoute()` provides per-route
   inference; schema-free routes may be inline.
 - Handlers receive raw Fastify request/reply objects. `redirect` sends a
-  redirect; `html` sends HTML as `sendHtml` does, typed `HTML_MEDIA_TYPE`.
+  redirect with the given status. Without one, a permanent redirect sends 308,
+  and a temporary one sends 307 for GET and HEAD and 303 for other methods, so
+  that the browser follows up with a GET. `html` sends HTML as `sendHtml` does,
+  typed `HTML_MEDIA_TYPE`.
 - Handlers signal a missing resource by throwing `NotFoundError` (status 404) to the server's error handling.
 - `mountFastifyRoutes` performs the registration, validation, and handler
   context above for one route group on any Fastify instance. A group that uses

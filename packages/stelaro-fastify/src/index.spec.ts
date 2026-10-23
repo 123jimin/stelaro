@@ -278,7 +278,11 @@ describe("mountFastifyRoutes", () => {
                 handle: ({params, body, querystring}) => ({params, body, querystring}),
             },
             {method: "GET", path: "/page", handle({html}) { html("<p>hi</p>"); }},
-            {method: "GET", path: "/go", handle({redirect}) { redirect("/page"); }},
+            ...(["GET", "POST"] as const).flatMap((method) => [
+                {method, path: "/go", handle({redirect}: GatewayHandlerContext) { redirect("/page"); }},
+                {method, path: "/moved", handle({redirect}: GatewayHandlerContext) { redirect("/page", true); }},
+                {method, path: "/found", handle({redirect}: GatewayHandlerContext) { redirect("/page", 302); }},
+            ]),
             {
                 method: "GET",
                 path: "/options",
@@ -375,11 +379,18 @@ describe("mountFastifyRoutes", () => {
         assert.strictEqual(page.body, "<p>hi</p>");
     });
 
-    it("sends a redirect from redirect()", async (t) => {
+    it("sends redirect()'s status by method and permanence, or the explicit status", async (t) => {
         const {server} = await serve(t, (s) => mountFastifyRoutes(s, echo_routes));
-        const response = await server.inject({method: "GET", url: "/go"});
-        assert.ok(response.statusCode >= 300 && response.statusCode < 400, String(response.statusCode));
-        assert.strictEqual(response.headers.location, "/page");
+        const cases = [
+            ["GET", "/go", 307], ["HEAD", "/go", 307], ["POST", "/go", 303],
+            ["GET", "/moved", 308], ["HEAD", "/moved", 308], ["POST", "/moved", 308],
+            ["GET", "/found", 302], ["POST", "/found", 302],
+        ] as const;
+        for(const [method, url, status] of cases) {
+            const response = await server.inject({method, url});
+            assert.strictEqual(response.statusCode, status, `${method} ${url}`);
+            assert.strictEqual(response.headers.location, "/page", `${method} ${url}`);
+        }
     });
 
     it("serves handler calls through the `call` option", async (t) => {
