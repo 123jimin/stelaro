@@ -320,6 +320,12 @@ export function defineFastifyRoutes<
  */
 export const HTML_MEDIA_TYPE = "text/html; charset=utf-8";
 
+/** The media type of JSON replies, such as an `ErrorBody`; Fastify's default for an object reply.
+ *
+ * @category Routes
+ */
+export const JSON_MEDIA_TYPE = "application/json; charset=utf-8";
+
 /**
  * Sends `content` as HTML ({@link HTML_MEDIA_TYPE}), as {@link GatewayHandlerContext.html} does.
  *

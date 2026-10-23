@@ -54,6 +54,7 @@ type MountFastifyRoutesOptions = {
 };
 
 const HTML_MEDIA_TYPE = "text/html; charset=utf-8";
+const JSON_MEDIA_TYPE = "application/json; charset=utf-8";
 
 function defineFastifyGateway(definition: FastifyGatewayDefinition): Component;
 function defineFastifyRoutes(definition: FastifyRouteGroup): FastifyRouteGroup;
