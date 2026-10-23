@@ -12,6 +12,7 @@ import {
     type GatewayHandlerContext,
     HTML_MEDIA_TYPE,
     mountFastifyRoutes,
+    NotFoundError,
     RouteValidationError,
     UnboundCallError,
     UnboundConfigError,
@@ -348,6 +349,16 @@ describe("mountFastifyRoutes", () => {
         assert.strictEqual(body.statusCode, 400);
         assert.strictEqual(body.error, "Bad Request");
         assert.strictEqual(typeof body.message, "string");
+    });
+
+    it("answers a thrown NotFoundError with Fastify's default 404 body without a custom error handler", async (t) => {
+        const {server} = await serve(t, (s) => mountFastifyRoutes(s, defineFastifyRoutes({
+            uses: [],
+            routes: [{method: "GET", path: "/missing", handle() { throw new NotFoundError(); }}],
+        })), true);
+        const response = await server.inject({method: "GET", url: "/missing"});
+        assert.strictEqual(response.statusCode, 404);
+        assert.strictEqual(response.json<{error: unknown}>().error, "Not Found");
     });
 
     it("forwards other RouteOptions to Fastify", async (t) => {

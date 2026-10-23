@@ -81,6 +81,21 @@ export class RouteValidationError extends StelaroError {
     }
 }
 
+/**
+ * A route handler can throw this when a resource is not found, and Fastify will respond with a 404.
+ * This package never throws it on its own.
+ *
+ * @category Errors
+ */
+export class NotFoundError extends StelaroError {
+    /** HTTP status Fastify's error handling answers with */
+    readonly statusCode = 404;
+
+    constructor() {
+        super("Not found.");
+    }
+}
+
 function validatePart(part: RouteRequestPart, part_schema: Nullable<ComponentCallSchema>, value: unknown): unknown {
     if(part_schema == null) return null;
     try {

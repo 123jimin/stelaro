@@ -73,6 +73,9 @@ class RouteValidationError extends StelaroError {
     readonly statusCode: 400;
     readonly validationContext: RouteRequestPart;
 }
+class NotFoundError extends StelaroError { // NEEDS APPROVAL
+    readonly statusCode: 404;
+}
 class UnboundCallError extends StelaroError {
     readonly component_id: string;
     readonly call_name: string;
@@ -105,6 +108,7 @@ class UnboundConfigError extends StelaroError {}
   inference; schema-free routes may be inline.
 - Handlers receive raw Fastify request/reply objects. `redirect` sends a
   redirect; `html` sends HTML as `sendHtml` does, typed `HTML_MEDIA_TYPE`.
+- Handlers signal a missing resource by throwing `NotFoundError` (status 404) to the server's error handling.
 - `mountFastifyRoutes` performs the registration, validation, and handler
   context above for one route group on any Fastify instance. A group that uses
   components requires `call`, which serves the handlers' calls; a group that
