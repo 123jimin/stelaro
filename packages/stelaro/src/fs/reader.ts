@@ -1,18 +1,21 @@
-import {readFile} from "node:fs/promises";
+import {constants, type FileHandle, open} from "node:fs/promises";
 
 import {parse as parseToml} from "smol-toml";
 
 import type {Schema} from "../schema.ts";
+import {NotRegularFileError} from "./error.ts";
 
 /**
- * Fluent file reader with format-specific parsing and optional schema validation.
+ * Fluent file reader with format-specific parsing and optional schema validation. It reads only
+ * regular files, and a symlink counts as the file it points to. Anything else throws
+ * {@link NotRegularFileError}.
  *
- * @see {@link OptionalFileReader} for the variant that returns `null` on missing files
+ * @see {@link OptionalFileReader} for the variant that returns `null` when nothing exists at the path
  * @category Fluent FS
  */
 export type FileReader = {
     /**
-     * Selects reads that yield `null` instead of throwing when the file does not exist.
+     * Selects reads that yield `null` instead of throwing when nothing exists at the path.
      *
      * @returns An {@link OptionalFileReader} for the same file
      */
@@ -44,9 +47,10 @@ export type FileReader = {
 };
 
 /**
- * File reader variant that returns `null` when the file does not exist.
+ * File reader variant that returns `null` when nothing exists at the path.
  *
- * Other I/O, parsing, and validation errors are still thrown.
+ * Something other than a regular file still throws {@link NotRegularFileError}, and other I/O,
+ * parsing, and validation errors are still thrown.
  *
  * @see {@link FileReader}
  * @category Fluent FS
@@ -80,12 +84,37 @@ export type OptionalFileReader = {
 
 type Parse = (text: string) => unknown;
 
-async function nullOnFileNotFound<T>(read: () => Promise<T>): Promise<T | null> {
+// Codes meaning nothing can exist at the path.
+const MISSING_FILE_CODES: Record<string, true> = {ENOENT: true, ENOTDIR: true, ENAMETOOLONG: true};
+
+async function nullOnFileMissing<T>(read: () => Promise<T>): Promise<T | null> {
     try {
         return await read();
     } catch (error) {
-        if((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+        const code = (error as NodeJS.ErrnoException).code;
+        if(code != null && MISSING_FILE_CODES[code] === true) return null;
         throw error;
+    }
+}
+
+// Non-blocking, so opening a FIFO returns instead of waiting for a writer; Windows lacks the flag.
+const OPEN_FLAGS = constants.O_RDONLY | (constants.O_NONBLOCK ?? 0);
+
+/** Reads `file_path`, checking through the same handle that it is a regular file. */
+async function readRegularFile(file_path: string): Promise<Buffer> {
+    let handle: FileHandle;
+    try {
+        handle = await open(file_path, OPEN_FLAGS);
+    } catch (error) {
+        // Opening a Unix socket fails with `ENXIO`.
+        if((error as NodeJS.ErrnoException).code === "ENXIO") throw new NotRegularFileError(file_path);
+        throw error;
+    }
+    try {
+        if(!(await handle.stat()).isFile()) throw new NotRegularFileError(file_path);
+        return await handle.readFile();
+    } finally {
+        await handle.close();
     }
 }
 
@@ -95,11 +124,11 @@ function parseValidate(text: string, parse: Parse, schema?: Schema): unknown {
 }
 
 export function createFileReader(file_path: string): FileReader {
-    const text = () => readFile(file_path, "utf-8");
+    const text = async () => (await readRegularFile(file_path)).toString("utf-8");
     const reader: FileReader = {
         optional: () => createOptionalFileReader(reader),
         text,
-        buffer: () => readFile(file_path),
+        buffer: () => readRegularFile(file_path),
         json: async (schema?: Schema) => parseValidate(await text(), JSON.parse, schema),
         toml: async (schema?: Schema) => parseValidate(await text(), parseToml, schema),
     } as FileReader;
@@ -107,7 +136,7 @@ export function createFileReader(file_path: string): FileReader {
 }
 
 function createOptionalFileReader(reader: FileReader): OptionalFileReader {
-    const text = () => nullOnFileNotFound(reader.text);
+    const text = () => nullOnFileMissing(reader.text);
 
     async function parseOptional(parse: Parse, schema?: Schema): Promise<unknown> {
         const content = await text();
@@ -116,7 +145,7 @@ function createOptionalFileReader(reader: FileReader): OptionalFileReader {
 
     return {
         text,
-        buffer: () => nullOnFileNotFound(reader.buffer),
+        buffer: () => nullOnFileMissing(reader.buffer),
         json: (schema?: Schema) => parseOptional(JSON.parse, schema),
         toml: (schema?: Schema) => parseOptional(parseToml, schema),
     } as OptionalFileReader;

@@ -30,6 +30,7 @@ paths = ["packages/stelaro/src/error.ts", "packages/stelaro/src/application/erro
   decides its presentation.
 - `ConfigFileError` and `SecretsFileError` report unreadable files.
   `ConfigValidationError` and `SecretsValidationError` report schema failures.
+- `NotRegularFileError` reports a read of something other than a regular file (s0022).
 - Call output failures propagate as arktype errors unchanged. `CallInputError`
   wraps a call input failure as its `cause` so a transport can tell a caller's
   bad input from a handler's bad output.

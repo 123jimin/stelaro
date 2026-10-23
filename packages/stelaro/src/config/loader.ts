@@ -44,8 +44,7 @@ async function loadToml(
 ): Promise<TomlLoadResult> {
     const readTable = async (path: string, optional: boolean): Promise<TomlTable | null> => {
         try {
-            const reader = fluentPath(path).read();
-            return await (optional ? reader.optional().toml() : reader.toml()) as TomlTable | null;
+            return await fluentPath(path).read({optional}).toml() as TomlTable | null;
         } catch (error) {
             throw new kind.FileError(path, component_id, error);
         }

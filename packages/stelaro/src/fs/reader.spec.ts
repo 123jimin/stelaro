@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
-import {mkdir, writeFile} from "node:fs/promises";
+import {execFile} from "node:child_process";
+import {mkdir, symlink, writeFile} from "node:fs/promises";
+import {createServer} from "node:net";
 import {join} from "node:path";
 import {describe, it} from "node:test";
+import {promisify} from "node:util";
 
 import {useTempDir} from "../test-util.ts";
+import {NotRegularFileError} from "./error.ts";
 import {fluentPath} from "./path.ts";
 
 const failing_schema = {
@@ -95,13 +99,25 @@ describe("@jiminp/stelaro fluent file reader", () => {
         );
     });
 
-    it("returns null for optional reads of a missing file", async () => {
-        const reader = fluentPath(testDir()).join("missing").read().optional();
-        assert.strictEqual(await reader.text(), null);
-        assert.strictEqual(await reader.buffer(), null);
-        assert.strictEqual(await reader.json(), null);
-        assert.strictEqual(await reader.toml(), null);
-        assert.strictEqual(await reader.json(failing_schema), null);
+    it("returns null for optional reads where no file can exist", async () => {
+        await writeFile(join(testDir(), "plain.txt"), "x", "utf-8");
+        const fp = fluentPath(testDir());
+        for(const file of [fp.join("missing"), fp.join("plain.txt", "child"), fp.join("x".repeat(5000))]) {
+            const reader = file.read().optional();
+            assert.strictEqual(await reader.text(), null, file.path);
+            assert.strictEqual(await reader.buffer(), null, file.path);
+            assert.strictEqual(await reader.json(), null, file.path);
+            assert.strictEqual(await reader.toml(), null, file.path);
+            assert.strictEqual(await reader.json(failing_schema), null, file.path);
+        }
+    });
+
+    it("selects the optional reader with read({optional: true})", async () => {
+        await writeFile(join(testDir(), "exists.txt"), "present", "utf-8");
+        const fp = fluentPath(testDir());
+        assert.strictEqual(await fp.join("missing").read({optional: true}).text(), null);
+        assert.strictEqual(await fp.join("exists.txt").read({optional: true}).text(), "present");
+        await assert.rejects(() => fp.join("missing").read({optional: false}).text(), {code: "ENOENT"});
     });
 
     it("returns content for optional read of an existing file", async () => {
@@ -110,12 +126,32 @@ describe("@jiminp/stelaro fluent file reader", () => {
         assert.strictEqual(result, "present");
     });
 
-    it("still throws non-missing I/O errors in optional mode", async () => {
+    it("rejects a directory, even in optional mode", async () => {
         await mkdir(join(testDir(), "folder"));
-        await assert.rejects(
-            () => fluentPath(testDir()).join("folder").read().optional().text(),
-            {code: "EISDIR"},
-        );
+        const folder = fluentPath(testDir()).join("folder");
+        await assert.rejects(() => folder.read().buffer(), NotRegularFileError);
+        await assert.rejects(() => folder.read().optional().buffer(), NotRegularFileError);
+    });
+
+    it("rejects a FIFO, a socket, or a device, even through a symlink, but follows a symlink to a file", {skip: process.platform === "win32"}, async () => {
+        await writeFile(join(testDir(), "target.txt"), "linked", "utf-8");
+        await symlink(join(testDir(), "target.txt"), join(testDir(), "link.txt"));
+        await symlink("/dev/null", join(testDir(), "null.txt"));
+        await promisify(execFile)("mkfifo", [join(testDir(), "pipe")]);
+        const socket_server = createServer();
+        const listening = Promise.withResolvers<void>();
+        socket_server.listen(join(testDir(), "sock"), listening.resolve);
+        await listening.promise;
+        try {
+            const fp = fluentPath(testDir());
+            assert.strictEqual(await fp.join("link.txt").read().text(), "linked");
+            for(const name of ["null.txt", "pipe", "sock"]) {
+                await assert.rejects(() => fp.join(name).read().buffer(), NotRegularFileError, name);
+                await assert.rejects(() => fp.join(name).read().optional().buffer(), NotRegularFileError, name);
+            }
+        } finally {
+            socket_server.close();
+        }
     });
 
     it("still throws parse errors in optional mode", async () => {

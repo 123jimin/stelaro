@@ -1,10 +1,20 @@
 import {join as pathJoin, resolve, win32} from "node:path";
 
-import {createFileReader, type FileReader} from "./reader.ts";
+import {createFileReader, type FileReader, type OptionalFileReader} from "./reader.ts";
 import {createFileWriter, type FileWriter} from "./writer.ts";
 
 const SEPARATOR = /[/\\]/;
 const DRIVE_PREFIX = /^[a-zA-Z]:/;
+
+/**
+ * Options for {@link FluentPath.read}.
+ *
+ * @category Fluent FS
+ */
+export type ReadOptions = {
+    /** Whether reads return `null` when nothing exists at the path, like {@link FileReader.optional} */
+    readonly optional?: boolean;
+};
 
 /**
  * Immutable path wrapper with fluent navigation and file I/O access.
@@ -35,9 +45,12 @@ export type FluentPath = {
     /**
      * Creates a reader for the file at this path.
      *
-     * @returns A {@link FileReader} for this path
+     * @param options - Read options; `optional: true` returns an {@link OptionalFileReader}
+     * @returns A {@link FileReader}, or an {@link OptionalFileReader} if `options.optional` is true
      */
-    read(): FileReader;
+    read(options: ReadOptions & {readonly optional: true}): OptionalFileReader;
+    read(options?: ReadOptions & {readonly optional?: false}): FileReader;
+    read(options: ReadOptions): OptionalFileReader;
     /**
      * Creates a writer for the file at this path.
      *
@@ -66,9 +79,10 @@ function createFluentPath(absolute_path: string): FluentPath {
         confine(...segments: string[]) {
             return createFluentPath(confinePath(absolute_path, segments));
         },
-        read() {
-            return createFileReader(absolute_path);
-        },
+        read: ((options?: ReadOptions) => {
+            const reader = createFileReader(absolute_path);
+            return options?.optional === true ? reader.optional() : reader;
+        }) as FluentPath["read"],
         write() {
             return createFileWriter(absolute_path);
         },

@@ -16,11 +16,16 @@ type Schema = {
     assert(input: unknown): this["infer"];
 };
 
+type ReadOptions = { // NEEDS APPROVAL
+    readonly optional?: boolean;
+};
+
 type FluentPath = {
     readonly path: string;
     join(...segments: string[]): FluentPath;
     confine(...segments: string[]): FluentPath;
-    read(): FileReader;
+    read(options: ReadOptions & {readonly optional: true}): OptionalFileReader;
+    read(options?: ReadOptions): FileReader;
     write(): FileWriter;
 };
 
@@ -50,6 +55,10 @@ type FileWriter = {
     toml(value: unknown): Promise<void>;
 };
 
+class NotRegularFileError extends StelaroError {
+    readonly file_path: string;
+}
+
 function fluentPath(base: string): FluentPath;
 ```
 
@@ -67,9 +76,13 @@ function fluentPath(base: string): FluentPath;
   - Other segments resolve as names below the base.
 - Readers support UTF-8 text, `Buffer`, JSON, and TOML. JSON/TOML schema
   overloads validate with `assert`; unschematized reads return `unknown`.
-- Reads throw on missing files unless `optional()` is selected. Optional reads
-  return `null` only for file-not-found and propagate permission, parsing, and
-  validation errors.
+- Reads accept only regular files; a symlink counts as the file it points to.
+  Anything else, such as a directory, a FIFO, or a device,
+  throws `NotRegularFileError`, even in optional mode. The check and the read
+  use the same open handle, and opening never waits on a FIFO.
+- Reads throw on missing files unless optional mode is selected with `optional()` or `read({optional: true})`.
+  Optional reads return `null` only when nothing can exist at the path (`ENOENT`, `ENOTDIR`, or `ENAMETOOLONG`).
+  Permission, parsing, and validation errors are propagated.
 - Writers support UTF-8 text, `Buffer`, JSON, and TOML; they create parent
   directories and overwrite existing files.
 
