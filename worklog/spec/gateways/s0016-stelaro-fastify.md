@@ -82,6 +82,42 @@ class UnboundCallError extends StelaroError {
     readonly call_name: string;
 }
 class UnboundConfigError extends StelaroError {}
+
+type ExposeCallsFactoryOptions = {
+    readonly callPath: (reference: CallEndpointReference) => string;
+    readonly base: string;
+    readonly config?: FastifyContextConfig;
+};
+type ExposeCallsFactory = {
+    exposeCalls(calls: ComponentCalls): FastifyRouteGroup;
+    readonly not_found_routes: FastifyRouteGroup<readonly []>;
+};
+function createExposeCallsFactory(options: ExposeCallsFactoryOptions): ExposeCallsFactory;
+class InvalidCallEndpointError extends StelaroError {
+    readonly component_id: string;
+    readonly call_name: string;
+}
+
+// `@jiminp/stelaro-fastify/client`
+type CallEndpointReference = {
+    readonly component_id: ComponentId;
+    readonly name: ComponentCallName;
+};
+function getCallPath(base: string, reference: CallEndpointReference): string;
+type OutputBody<T = unknown> = {readonly output: T};
+type ErrorBody = {readonly error: string};
+function isErrorBody(body: unknown): body is ErrorBody;
+type CallFunction = (input?: unknown) => Promise<unknown>;
+type ComponentClient = (name: ComponentCallName) => CallFunction;
+type ComponentClientFactory = (component_id: ComponentId) => ComponentClient;
+type ComponentClientFactoryOptions = {
+    readonly callPath: (reference: CallEndpointReference) => string;
+};
+function createComponentClientFactory(options: ComponentClientFactoryOptions): ComponentClientFactory;
+class CallFailedError extends Error {
+    readonly status: number;
+    readonly server_message: string | null;
+}
 ```
 
 ## Behavior
@@ -128,6 +164,31 @@ class UnboundConfigError extends StelaroError {}
 - Access logging belongs to Fastify. Applications may unify it with Stelaro by
   supplying a gateway-id-tagged child `loggerInstance` from the shared backend
   (see s0025 `childPinoLogger`).
+
+### Call transport
+
+- `createExposeCallsFactory` creates `exposeCalls`, which
+  serves component calls over HTTP at the paths `callPath` returns.
+  `exposeCalls` serves each call of a surface as a JSON `POST` and passes the
+  request body, `null` included, to `call` unchanged, so the call's schema
+  validates it once. It replies with the output in an `OutputBody`. If the
+  call's own input fails, the route throws `RouteValidationError` for `body`.
+  Every other failure, a nested call's input failure included, propagates unchanged.
+- `exposeCalls` throws `InvalidCallEndpointError` for a call
+  name with characters other than ASCII letters, digits, `_`, and `-`, or a
+  path not under `${base}/`. `not_found_routes` answers a `GET` of `base` or
+  any path under it with `NotFoundError`. `config` is the Fastify route
+  `config` of every route either creates.
+- `getCallPath` returns `${base}/${component_id}/${name}`, escaping neither part, for use as `callPath` on both sides.
+- The `./client` entry loads neither Fastify nor stelaro at runtime.
+  `createComponentClientFactory` returns a factory of typed clients
+  that send a call's input as a JSON `POST` to `callPath`, which must match
+  the server's. An omitted input is sent as `{}`, an explicit `null` as
+  `null`. An OK response resolves to its `OutputBody`'s `output`, without
+  output validation. Any other response rejects with `CallFailedError`,
+  whose `server_message` is the `error` of a non-OK `ErrorBody` response,
+  otherwise `null`. The server's error handler must send `ErrorBody`; the
+  package sends none.
 
 ## Constraints
 

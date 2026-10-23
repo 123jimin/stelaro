@@ -1,16 +1,19 @@
 import assert from "node:assert/strict";
 import {describe, it, type TestContext} from "node:test";
 
-import {defineComponentCalls} from "@jiminp/stelaro";
+import {CallInputError, createApplication, defineComponent, defineComponentCalls, type Logger} from "@jiminp/stelaro";
 import {type as schema} from "arktype";
 import Fastify, {type FastifyInstance, type FastifyListenOptions, type InjectOptions} from "fastify";
 
+import {type CallEndpointReference, CallFailedError, createComponentClientFactory, type ErrorBody, type OutputBody} from "./client.ts";
 import {
+    createExposeCallsFactory,
     defineFastifyGateway,
     defineFastifyRoute,
     defineFastifyRoutes,
     type GatewayHandlerContext,
     HTML_MEDIA_TYPE,
+    InvalidCallEndpointError,
     mountFastifyRoutes,
     NotFoundError,
     RouteValidationError,
@@ -255,6 +258,24 @@ describe("handler call typing", () => {
     });
 });
 
+/** A ready server with `mount` applied, closed after the test; `errors` records thrown errors
+ *  unless `default_errors` keeps Fastify's own error handler. */
+async function serve(t: TestContext, mount: (server: FastifyInstance) => void, default_errors = false) {
+    const errors: unknown[] = [];
+    // eslint-disable-next-line new-cap -- Fastify's public API
+    const server = Fastify();
+    t.after(() => server.close());
+    if(!default_errors) {
+        server.setErrorHandler((error: {statusCode?: number}, _request, reply) => {
+            errors.push(error);
+            reply.status(error.statusCode ?? 500).send({});
+        });
+    }
+    mount(server);
+    await server.ready();
+    return {server, errors};
+}
+
 describe("mountFastifyRoutes", () => {
     const echo_routes = defineFastifyRoutes({
         uses: [],
@@ -292,24 +313,6 @@ describe("mountFastifyRoutes", () => {
             },
         ],
     });
-
-    /** A ready server with `mount` applied, closed after the test; `errors` records thrown errors
-     *  unless `default_errors` keeps Fastify's own error handler. */
-    async function serve(t: TestContext, mount: (server: FastifyInstance) => void, default_errors = false) {
-        const errors: unknown[] = [];
-        // eslint-disable-next-line new-cap -- Fastify's public API
-        const server = Fastify();
-        t.after(() => server.close());
-        if(!default_errors) {
-            server.setErrorHandler((error: {statusCode?: number}, _request, reply) => {
-                errors.push(error);
-                reply.status(error.statusCode ?? 500).send({});
-            });
-        }
-        mount(server);
-        await server.ready();
-        return {server, errors};
-    }
 
     it("hands the schemas' parsed params, body, and querystring to the handler", async (t) => {
         const {server} = await serve(t, (s) => mountFastifyRoutes(s, echo_routes));
@@ -435,5 +438,148 @@ describe("mountFastifyRoutes", () => {
         const unserved = await serve(t, (s) => mountFastifyRoutes(s, reading));
         assert.strictEqual((await unserved.server.inject({method: "GET", url: "/count"})).statusCode, 500);
         assert.ok(unserved.errors[0] instanceof UnboundConfigError);
+    });
+});
+
+describe("createExposeCallsFactory", () => {
+    const ProbeCalls = defineComponentCalls("probe", {
+        take: {input: schema("null").or({n: "number"}), output: schema("unknown")},
+        at: {input: schema({when: "string.date.parse"}), output: schema({year: "number"})},
+    });
+    const callPath = ({component_id, name}: CallEndpointReference) => `/api/v1/${component_id}/${name}`;
+    const silent_log: Logger = {debug() {}, info() {}, warn() {}, error() {}};
+
+    const post = (server: FastifyInstance, url: string, payload: string) =>
+        server.inject({method: "POST", url, payload, headers: {"content-type": "application/json"}});
+
+    it("serves each call as a POST at its call path, passing the body, even null, to `call` unchanged", async (t) => {
+        const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
+        const calls: RecordedCall[] = [];
+        const {server} = await serve(t, (s) => mountFastifyRoutes(s, exposeCalls(ProbeCalls), {call: (reference, input: unknown) => {
+            calls.push([reference, input]);
+            return Promise.resolve({received: input});
+        }}));
+        const response = await post(server, "/api/v1/probe/take", "null");
+        assert.strictEqual(response.statusCode, 200);
+        assert.deepStrictEqual(response.json(), {output: {received: null}} satisfies OutputBody);
+        assert.deepStrictEqual(calls, [[ProbeCalls.calls.take, null]]);
+    });
+
+    it("round-trips with a client of the same callPath: outputs, even strings and error-like ones, and ErrorBody messages", async (t) => {
+        const ShopCalls = defineComponentCalls("shop", {
+            name: {input: schema({}), output: schema("string")},
+            status: {input: schema({}), output: schema({error: "string"})},
+            buy: {input: schema({n: "number"}), output: schema({n: "number"})},
+        });
+        const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
+        // eslint-disable-next-line new-cap -- Fastify's public API
+        const server = Fastify();
+        t.after(() => server.close());
+        server.setErrorHandler((error: {statusCode?: number; message: string}, _request, reply) => {
+            reply.status(error.statusCode ?? 500).send({error: error.message} satisfies ErrorBody);
+        });
+        mountFastifyRoutes(server, exposeCalls(ShopCalls), {call: (reference, input: unknown) => {
+            if(reference === ShopCalls.calls.name) return Promise.resolve("a \"shop\"");
+            if(reference === ShopCalls.calls.status) return Promise.resolve({error: "closed"});
+            return Promise.reject(new CallInputError("shop", "buy", new Error(`bad ${JSON.stringify(input)}`)));
+        }});
+        await server.ready();
+        t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+            const response = await server.inject({method: "POST", url, headers: Object.fromEntries(new Headers(init.headers)), payload: String(init.body)});
+            return new Response(response.body, {status: response.statusCode, headers: {"content-type": String(response.headers["content-type"])}});
+        });
+
+        const shop = createComponentClientFactory({callPath})<typeof ShopCalls>(ShopCalls.id);
+        assert.strictEqual(await shop("name")(), "a \"shop\"");
+        assert.deepStrictEqual(await shop("status")(), {error: "closed"});
+        await assert.rejects(shop("buy")({n: 1}), (err: unknown) => {
+            assert.ok(err instanceof CallFailedError);
+            assert.strictEqual(err.status, 400);
+            assert.strictEqual(err.server_message, "Invalid body: bad {\"n\":1}");
+            return true;
+        });
+    });
+
+    it("validates a type-changing input once: the handler gets the converted value, and an invalid body throws RouteValidationError", async (t) => {
+        const component = defineComponent({
+            calls: ProbeCalls,
+            uses: [],
+            handlers: {take: (_context, input) => input, at: (_context, {when}) => ({year: when.getUTCFullYear()})},
+        });
+        const app = createApplication({components: [component], logger: () => silent_log});
+        await app.start();
+        t.after(() => app.stop());
+        const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
+        const {server, errors} = await serve(t, (s) => mountFastifyRoutes(s, exposeCalls(ProbeCalls), {call: app.call}));
+
+        const valid = await post(server, "/api/v1/probe/at", JSON.stringify({when: "2026-02-03"}));
+        assert.strictEqual(valid.statusCode, 200);
+        assert.deepStrictEqual(valid.json(), {output: {year: 2026}} satisfies OutputBody);
+
+        const invalid = await post(server, "/api/v1/probe/at", JSON.stringify({when: "not a date"}));
+        assert.strictEqual(invalid.statusCode, 400);
+        const [error] = errors;
+        assert.ok(error instanceof RouteValidationError);
+        assert.strictEqual(error.validationContext, "body");
+    });
+
+    it("propagates a nested call's input failure unchanged, as a server fault", async (t) => {
+        const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
+        for(const [component_id, call_name] of [["other", "take"], ["probe", "other"]] as const) {
+            const failure = new CallInputError(component_id, call_name, new Error("bad"));
+            const {server, errors} = await serve(t, (s) => mountFastifyRoutes(s, exposeCalls(ProbeCalls), {call: (): Promise<never> => Promise.reject(failure)}));
+            assert.strictEqual((await post(server, "/api/v1/probe/take", "null")).statusCode, 500, `${component_id}.${call_name}`);
+            assert.strictEqual(errors[0], failure, `${component_id}.${call_name}`);
+        }
+    });
+
+    it("throws InvalidCallEndpointError for a call name that is not ASCII letters, digits, `_`, and `-`", () => {
+        const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
+        for(const name of [":id", "*", "a/b", "a?b", "a#b", "a%2F", "..", "a.b", "a b", ""]) {
+            const calls = defineComponentCalls("probe", {[name]: {input: schema("null"), output: schema("null")}});
+            assert.throws(() => exposeCalls(calls), (err: unknown) => err instanceof InvalidCallEndpointError && err.component_id === "probe" && err.call_name === name, JSON.stringify(name));
+        }
+        for(const name of ["getInfo", "get_info", "get-info", "v2"]) {
+            const calls = defineComponentCalls("probe", {[name]: {input: schema("null"), output: schema("null")}});
+            assert.doesNotThrow(() => exposeCalls(calls), name);
+        }
+    });
+
+    it("throws InvalidCallEndpointError for a call path not under `base`", () => {
+        for(const path of ["/api", "/api-v1/probe/take", "/other/probe/take", "api/probe/take"]) {
+            const {exposeCalls} = createExposeCallsFactory({callPath: () => path, base: "/api"});
+            assert.throws(() => exposeCalls(ProbeCalls), InvalidCallEndpointError, path);
+        }
+    });
+
+    it("answers a GET of `base` or any path under it with NotFoundError, leaving exposed calls served", async (t) => {
+        const {exposeCalls, not_found_routes} = createExposeCallsFactory({callPath, base: "/api"});
+        const {server, errors} = await serve(t, (s) => {
+            mountFastifyRoutes(s, exposeCalls(ProbeCalls), {call: () => Promise.resolve(null)});
+            mountFastifyRoutes(s, not_found_routes);
+        });
+        for(const url of ["/api", "/api/", "/api/v1/probe/take", "/api/a/b/c"]) {
+            errors.length = 0;
+            assert.strictEqual((await server.inject({method: "GET", url})).statusCode, 404, url);
+            assert.ok(errors[0] instanceof NotFoundError, url);
+        }
+        assert.strictEqual((await post(server, "/api/v1/probe/take", "null")).statusCode, 200);
+    });
+
+    it("gives every exposed and not-found route the `config` option", async (t) => {
+        const {exposeCalls, not_found_routes} = createExposeCallsFactory({callPath, base: "/api", config: {tag: "calls"}});
+        const seen: unknown[] = [];
+        const {server} = await serve(t, (s) => {
+            s.addHook("onRequest", async (request) => {
+                const {config} = request.routeOptions;
+                seen.push("tag" in config ? config.tag : null);
+            });
+            mountFastifyRoutes(s, exposeCalls(ProbeCalls), {call: () => Promise.resolve(null)});
+            mountFastifyRoutes(s, not_found_routes);
+        });
+        await post(server, "/api/v1/probe/take", "null");
+        await server.inject({method: "GET", url: "/api"});
+        await server.inject({method: "GET", url: "/api/x"});
+        assert.deepStrictEqual(seen, ["calls", "calls", "calls"]);
     });
 });

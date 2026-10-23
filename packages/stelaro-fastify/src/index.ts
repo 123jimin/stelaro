@@ -1,6 +1,7 @@
 import {
     type AnyComponentCalls,
     type CallFrom,
+    CallInputError,
     type ComponentCallFn,
     type ComponentCallSchema,
     type ComponentId,
@@ -19,6 +20,8 @@ import type {
     HTTPMethods,
     RouteOptions,
 } from "fastify";
+
+import type {ComponentClientFactoryOptions, OutputBody} from "./client.ts";
 
 /** The listen settings, part of every gateway's configuration. */
 const ListenConfig = schema({"port": "number", "host?": "string"});
@@ -83,7 +86,6 @@ export class RouteValidationError extends StelaroError {
 
 /**
  * A route handler can throw this when a resource is not found, and Fastify will respond with a 404.
- * This package never throws it on its own.
  *
  * @category Errors
  */
@@ -93,6 +95,25 @@ export class NotFoundError extends StelaroError {
 
     constructor() {
         super("Not found.");
+    }
+}
+
+/**
+ * Thrown when a call cannot be exposed: its name is not URL-safe, or its `callPath` is not under
+ * `base`.
+ *
+ * @category Errors
+ */
+export class InvalidCallEndpointError extends StelaroError {
+    /** Component id of the call */
+    readonly component_id: string;
+    /** Name of the call */
+    readonly call_name: string;
+
+    constructor(component_id: string, call_name: string, reason: string) {
+        super(`Call ${component_id}.${call_name} cannot be exposed: ${reason}.`);
+        this.component_id = component_id;
+        this.call_name = call_name;
     }
 }
 
@@ -439,6 +460,123 @@ export function mountFastifyRoutes(
             },
         });
     }
+}
+
+// A call name may be put in a URL path segment unescaped.
+const CALL_NAME = /^[A-Za-z0-9_-]+$/u;
+
+/** Options for {@link createExposeCallsFactory}.
+ *
+ * @category Calls
+ */
+export type ExposeCallsFactoryOptions = {
+    /** Returns the URL path of a call, which must be under `base` and match the client's `callPath` */
+    readonly callPath: ComponentClientFactoryOptions["callPath"];
+    /** URL path of the namespace that holds every call, without a trailing slash, e.g. `/_call` */
+    readonly base: string;
+    /** Fastify route `config` of every route, exposed and not-found alike */
+    readonly config?: NonNullable<RouteOptions["config"]>;
+};
+
+/**
+ * `exposeCalls` and the not-found routes of its namespace, as {@link createExposeCallsFactory}
+ * creates them.
+ *
+ * @category Calls
+ */
+export type ExposeCallsFactory = {
+    /**
+     * Creates a route group serving every call of `calls` as a JSON `POST` endpoint that replies
+     * with an {@link OutputBody}.
+     *
+     * @typeParam TCalls - The call surface
+     * @param calls - The call surface to expose
+     * @returns A group using `calls`
+     *
+     * @throws {InvalidCallEndpointError} If a call name has characters other than ASCII letters,
+     *   digits, `_`, and `-`, or a call path does not lie under `base`
+     */
+    exposeCalls<const TCalls extends AnyComponentCalls>(calls: TCalls): FastifyRouteGroup<readonly [TCalls]>;
+    /** A group answering every `GET` of `base` or a path under it with {@link NotFoundError} */
+    readonly not_found_routes: FastifyRouteGroup<readonly []>;
+};
+
+/**
+ * Creates `exposeCalls`, which exposes component calls over HTTP at the paths `callPath` returns,
+ * the server counterpart of `createComponentClientFactory` from `@jiminp/stelaro-fastify/client`.
+ *
+ * An exposed call passes the request body to the handler's `call`, which validates it once, and
+ * replies with the output in an {@link OutputBody}. A failure of the call's own input becomes a
+ * {@link RouteValidationError} for `body`, and every other failure propagates unchanged.
+ *
+ * @param options - Call paths, their namespace, and route `config`
+ * @returns `exposeCalls`, and `not_found_routes` claiming every other `GET` under `base`
+ *
+ * @remarks
+ * Mount `not_found_routes` once per namespace, so that the server's error handler, not its
+ * not-found handler, answers an unserved `GET` under `base`. Outputs must be JSON values: an
+ * `undefined` output is dropped from the {@link OutputBody}, and the client rejects it.
+ *
+ * @example
+ * ```ts
+ * const {exposeCalls, not_found_routes} = createExposeCallsFactory({
+ *     callPath: (reference) => getCallPath("/_call", reference),
+ *     base: "/_call",
+ * });
+ * mountFastifyRoutes(server, exposeCalls(PublicSiteCalls), {call: context.call});
+ * mountFastifyRoutes(server, not_found_routes);
+ * ```
+ *
+ * @category Calls
+ */
+export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): ExposeCallsFactory {
+    const {callPath, base} = options;
+    const route_options = options.config == null ? {} : {config: options.config};
+    const prefix = `${base}/`;
+
+    return {
+        exposeCalls<const TCalls extends AnyComponentCalls>(calls: TCalls): FastifyRouteGroup<readonly [TCalls]> {
+            return {
+                uses: [calls],
+                routes: Object.values(calls.calls).map((reference) => {
+                    if(!CALL_NAME.test(reference.name)) {
+                        throw new InvalidCallEndpointError(reference.component_id, reference.name, "its name is not ASCII letters, digits, `_`, and `-`");
+                    }
+                    const path = callPath(reference);
+                    if(!path.startsWith(prefix)) {
+                        throw new InvalidCallEndpointError(reference.component_id, reference.name, `its path ${JSON.stringify(path)} is not under ${JSON.stringify(base)}`);
+                    }
+                    return defineFastifyRoute({
+                        ...route_options,
+                        method: "POST",
+                        path,
+                        handle: async ({request, call}): Promise<OutputBody> => {
+                            try {
+                                return {output: await call(reference, request.body)};
+                            } catch (err) {
+                                // Only this call's input came from the client. A nested call cannot
+                                // share its ids: stelaro rejects dependency cycles.
+                                if(err instanceof CallInputError && err.component_id === reference.component_id && err.call_name === reference.name) {
+                                    throw new RouteValidationError("body", err.cause);
+                                }
+                                throw err;
+                            }
+                        },
+                    });
+                }),
+            };
+        },
+        not_found_routes: {
+            uses: [],
+            // `${base}/*` does not match `base` itself.
+            routes: [base, `${prefix}*`].map((path) => defineFastifyRoute({
+                ...route_options,
+                method: "GET",
+                path,
+                handle() { throw new NotFoundError(); },
+            })),
+        },
+    };
 }
 
 /**

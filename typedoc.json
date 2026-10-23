@@ -26,6 +26,7 @@
             "Gateway",
             "Mounts",
             "Routes",
+            "Calls",
             "Errors",
             "*"
         ]
