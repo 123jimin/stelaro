@@ -118,7 +118,7 @@ export type I18n = {
      * Returns a translator with `locale` fixed: `bind(locale).t(message, …)` is
      * `t(locale, message, …)`.
      */
-    bind(locale: Locale): BoundI18n;
+    bind<L extends Locale>(locale: L): BoundI18n<L>;
 };
 
 /**
@@ -126,7 +126,9 @@ export type I18n = {
  *
  * @category i18n
  */
-export type BoundI18n = {
+export type BoundI18n<L extends Locale = Locale> = {
+    /** The exact locale passed to {@link I18n.bind}, even when translation falls back. */
+    readonly locale: L;
     /**
      * Translates `message` for the bound locale. Same fallback chain and typing as {@link I18n.t}.
      */
@@ -242,8 +244,9 @@ export function createI18n(options: I18nOptions): I18n {
         t(locale, message, ...[values]) {
             return translate(locale, message, values as Record<string, PrimitiveValue> | undefined);
         },
-        bind(locale: Locale): BoundI18n {
+        bind<L extends Locale>(locale: L): BoundI18n<L> {
             return {
+                locale,
                 t(message, ...[values]) {
                     return translate(locale, message, values as Record<string, PrimitiveValue> | undefined);
                 },

@@ -115,7 +115,9 @@ describe("stelaro-i18n", () => {
         try {
             for(const locale of ["en_US", ""]) {
                 assert.equal(i18n.t(locale, message, {n: 1000}), "1.000 items");
-                assert.equal(i18n.bind(locale).t(message, {n: 1000}), "1.000 items");
+                const bound = i18n.bind(locale);
+                assert.equal(bound.t(message, {n: 1000}), "1.000 items");
+                assert.equal(bound.locale, locale);
             }
             assert.ok(reported.length > 0);
         } finally {
@@ -254,6 +256,30 @@ describe("stelaro-i18n", () => {
     it("an explicit id wins over the source-text key", () => {
         const i18n = createI18n({default_locale: "en", messages: {fr: {greeting: "Par id", Hi: "Par texte"}}});
         assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: "Hi"}), "Par id");
+    });
+
+    it("keeps each bound locale through translation fallback and catalog loading", async () => {
+        const i18n = createI18n({default_locale: "en", locales: ["fr"]});
+        const fr = i18n.bind("fr");
+        const en = i18n.bind("en");
+        const message = {defaultMessage: "Hi"};
+        assert.equal(fr.t(message), "Hi");
+        assert.equal(fr.locale, "fr");
+        await i18n.load(fakeReader({"i18n/fr.json": {Hi: "Salut"}}));
+        assert.equal(fr.t(message), "Salut");
+        assert.equal(en.t(message), "Hi");
+        assert.equal(fr.locale, "fr");
+        assert.equal(en.locale, "en");
+
+        // Type-level checks only; never invoked.
+        const typeChecks = (): void => {
+            fr.locale satisfies "fr";
+            // @ts-expect-error the bound locale is readonly.
+            fr.locale = "fr";
+            // @ts-expect-error binding preserves the supplied literal.
+            fr.locale satisfies "en";
+        };
+        void typeChecks;
     });
 
     it("bind(locale).t equals t(locale, …) for an id-less descriptor", () => {

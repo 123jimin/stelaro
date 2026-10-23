@@ -40,9 +40,10 @@ type I18n = {
         message: D,
         ...values: OptionalIfVoid<MessageValues<D["defaultMessage"]>>
     ): string;
-    bind(locale: Locale): BoundI18n;
+    bind<L extends Locale>(locale: L): BoundI18n<L>;
 };
-type BoundI18n = {
+type BoundI18n<L extends Locale = Locale> = {
+    readonly locale: L;
     t<const D extends MessageDescriptor>(
         message: D,
         ...values: OptionalIfVoid<MessageValues<D["defaultMessage"]>>
@@ -87,6 +88,8 @@ function catalogKey(descriptor: MessageDescriptor): string;
   when interpolation needs it.
 - `bind(locale).t(message, ...values)` is equivalent in behavior and typing to
   `t(locale, message, ...values)` and captures no global state.
+- `bind(locale).locale` exposes the exact argument passed to `bind`, preserving its
+  type. Translation fallback does not change the bound locale.
 
 ### Component wiring
 
