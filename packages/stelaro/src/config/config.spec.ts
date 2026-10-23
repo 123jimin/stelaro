@@ -16,9 +16,9 @@ import {
 } from "../component/component.ts";
 import type {Logger, LoggerFactory} from "../component/logger.ts";
 import type {ComponentId} from "../component/types.ts";
+import {EmptyInput} from "../schema.ts";
 import {
     CounterOutput,
-    EmptyInput,
     noopLoggerFactory,
     useTempDir,
     writeTestFile,

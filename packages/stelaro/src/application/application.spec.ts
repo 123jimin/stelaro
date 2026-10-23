@@ -9,11 +9,11 @@ import {defineComponent, defineComponentCalls, mergeComponentCalls} from "../com
 import type {AnyComponentContext} from "../component/context.ts";
 import type {Logger} from "../component/logger.ts";
 import type {CallInput, CallOutput} from "../component/types.ts";
+import {EmptyInput} from "../schema.ts";
 import {
     CounterOutput,
     defineCounterCalls,
     defineCounterComponent,
-    EmptyInput,
     noopLoggerFactory,
     RenderOutput,
     SetCounterInput,

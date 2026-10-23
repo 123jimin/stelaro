@@ -7,9 +7,9 @@ import {type as schema} from "arktype";
 import {createApplication, defineApplication} from "../application/application.ts";
 import {DuplicateCallError} from "../application/error.ts";
 import {InvalidComponentIdError, MismatchedComponentIdError} from "../error.ts";
+import {EmptyInput} from "../schema.ts";
 import {
     CounterOutput,
-    EmptyInput,
     noopLoggerFactory,
     RenderOutput,
     SetCounterInput,

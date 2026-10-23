@@ -53,6 +53,7 @@ type Component = {
 function defineComponentCalls(id: ComponentId, declarations: ComponentCallDeclarations): ComponentCalls;
 function mergeComponentCalls(first: ComponentCalls, ...rest: ComponentCalls[]): ComponentCalls;
 function defineComponent(definition: Component): Component;
+const EmptyInput: ComponentCallSchema; // NEEDS APPROVAL
 ```
 
 ## Behavior
@@ -63,6 +64,8 @@ function defineComponent(definition: Component): Component;
   - It throws `MismatchedComponentIdError` if the ids differ and `DuplicateCallError` if two inputs declare the same call name.
 - A handler may be a callable `(context, input) => ...` or an object with
   `handle(context, input)`; both dispatch identically.
+- `EmptyInput` is the input schema for a call that takes no
+  arguments. It accepts only `{}` and rejects arrays and objects with any keys.
 - UNIMPLEMENTED Components may use gateway capabilities through typed
   component calls.
 - A state factory creates state for one component in one application runtime.

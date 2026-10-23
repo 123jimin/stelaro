@@ -9,8 +9,8 @@ import {type as schema} from "arktype";
 import {defineComponent, defineComponentCalls} from "./component/component.ts";
 import type {Logger, LoggerFactory} from "./component/logger.ts";
 import type {AnyComponentCalls, ComponentCalls, ComponentId} from "./component/types.ts";
+import {EmptyInput} from "./schema.ts";
 
-export const EmptyInput = schema({});
 export const CounterOutput = schema({count: "number"});
 export const SetCounterInput = schema({count: "number"});
 export const RenderOutput = schema({html: "string"});
