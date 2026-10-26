@@ -3,7 +3,7 @@ id = "t0009"
 title = "Local call values"
 tags = ["component", "fastify"]
 modifies = ["s0003", "s0016"]
-status = "pending"
+status = "active"
 +++
 
 # Local call values

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {describe, it, type TestContext} from "node:test";
 
-import {CallInputError, createApplication, defineComponent, defineComponentCalls, type Logger} from "@jiminp/stelaro";
+import {CallInputError, createApplication, defineComponent, defineComponentCalls, defineLocalInput, defineLocalOutput, type Logger} from "@jiminp/stelaro";
 import {type as schema} from "arktype";
 import Fastify, {type FastifyInstance, type FastifyListenOptions, type InjectOptions} from "fastify";
 
@@ -549,6 +549,18 @@ describe("createExposeCallsFactory", () => {
         for(const path of ["/api", "/api-v1/probe/take", "/other/probe/take", "api/probe/take"]) {
             const {exposeCalls} = createExposeCallsFactory({callPath: () => path, base: "/api"});
             assert.throws(() => exposeCalls(ProbeCalls), InvalidCallEndpointError, path);
+        }
+    });
+
+    it("throws InvalidCallEndpointError for a call with a local input or output", () => {
+        const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
+        const declarations = {
+            input: {input: defineLocalInput<() => void>(), output: schema("null")},
+            output: {input: schema("null"), output: defineLocalOutput<() => void>()},
+        };
+        for(const [name, declaration] of Object.entries(declarations)) {
+            const calls = defineComponentCalls("probe", {take: declaration});
+            assert.throws(() => exposeCalls(calls), (err: unknown) => err instanceof InvalidCallEndpointError && err.component_id === "probe" && err.call_name === "take", name);
         }
     });
 

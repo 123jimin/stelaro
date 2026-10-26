@@ -8,6 +8,7 @@ import {
     type ConfigSchema,
     defineComponent,
     defineComponentCalls,
+    isLocalSchema,
     StelaroError,
 } from "@jiminp/stelaro";
 import type {Nullable, Promisable} from "@jiminp/tooltool";
@@ -99,8 +100,8 @@ export class NotFoundError extends StelaroError {
 }
 
 /**
- * Thrown when a call cannot be exposed: its name is not URL-safe, or its `callPath` is not under
- * `base`.
+ * Thrown when a call cannot be exposed: its name is not URL-safe, its input or output is a local
+ * schema, or its `callPath` is not under `base`.
  *
  * @category Errors
  */
@@ -500,7 +501,8 @@ export type ExposeCallsFactory = {
      * @returns A group using `calls`
      *
      * @throws {InvalidCallEndpointError} If a call name has characters other than ASCII letters,
-     *   digits, `_`, and `-`, or a call path does not lie under `base`
+     *   digits, `_`, and `-`, a call's input or output is a local schema, or a call path does not
+     *   lie under `base`
      */
     exposeCalls<const TCalls extends AnyComponentCalls>(calls: TCalls): FastifyRouteGroup<readonly [TCalls]>;
     /** A group answering every `GET` of `base` or a path under it with {@link NotFoundError} */
@@ -547,6 +549,9 @@ export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): Ex
                 routes: Object.values(calls.calls).map((reference) => {
                     if(!CALL_NAME.test(reference.name)) {
                         throw new InvalidCallEndpointError(reference.component_id, reference.name, "its name is not ASCII letters, digits, `_`, and `-`");
+                    }
+                    if(isLocalSchema(reference.input) || isLocalSchema(reference.output)) {
+                        throw new InvalidCallEndpointError(reference.component_id, reference.name, "its input or output is a local schema");
                     }
                     const path = callPath(reference);
                     if(!path.startsWith(prefix)) {

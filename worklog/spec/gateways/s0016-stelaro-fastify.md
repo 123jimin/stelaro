@@ -176,8 +176,9 @@ class CallFailedError extends Error {
   call's own input fails, the route throws `RouteValidationError` for `body`.
   Every other failure, a nested call's input failure included, propagates unchanged.
 - `exposeCalls` throws `InvalidCallEndpointError` for a call
-  name with characters other than ASCII letters, digits, `_`, and `-`, or a
-  path not under `${base}/`. `not_found_routes` answers a `GET` of `base` or
+  name with characters other than ASCII letters, digits, `_`, and `-`, a
+  path not under `${base}/`, or a local input or output schema (s0003).
+  `not_found_routes` answers a `GET` of `base` or
   any path under it with `NotFoundError`. `config` is the Fastify route
   `config` of every route either creates.
 - `getCallPath` returns `${base}/${component_id}/${name}`, escaping neither part, for use as `callPath` on both sides.

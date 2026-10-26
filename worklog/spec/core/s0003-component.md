@@ -54,6 +54,9 @@ function defineComponentCalls(id: ComponentId, declarations: ComponentCallDeclar
 function mergeComponentCalls(first: ComponentCalls, ...rest: ComponentCalls[]): ComponentCalls;
 function defineComponent(definition: Component): Component;
 const EmptyInput: ComponentCallSchema;
+function defineLocalInput<T>(): ComponentCallSchema;
+function defineLocalOutput<T>(): ComponentCallSchema;
+function isLocalSchema(schema: ComponentCallSchema): boolean;
 ```
 
 ## Behavior
@@ -66,6 +69,14 @@ const EmptyInput: ComponentCallSchema;
   `handle(context, input)`; both dispatch identically.
 - `EmptyInput` is the input schema for a call that takes no
   arguments. It accepts only `{}` and rejects arrays and objects with any keys.
+- `defineLocalInput<T>()` and `defineLocalOutput<T>()` return a call input or
+  output schema for values of type `T` that never leave the process. Dispatch
+  passes such a value through without checking it. The component that creates
+  such a value disposes of it. A handler may keep a local input after the call
+  returns; the caller's component stops first, so it withdraws the input in its
+  stop hook when the input must not be used after that.
+  - `isLocalSchema` tells whether a schema came from either
+    factory, so that gateways can refuse local schemas.
 - UNIMPLEMENTED Components may use gateway capabilities through typed
   component calls.
 - A state factory creates state for one component in one application runtime.
@@ -79,7 +90,8 @@ const EmptyInput: ComponentCallSchema;
 - Component behavior belongs to core and MUST NOT require raw gateway objects.
 - Component ids MUST be stable, lowercase kebab-case public identities.
 - Component call names SHOULD be camelCase.
-- Call inputs and outputs MUST use Arktype schemas and remain typed through
+- Call inputs and outputs MUST use Arktype schemas or local schemas
+  (`defineLocalInput`, `defineLocalOutput`) and remain typed through
   declaration, handler dispatch, and `context.call`.
 - Components MAY depend on typed calls exposed by gateway components.
 

@@ -7,7 +7,7 @@ import {type as schema} from "arktype";
 import {createApplication, defineApplication} from "../application/application.ts";
 import {DuplicateCallError} from "../application/error.ts";
 import {InvalidComponentIdError, MismatchedComponentIdError} from "../error.ts";
-import {EmptyInput} from "../schema.ts";
+import {defineLocalInput, defineLocalOutput, EmptyInput} from "../schema.ts";
 import {
     CounterOutput,
     noopLoggerFactory,
@@ -126,6 +126,40 @@ describe("@jiminp/stelaro component core", () => {
 
         assert.deepStrictEqual(await app.call(ParseCalls.calls.run, {value: "42"}), {count: 0});
         assert.deepStrictEqual(received, {value: 42});
+
+        await app.stop();
+    });
+
+    it("passes local values through unchecked in both directions", async () => {
+        type Listener = (event: string) => void;
+        const LocalCalls = defineComponentCalls("local", {
+            subscribe: {input: defineLocalInput<Listener>(), output: defineLocalOutput<{close(): void}>()},
+        });
+        const subscription = {close() {}};
+        let received: unknown = null;
+        const LocalComponent = defineComponent({
+            calls: LocalCalls,
+            uses: [],
+            handlers: {
+                subscribe(_context, listener) {
+                    received = listener;
+                    return subscription;
+                },
+            },
+        });
+        const app = createApplication(
+            defineApplication({components: [LocalComponent], logger: noopLoggerFactory}),
+        );
+        await app.start();
+
+        const listener: Listener = () => {};
+        assert.strictEqual(await app.call(LocalCalls.calls.subscribe, listener), subscription);
+        assert.strictEqual(received, listener);
+
+        // A value the declared type would reject still passes.
+        const not_a_listener = 42 as unknown as Listener;
+        await app.call(LocalCalls.calls.subscribe, not_a_listener);
+        assert.strictEqual(received, not_a_listener);
 
         await app.stop();
     });
@@ -378,6 +412,24 @@ function assertTypeBehavior() {
 
                     return {html: ""};
                 },
+            },
+        },
+    });
+
+    // Local schemas type values as `T` for callers and handlers.
+    const LocalCalls = defineComponentCalls("local", {
+        run: {input: defineLocalInput<(event: string) => void>(), output: defineLocalOutput<Map<string, number>>()},
+    });
+    assertEqualType<CallInput<typeof LocalCalls.calls.run>, (event: string) => void>();
+    assertEqualType<CallOutput<typeof LocalCalls.calls.run>, Map<string, number>>();
+    void defineComponent({
+        calls: LocalCalls,
+        uses: [],
+        handlers: {
+            run(_context, _input) {
+                assertEqualType<typeof _input, (event: string) => void>();
+
+                return new Map<string, number>();
             },
         },
     });
