@@ -54,9 +54,13 @@ function defineComponentCalls(id: ComponentId, declarations: ComponentCallDeclar
 function mergeComponentCalls(first: ComponentCalls, ...rest: ComponentCalls[]): ComponentCalls;
 function defineComponent(definition: Component): Component;
 const EmptyInput: ComponentCallSchema;
-function defineLocalInput<T>(): ComponentCallSchema;
-function defineLocalOutput<T>(): ComponentCallSchema;
-function isLocalSchema(schema: ComponentCallSchema): boolean;
+interface LocalSchema<T> extends ComponentCallSchema {
+    readonly infer: T;
+    readonly inferIn: T;
+}
+function defineLocalInput<T>(): LocalSchema<T>;
+function defineLocalOutput<T>(): LocalSchema<T>;
+function isLocalSchema(call_schema: ComponentCallSchema): boolean;
 ```
 
 ## Behavior

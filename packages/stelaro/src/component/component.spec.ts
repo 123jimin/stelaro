@@ -132,18 +132,19 @@ describe("@jiminp/stelaro component core", () => {
 
     it("passes local values through unchecked in both directions", async () => {
         type Listener = (event: string) => void;
+        type Subscription = {close(): void};
         const LocalCalls = defineComponentCalls("local", {
-            subscribe: {input: defineLocalInput<Listener>(), output: defineLocalOutput<{close(): void}>()},
+            subscribe: {input: defineLocalInput<Listener>(), output: defineLocalOutput<Subscription>()},
         });
-        const subscription = {close() {}};
         let received: unknown = null;
+        let reply: Subscription = {close() {}};
         const LocalComponent = defineComponent({
             calls: LocalCalls,
             uses: [],
             handlers: {
                 subscribe(_context, listener) {
                     received = listener;
-                    return subscription;
+                    return reply;
                 },
             },
         });
@@ -153,12 +154,13 @@ describe("@jiminp/stelaro component core", () => {
         await app.start();
 
         const listener: Listener = () => {};
-        assert.strictEqual(await app.call(LocalCalls.calls.subscribe, listener), subscription);
+        assert.strictEqual(await app.call(LocalCalls.calls.subscribe, listener), reply);
         assert.strictEqual(received, listener);
 
-        // A value the declared type would reject still passes.
+        // Values the declared types would reject still pass.
         const not_a_listener = 42 as unknown as Listener;
-        await app.call(LocalCalls.calls.subscribe, not_a_listener);
+        reply = "not a subscription" as unknown as Subscription;
+        assert.strictEqual(await app.call(LocalCalls.calls.subscribe, not_a_listener), reply);
         assert.strictEqual(received, not_a_listener);
 
         await app.stop();
@@ -431,6 +433,14 @@ function assertTypeBehavior() {
 
                 return new Map<string, number>();
             },
+        },
+    });
+    void defineComponent({
+        calls: LocalCalls,
+        uses: [],
+        handlers: {
+            // @ts-expect-error a handler must return the local output's type.
+            run: () => "not a map",
         },
     });
 

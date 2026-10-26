@@ -24,8 +24,8 @@ export const EmptyInput = schema({"+": "reject"})
     .narrow((value, ctx) => Object.getPrototypeOf(value) === Object.prototype || ctx.mustBe("a plain object"));
 
 /**
- * A call schema for values of type `T` that never leave the process. Its `assert` returns every
- * value unchecked.
+ * A call schema for values of type `T` that never leave the process. Its `assert` returns its
+ * input unchecked.
  *
  * @typeParam T - Type of the value
  * @category Component
@@ -33,21 +33,25 @@ export const EmptyInput = schema({"+": "reject"})
 export interface LocalSchema<T> extends ComponentCallSchema {
     readonly infer: T;
     readonly inferIn: T;
-    assert(input: unknown): T;
 }
 
-const local_schemas = new WeakSet<ComponentCallSchema>();
+const LOCAL_SCHEMA = Symbol("local schema");
+
+interface MarkedLocalSchema<T> extends LocalSchema<T> {
+    readonly [LOCAL_SCHEMA]: true;
+}
+
+function passThrough(input: unknown): unknown {
+    return input;
+}
 
 function createLocalSchema<T>(): LocalSchema<T> {
-    const local_schema = {assert: (input: unknown) => input as T} as LocalSchema<T>;
-    local_schemas.add(local_schema);
-    return local_schema;
+    return {assert: passThrough, [LOCAL_SCHEMA]: true} as MarkedLocalSchema<T>;
 }
 
 /**
  * Defines the input schema of a call that takes a value which never leaves the process, such as a
- * callback. Dispatch passes the value to the handler unchecked, and gateways refuse to expose the
- * call.
+ * callback.
  *
  * @typeParam T - Type of the input
  * @category Component
@@ -58,8 +62,7 @@ export function defineLocalInput<T>(): LocalSchema<T> {
 
 /**
  * Defines the output schema of a call that returns a value which never leaves the process, such
- * as a connection pool. Dispatch passes the value to the caller unchecked, and gateways refuse to
- * expose the call.
+ * as a connection pool.
  *
  * @typeParam T - Type of the output
  * @category Component
@@ -74,5 +77,5 @@ export function defineLocalOutput<T>(): LocalSchema<T> {
  * @category Component
  */
 export function isLocalSchema(call_schema: ComponentCallSchema): boolean {
-    return local_schemas.has(call_schema);
+    return Object.hasOwn(call_schema, LOCAL_SCHEMA);
 }

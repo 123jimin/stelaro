@@ -3,7 +3,7 @@ id = "t0009"
 title = "Local call values"
 tags = ["component", "fastify"]
 modifies = ["s0003", "s0016"]
-status = "active"
+status = "done"
 +++
 
 # Local call values
@@ -38,14 +38,17 @@ against it could not be enforced.
 
 ## Spec changes
 
-- s0003 Types: add `function defineLocalInput<T>(): ComponentCallSchema;` and
-  `function defineLocalOutput<T>(): ComponentCallSchema;` after `EmptyInput`.
+- s0003 Types: add `interface LocalSchema<T>`, whose `infer` and `inferIn` are `T`;
+  `function defineLocalInput<T>(): LocalSchema<T>;`, `function defineLocalOutput<T>(): LocalSchema<T>;`,
+  and `function isLocalSchema(call_schema: ComponentCallSchema): boolean;` after `EmptyInput`.
 - s0003 Behavior: add after the `EmptyInput` bullet: "`defineLocalInput<T>()` and
   `defineLocalOutput<T>()` return a call input or output schema for values of type `T` that never
   leave the process. Dispatch passes such a value through without checking it. The component that
   creates such a value disposes of it. A handler may keep a local input after the call returns; the
   caller's component stops first, so it withdraws the input in its stop hook when the input must not
   be used after that."
+  Under it: "`isLocalSchema` tells whether a schema came from either factory, so that gateways can
+  refuse local schemas."
 - s0003 Constraints: "Call inputs and outputs MUST use Arktype schemas and remain typed through
   declaration, handler dispatch, and `context.call`." becomes "Call inputs and outputs MUST use
   Arktype schemas or local schemas (`defineLocalInput`, `defineLocalOutput`) and remain typed
@@ -75,3 +78,5 @@ against it could not be enforced.
 
 - The browser call client, which addresses calls by component id and name and sees no schemas.
 - The Discord gateway, which exposes no calls.
+- Fastify route request-part schemas and Discord option schemas. A route or command author who
+  declares a local schema there receives client input unchecked; no gateway refuses it.
