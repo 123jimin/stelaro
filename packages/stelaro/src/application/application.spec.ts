@@ -470,6 +470,28 @@ describe("@jiminp/stelaro application core", () => {
         assert.deepStrictEqual(sortComponentsByUses([AComponent, CComponent, BComponent]), [BComponent, AComponent, CComponent]);
     });
 
+    it("sortComponentsByUses rejects duplicate ids and cycles among listed components", () => {
+        const ACalls = defineCounterCalls("a");
+        const BCalls = defineCounterCalls("b");
+        const UnlistedCalls = defineCounterCalls("unlisted");
+
+        assert.throws(
+            () => sortComponentsByUses([defineCounterComponent(ACalls), defineCounterComponent(ACalls)]),
+            DuplicateComponentIdError,
+        );
+        assert.throws(
+            () => sortComponentsByUses([
+                defineCounterComponent(ACalls, {uses: [UnlistedCalls, BCalls]}),
+                defineCounterComponent(BCalls, {uses: [ACalls, UnlistedCalls]}),
+            ]),
+            (error: unknown) => {
+                assert.ok(error instanceof CircularDependencyError);
+                assert.deepStrictEqual([...error.component_ids].sort(), ["a", "b"]);
+                return true;
+            },
+        );
+    });
+
     it("gives lifecycle hooks the same state and logger as handlers", async () => {
         const seen: {readonly state: object; readonly log: Logger; readonly data_dir: string}[] = [];
         const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
