@@ -26,6 +26,9 @@ paths = ["packages/stelaro/src/error.ts", "packages/stelaro/src/application/erro
 - `InvalidComponentIdError` reports a component id that is not lowercase
   kebab-case.
 - `MismatchedComponentIdError` reports call surfaces of different components passed to `mergeComponentCalls`.
+- `ComponentNotReadyError` reports a component that cannot serve a call
+  because its own state is not ready. Components throw it from their handlers;
+  core never throws it.
 - `UserFacingError.user_message` is safe to show to an end user; each gateway decides its presentation.
   - It may carry internal failure as its `cause`, which SHOULD NOT be exposed to end users.
 - `ConfigFileError` and `SecretsFileError` report unreadable files.

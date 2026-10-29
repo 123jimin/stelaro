@@ -74,3 +74,19 @@ export class MismatchedComponentIdError extends StelaroError {
         this.other_component_id = other_component_id;
     }
 }
+
+/**
+ * A component's handler throws this when it cannot serve a call yet, for example because state
+ * its start hook sets is absent. Stelaro never throws it.
+ *
+ * @category Errors
+ */
+export class ComponentNotReadyError extends StelaroError {
+    /** Id of the component that is not ready */
+    readonly component_id: string;
+
+    constructor(component_id: string, options?: ErrorOptions) {
+        super(`Component "${component_id}" is not ready.`, options);
+        this.component_id = component_id;
+    }
+}
