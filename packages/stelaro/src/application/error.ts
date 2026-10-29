@@ -147,10 +147,9 @@ export class CallInputError extends StelaroError {
     readonly call_name: string;
 
     constructor(component_id: string, call_name: string, cause: unknown) {
-        super(`Input to call "${component_id}.${call_name}" is invalid.`);
+        super(`Input to call "${component_id}.${call_name}" is invalid.`, {cause});
         this.component_id = component_id;
         this.call_name = call_name;
-        this.cause = cause;
     }
 }
 

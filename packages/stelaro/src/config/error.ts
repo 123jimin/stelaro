@@ -8,10 +8,9 @@ abstract class ConfigSourceError extends StelaroError {
 
     constructor(summary: string, file_path: string, component_id: string | null, cause: unknown) {
         const target = component_id != null ? `component "${component_id}"` : "application";
-        super(`${summary} for ${target}: ${file_path}`);
+        super(`${summary} for ${target}: ${file_path}`, {cause});
         this.file_path = file_path;
         this.component_id = component_id;
-        this.cause = cause;
     }
 }
 

@@ -79,9 +79,8 @@ export class RouteValidationError extends StelaroError {
     readonly validationContext: RouteRequestPart;
 
     constructor(validation_context: RouteRequestPart, cause: unknown) {
-        super(`Invalid ${validation_context}: ${cause instanceof Error ? cause.message : String(cause)}`);
+        super(`Invalid ${validation_context}: ${cause instanceof Error ? cause.message : String(cause)}`, {cause});
         this.validationContext = validation_context;
-        this.cause = cause;
     }
 }
 

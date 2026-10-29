@@ -4,8 +4,8 @@
  * @category Errors
  */
 export abstract class StelaroError extends Error {
-    constructor(message: string) {
-        super(message);
+    constructor(message: string, options?: ErrorOptions) {
+        super(message, options);
         this.name = this.constructor.name;
     }
 }
@@ -32,8 +32,8 @@ export class UserFacingError extends StelaroError {
     /** Message intended for the end user */
     readonly user_message: string;
 
-    constructor(user_message: string) {
-        super(user_message);
+    constructor(user_message: string, options?: ErrorOptions) {
+        super(user_message, options);
         this.user_message = user_message;
     }
 }
