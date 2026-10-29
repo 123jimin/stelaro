@@ -558,8 +558,35 @@ function validateAndSort(components: readonly AnyComponent[]): readonly AnyCompo
         throw new DuplicateCallError([...duplicate_call_keys]);
     }
 
+    return sortComponentsByUses(components);
+}
+
+/**
+ * Orders components so that each one follows the listed components it uses,
+ * and otherwise keeps their given order. Uses of components that are not
+ * listed are ignored.
+ *
+ * Throws `DuplicateComponentIdError` when two components share an id, and
+ * `CircularDependencyError` when components use each other in a cycle.
+ *
+ * @param components - Components to order
+ * @returns The components in dependency order
+ * @category Application
+ */
+export function sortComponentsByUses(components: readonly AnyComponent[]): AnyComponent[] {
+    const id_to_component = new Map<ComponentId, AnyComponent>();
+    for(const component of components) {
+        if(id_to_component.has(component.calls.id)) {
+            throw new DuplicateComponentIdError(component.calls.id);
+        }
+        id_to_component.set(component.calls.id, component);
+    }
+
     const dependenciesOf = (component: AnyComponent): AnyComponent[] =>
-        component.uses.map((used_calls) => id_to_component.get(used_calls.id)!);
+        component.uses.flatMap((used_calls) => {
+            const used_component = id_to_component.get(used_calls.id);
+            return used_component != null ? [used_component] : [];
+        });
 
     try {
         return topologicalSort(components, dependenciesOf);

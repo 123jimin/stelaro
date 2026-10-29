@@ -52,6 +52,10 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
   - A reference the registered component does not have fails with `UnregisteredCallError`.
 - Components start in topological dependency order and stop in reverse order.
   A component is active when its start hook is absent or completes.
+- `sortComponentsByUses(components)` returns components in the
+  order they start in, so code outside an application can follow it. It ignores
+  uses of components that are not listed, and rejects duplicate ids and cycles
+  as `createApplication` does.
 - `start()` moves `idle → starting → active`. A start failure moves the app to
   `failed`; already-started components are not rolled back.
 - `stop()` moves `active | failed → stopping → idle`, stops only active

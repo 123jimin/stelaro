@@ -18,7 +18,7 @@ import {
     RenderOutput,
     SetCounterInput,
 } from "../test-util.ts";
-import {createApplication, defineApplication} from "./application.ts";
+import {createApplication, defineApplication, sortComponentsByUses} from "./application.ts";
 import {
     CallInputError,
     CircularDependencyError,
@@ -456,6 +456,18 @@ describe("@jiminp/stelaro application core", () => {
                 return true;
             },
         );
+    });
+
+    it("sortComponentsByUses orders listed components by uses and ignores uses of unlisted ones", () => {
+        const ACalls = defineCounterCalls("a");
+        const BCalls = defineCounterCalls("b");
+        const CCalls = defineCounterCalls("c");
+        const UnlistedCalls = defineCounterCalls("unlisted");
+        const AComponent = defineCounterComponent(ACalls, {uses: [BCalls, UnlistedCalls]});
+        const BComponent = defineCounterComponent(BCalls, {uses: [UnlistedCalls]});
+        const CComponent = defineCounterComponent(CCalls);
+
+        assert.deepStrictEqual(sortComponentsByUses([AComponent, CComponent, BComponent]), [BComponent, AComponent, CComponent]);
     });
 
     it("gives lifecycle hooks the same state and logger as handlers", async () => {
