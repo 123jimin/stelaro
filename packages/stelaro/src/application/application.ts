@@ -31,29 +31,30 @@ import {createLifecycleMachine, type LifecycleMachine} from "./lifecycle.ts";
 export const FRAMEWORK_NAME = "stelaro";
 
 /**
- * Declarative definition of an application's components, schemas, and hooks.
+ * Declarative definition of an application's components and hooks.
  *
  * @typeParam TComponents - Tuple of registered components
- * @typeParam TAppConfig - Application-level config schema
- * @typeParam TAppSecrets - Application-level secrets schema
  * @category Application
  */
-export type ApplicationDefinition<
-    TComponents extends readonly AnyComponent[],
-    TAppConfig extends ConfigSchema | undefined = undefined,
-    TAppSecrets extends ConfigSchema | undefined = undefined,
-> = {
+export type ApplicationDefinition<TComponents extends readonly AnyComponent[]> = {
     /** Components registered in this application */
     readonly components: TComponents;
     /** Custom logger factory (default: console) */
     readonly logger?: LoggerFactory;
-    /** Application-level config schema */
-    readonly config?: TAppConfig;
-    /** Application-level secrets schema */
-    readonly secrets?: TAppSecrets;
     /** Called after all component `onConfigReload` hooks complete */
     readonly onConfigReload?: () => Promisable<void>;
 };
+
+/**
+ * Default application directories, relative to the base directory.
+ *
+ * @category Application
+ */
+export const DEFAULT_APPLICATION_DIRS = {
+    config_dir: "config",
+    secrets_dir: "secrets",
+    data_dir: "data",
+} as const;
 
 /**
  * Runtime options passed when creating an application instance.
@@ -61,8 +62,14 @@ export type ApplicationDefinition<
  * @category Application
  */
 export type ApplicationOptions = {
-    /** Root directory for config, secrets, and data files (default: working directory) */
+    /** Directory that relative config, secrets, and data directories resolve against (default: working directory) */
     readonly base_dir?: Nullable<string>;
+    /** Directory of component config files (default: `DEFAULT_APPLICATION_DIRS.config_dir`) */
+    readonly config_dir?: Nullable<string>;
+    /** Directory of component secrets files (default: `DEFAULT_APPLICATION_DIRS.secrets_dir`) */
+    readonly secrets_dir?: Nullable<string>;
+    /** Directory of application and component data (default: `DEFAULT_APPLICATION_DIRS.data_dir`) */
+    readonly data_dir?: Nullable<string>;
     /** Environment name used to select config/secrets overlays, or `null` for none (default: `null`) */
     readonly env?: Nullable<string>;
 };
@@ -71,15 +78,9 @@ export type ApplicationOptions = {
  * A running application that manages component lifecycles and dispatches calls.
  *
  * @typeParam TComponents - Tuple of registered components
- * @typeParam TAppConfig - Application-level config schema
- * @typeParam TAppSecrets - Application-level secrets schema
  * @category Application
  */
-export type Application<
-    TComponents extends readonly AnyComponent[],
-    TAppConfig extends ConfigSchema | undefined = undefined,
-    TAppSecrets extends ConfigSchema | undefined = undefined,
-> = {
+export type Application<TComponents extends readonly AnyComponent[]> = {
     /** Loads config and secrets, then starts components in dependency order */
     start(): Promise<void>;
     /** Stops active components in reverse dependency order */
@@ -96,10 +97,6 @@ export type Application<
     reloadComponentConfig(
         component_id: TComponents[number]["calls"]["id"],
     ): Promise<void>;
-    /** Validated application-level config, or `null` if no schema was provided */
-    readonly config: TAppConfig extends ConfigSchema ? TAppConfig["infer"] : null;
-    /** Validated application-level secrets, or `null` if no schema was provided */
-    readonly secrets: TAppSecrets extends ConfigSchema ? TAppSecrets["infer"] : null;
     /** Application-level data directory access */
     readonly data: DataAccess;
     /** Logger factory used by this application */
@@ -109,7 +106,6 @@ export type Application<
 type ComponentRuntime = {
     readonly component: AnyComponent;
     readonly id: ComponentId;
-    readonly dir: string;
     readonly data: DataAccess;
     readonly lifecycle: LifecycleMachine;
     readonly log: Logger;
@@ -133,46 +129,43 @@ type DispatchEntry = {
  * @returns The same definition with preserved type parameters
  * @category Application
  */
-export function defineApplication<
-    const TComponents extends readonly AnyComponent[],
-    const TAppConfig extends ConfigSchema | undefined = undefined,
-    const TAppSecrets extends ConfigSchema | undefined = undefined,
->(definition: ApplicationDefinition<TComponents, TAppConfig, TAppSecrets>): ApplicationDefinition<TComponents, TAppConfig, TAppSecrets> {
+export function defineApplication<const TComponents extends readonly AnyComponent[]>(definition: ApplicationDefinition<TComponents>): ApplicationDefinition<TComponents> {
     return definition;
 }
 
-function tomlPaths(
-    dir: string,
-    stem: string,
-    env: string | null,
-): {base: string; overlay: string | null} {
-    return {
-        base: join(dir, `${stem}.toml`),
-        overlay: env != null ? join(dir, `${stem}.${env}.toml`) : null,
-    };
+/**
+ * Returns the path of a component's base file or overlay in a config or secrets directory.
+ *
+ * @param dir - Config or secrets directory
+ * @param component_id - Id of the component that owns the file
+ * @param env - Environment of the overlay, or `null` for the base file
+ * @returns `{dir}/{component_id}.toml` when `env` is `null`, otherwise `{dir}/{component_id}.{env}.toml`
+ * @category Application
+ */
+export function componentFilePath(dir: string, component_id: ComponentId, env: string | null): string {
+    return join(dir, env != null ? `${component_id}.${env}.toml` : `${component_id}.toml`);
 }
 
 /**
  * Creates an application instance from a definition and optional runtime options.
  *
- * @param definition - Application definition describing components and schemas
- * @param options - Runtime options for base directory and environment
+ * @param definition - Application definition describing components and hooks
+ * @param options - Runtime options for directories and environment
  * @returns An {@link Application} ready to be started
  * @category Application
  */
-export function createApplication<
-    const TComponents extends readonly AnyComponent[],
-    const TAppConfig extends ConfigSchema | undefined = undefined,
-    const TAppSecrets extends ConfigSchema | undefined = undefined,
->(definition: ApplicationDefinition<TComponents, TAppConfig, TAppSecrets>, options?: ApplicationOptions): Application<TComponents, TAppConfig, TAppSecrets> {
+export function createApplication<const TComponents extends readonly AnyComponent[]>(definition: ApplicationDefinition<TComponents>, options?: ApplicationOptions): Application<TComponents> {
     const lifecycle = createLifecycleMachine();
     const base_dir = resolve(options?.base_dir ?? ".");
+    const config_dir = resolve(base_dir, options?.config_dir ?? DEFAULT_APPLICATION_DIRS.config_dir);
+    const secrets_dir = resolve(base_dir, options?.secrets_dir ?? DEFAULT_APPLICATION_DIRS.secrets_dir);
+    const data_dir = resolve(base_dir, options?.data_dir ?? DEFAULT_APPLICATION_DIRS.data_dir);
     const env = options?.env ?? null;
     const loggerFactory = definition.logger ?? consoleLoggerFactory;
     const framework_log = loggerFactory(FRAMEWORK_NAME);
 
     const ordered_components = validateAndSort(definition.components);
-    const {runtimes, id_to_runtime, dispatchers} = buildRuntimes(ordered_components, loggerFactory, base_dir);
+    const {runtimes, id_to_runtime, dispatchers} = buildRuntimes(ordered_components, loggerFactory, data_dir);
 
     const dispatchCall: DispatchFn = async (reference, input) => {
         lifecycle.require(["active", "reloading"], "call");
@@ -193,27 +186,27 @@ export function createApplication<
         return reference.output.assert(result);
     };
 
-    const loadConfig = (schema: ConfigSchema, runtime: ComponentRuntime | null): Promise<unknown> => {
-        const {base, overlay} = tomlPaths(runtime?.dir ?? base_dir, "config", env);
-        return loadTomlConfig(base, schema, runtime?.id ?? null, overlay);
+    const tomlPaths = (dir: string, component_id: ComponentId): {base: string; overlay: string | null} => ({
+        base: componentFilePath(dir, component_id, null),
+        overlay: env != null ? componentFilePath(dir, component_id, env) : null,
+    });
+
+    const loadConfig = (schema: ConfigSchema, runtime: ComponentRuntime): Promise<unknown> => {
+        const {base, overlay} = tomlPaths(config_dir, runtime.id);
+        return loadTomlConfig(base, schema, runtime.id, overlay);
     };
 
-    const loadSecrets = async (schema: ConfigSchema, runtime: ComponentRuntime | null): Promise<unknown> => {
-        const {base, overlay} = tomlPaths(runtime?.dir ?? base_dir, "secrets", env);
-        const {value, base_found} = await loadTomlSecrets(base, schema, runtime?.id ?? null, overlay);
+    const loadSecrets = async (schema: ConfigSchema, runtime: ComponentRuntime): Promise<unknown> => {
+        const {base, overlay} = tomlPaths(secrets_dir, runtime.id);
+        const {value, base_found} = await loadTomlSecrets(base, schema, runtime.id, overlay);
         if(!base_found) {
-            (runtime?.log ?? framework_log).warn({event: "secrets.missing", file_path: base}, "No secrets file found.");
+            runtime.log.warn({event: "secrets.missing", file_path: base}, "No secrets file found.");
         }
         return value;
     };
 
-    let app_config: unknown = null;
-    let app_secrets: unknown = null;
-
-    const app: Application<TComponents, TAppConfig, TAppSecrets> = {
-        get config() { return app_config as Application<TComponents, TAppConfig, TAppSecrets>["config"]; },
-        get secrets() { return app_secrets as Application<TComponents, TAppConfig, TAppSecrets>["secrets"]; },
-        data: createDataAccess(join(base_dir, "data")),
+    const app: Application<TComponents> = {
+        data: createDataAccess(data_dir),
         logger: loggerFactory,
         async start(): Promise<void> {
             lifecycle.require("idle", "start");
@@ -223,12 +216,6 @@ export function createApplication<
 
             try {
                 const loads: Promise<void>[] = [];
-                if(definition.config != null) {
-                    loads.push(loadConfig(definition.config, null).then((value) => { app_config = value; }));
-                }
-                if(definition.secrets != null) {
-                    loads.push(loadSecrets(definition.secrets, null).then((value) => { app_secrets = value; }));
-                }
                 for(const runtime of runtimes) {
                     const {config, secrets} = runtime.component;
                     if(config != null) {
@@ -285,7 +272,7 @@ export function createApplication<
             }
         },
 
-        call: dispatchCall as Application<TComponents, TAppConfig, TAppSecrets>["call"],
+        call: dispatchCall as Application<TComponents>["call"],
 
         async reloadConfig(): Promise<void> {
             lifecycle.require("active", "reloadConfig");
@@ -293,14 +280,10 @@ export function createApplication<
             framework_log.info({event: "app.reloading"}, "Reloading configuration.");
             const reloaded_at = performance.now();
 
-            let pending_app_config: unknown = null;
             const pending_component_configs = new Map<ComponentRuntime, unknown>();
 
             try {
                 const loads: Promise<void>[] = [];
-                if(definition.config != null) {
-                    loads.push(loadConfig(definition.config, null).then((value) => { pending_app_config = value; }));
-                }
                 for(const runtime of runtimes) {
                     const {config} = runtime.component;
                     if(config != null) {
@@ -314,9 +297,6 @@ export function createApplication<
                 throw error;
             }
 
-            if(definition.config != null) {
-                app_config = pending_app_config;
-            }
             for(const [runtime, config] of pending_component_configs) {
                 runtime.config = config;
             }
@@ -402,7 +382,7 @@ export function createApplication<
 function buildRuntimes(
     ordered_components: readonly AnyComponent[],
     loggerFactory: LoggerFactory,
-    base_dir: string,
+    data_dir: string,
 ): {
     runtimes: readonly ComponentRuntime[];
     id_to_runtime: ReadonlyMap<ComponentId, ComponentRuntime>;
@@ -421,12 +401,10 @@ function buildRuntimes(
         }
 
         const id = component.calls.id;
-        const dir = join(base_dir, id);
         const runtime: ComponentRuntime = {
             component,
             id,
-            dir,
-            data: createDataAccess(join(dir, "data")),
+            data: createDataAccess(join(data_dir, id)),
             lifecycle: createLifecycleMachine(),
             log: loggerFactory(id),
             callable_references,

@@ -40,7 +40,7 @@ async function loadToml(
     file_path: string,
     overlay_path: string | null,
     schema: ConfigSchema,
-    component_id: string | null,
+    component_id: string,
 ): Promise<TomlLoadResult> {
     const readTable = async (path: string, optional: boolean): Promise<TomlTable | null> => {
         try {
@@ -64,7 +64,7 @@ async function loadToml(
 export async function loadTomlConfig(
     file_path: string,
     schema: ConfigSchema,
-    component_id: string | null = null,
+    component_id: string,
     overlay_path: string | null = null,
 ): Promise<unknown> {
     const {value} = await loadToml(CONFIG_SOURCE, file_path, overlay_path, schema, component_id);
@@ -75,7 +75,7 @@ export async function loadTomlConfig(
 export function loadTomlSecrets(
     file_path: string,
     schema: ConfigSchema,
-    component_id: string | null = null,
+    component_id: string,
     overlay_path: string | null = null,
 ): Promise<TomlLoadResult> {
     return loadToml(SECRETS_SOURCE, file_path, overlay_path, schema, component_id);

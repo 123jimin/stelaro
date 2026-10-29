@@ -42,8 +42,8 @@ paths = ["examples/discord-chatbot/**"]
 - `quotes/quotes.jsonl` stores `quote_id`, `content`,
   `author_discord_user_id`, `author_display_name`, `saved_by_user_id`,
   `saved_by_discord_user_id`, `source_message_id`, and `created_at`.
-- Under base directory `app`, `discord/config.toml` provides `token`,
-  `application_id`, and optional development `guild_id`; `quotes/config.toml`
+- In the config directory `app/config`, `discord.toml` provides `token`,
+  `application_id`, and optional development `guild_id`; `quotes.toml`
   provides `board_channel_id`, `reaction_emoji`, `reaction_threshold`, and
   `max_quotes_per_user`.
 

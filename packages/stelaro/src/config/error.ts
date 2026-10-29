@@ -3,12 +3,11 @@ import {StelaroError} from "../error.ts";
 abstract class ConfigSourceError extends StelaroError {
     /** Path of the TOML file involved in the failure */
     readonly file_path: string;
-    /** Owning component id, or `null` for application-level files */
-    readonly component_id: string | null;
+    /** Id of the component that owns the file */
+    readonly component_id: string;
 
-    constructor(summary: string, file_path: string, component_id: string | null, cause: unknown) {
-        const target = component_id != null ? `component "${component_id}"` : "application";
-        super(`${summary} for ${target}: ${file_path}`, {cause});
+    constructor(summary: string, file_path: string, component_id: string, cause: unknown) {
+        super(`${summary} for component "${component_id}": ${file_path}`, {cause});
         this.file_path = file_path;
         this.component_id = component_id;
     }
@@ -20,7 +19,7 @@ abstract class ConfigSourceError extends StelaroError {
  * @category Errors
  */
 export class ConfigFileError extends ConfigSourceError {
-    constructor(file_path: string, component_id: string | null, cause: unknown) {
+    constructor(file_path: string, component_id: string, cause: unknown) {
         super("Failed to read config file", file_path, component_id, cause);
     }
 }
@@ -31,7 +30,7 @@ export class ConfigFileError extends ConfigSourceError {
  * @category Errors
  */
 export class ConfigValidationError extends ConfigSourceError {
-    constructor(file_path: string, component_id: string | null, cause: unknown) {
+    constructor(file_path: string, component_id: string, cause: unknown) {
         super("Config validation failed", file_path, component_id, cause);
     }
 }
@@ -42,7 +41,7 @@ export class ConfigValidationError extends ConfigSourceError {
  * @category Errors
  */
 export class SecretsFileError extends ConfigSourceError {
-    constructor(file_path: string, component_id: string | null, cause: unknown) {
+    constructor(file_path: string, component_id: string, cause: unknown) {
         super("Failed to read secrets file", file_path, component_id, cause);
     }
 }
@@ -53,7 +52,7 @@ export class SecretsFileError extends ConfigSourceError {
  * @category Errors
  */
 export class SecretsValidationError extends ConfigSourceError {
-    constructor(file_path: string, component_id: string | null, cause: unknown) {
+    constructor(file_path: string, component_id: string, cause: unknown) {
         super("Secrets validation failed", file_path, component_id, cause);
     }
 }

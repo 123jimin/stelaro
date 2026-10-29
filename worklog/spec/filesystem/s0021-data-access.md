@@ -19,8 +19,8 @@ type DataAccess = {
 ## Behavior
 
 - Every component receives `context.data` without declaring it. Its absolute
-  `dir` is `{base_dir}/{component_id}/data`.
-- The application receives `app.data`, whose absolute `dir` is `{base_dir}/data`.
+  `dir` is `{data_dir}/{component_id}` (s0019).
+- The application receives `app.data`, whose absolute `dir` is `{data_dir}`.
 - `resolve(subpath)` confines the result to `dir` using s0022 `confine`.
   Neither `dir` nor `resolve` checks filesystem existence.
 - `read` and `write` target the confined path and delegate to s0022

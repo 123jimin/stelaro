@@ -17,16 +17,19 @@ type LifecycleState = "idle" | "starting" | "active" | "reloading" | "failed" | 
 type ApplicationDefinition = {
     readonly components: readonly AnyComponent[];
     readonly logger?: LoggerFactory;
-    readonly config?: ConfigSchema;
-    readonly secrets?: ConfigSchema;
     readonly onConfigReload?: () => Promisable<void>;
 };
 
-type ApplicationOptions = { readonly base_dir?: string; readonly env?: string | null };
+type ApplicationOptions = {
+    // The directories of s0019.
+    readonly base_dir?: string | null;
+    readonly config_dir?: string | null;
+    readonly secrets_dir?: string | null;
+    readonly data_dir?: string | null;
+    readonly env?: string | null;
+};
 
 type Application = {
-    readonly config: unknown;               // null when no config schema exists
-    readonly secrets: unknown;              // null when no secrets schema exists
     readonly data: DataAccess;
     readonly logger: LoggerFactory;
     start(): Promise<void>;

@@ -112,7 +112,7 @@ const app = createApplication(App, parseArgs());
 await app.start();
 ```
 
-`parseArgs()` reads the `--base-dir` and `--env` command-line arguments. The base directory (default: the working directory) tells stelaro where to find configuration files. Each component loads config from `{base_dir}/{component_id}/config.toml` — so with `--base-dir=app`, the gateway with id `"http"` reads from `app/http/config.toml`. The Fastify gateway requires a `port`:
+`parseArgs()` reads the `--base-dir`, `--config-dir`, `--secrets-dir`, `--data-dir`, and `--env` command-line arguments. A component that declares a config schema loads it from `{component_id}.toml` in the config directory. By default, the config directory is `config` in the base directory, and the base directory is the working directory. So with `--base-dir=app`, the gateway with id `"http"` reads `app/config/http.toml`. The Fastify gateway requires a `port`:
 
 ```toml
 port = 3000
@@ -160,13 +160,13 @@ export const GreeterComponent = defineComponent({
 });
 ```
 
-Create `app/greeter/config.toml`:
+Create `app/config/greeter.toml`:
 
 ```toml
 prefix = "Hello"
 ```
 
-Environment-specific overlays (e.g., `greeter/config.dev.toml`) are deep-merged onto the base file when `--env dev` is passed. Secrets work the same way with `secrets.toml`.
+Environment-specific overlays (e.g., `app/config/greeter.dev.toml`) are deep-merged onto the base file when `--env dev` is passed. A component that declares a `secrets` schema reads `app/secrets/{component_id}.toml` the same way.
 
 ## Next Steps
 

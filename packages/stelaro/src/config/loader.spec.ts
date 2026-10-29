@@ -17,7 +17,7 @@ describe("@jiminp/stelaro config loader", () => {
         await writeFile(file_path, 'host = "localhost"\nport = 8080\n');
 
         const config_schema = schema({host: "string", port: "number"});
-        const result = await loadTomlConfig(file_path, config_schema);
+        const result = await loadTomlConfig(file_path, config_schema, "my-component");
 
         assert.deepStrictEqual(result, {host: "localhost", port: 8080});
     });
@@ -44,7 +44,7 @@ describe("@jiminp/stelaro config loader", () => {
         const config_schema = schema({host: "string"});
 
         await assert.rejects(
-            () => loadTomlConfig(file_path, config_schema),
+            () => loadTomlConfig(file_path, config_schema, "my-component"),
             (error: unknown) => {
                 assert.ok(error instanceof ConfigFileError);
                 assert.strictEqual(error.file_path, file_path);
@@ -77,7 +77,7 @@ describe("@jiminp/stelaro config loader", () => {
         await writeFile(overlay_path, 'host = "0.0.0.0"\n');
 
         const config_schema = schema({host: "string", port: "number"});
-        const result = await loadTomlConfig(base_path, config_schema, null, overlay_path);
+        const result = await loadTomlConfig(base_path, config_schema, "my-component", overlay_path);
 
         assert.deepStrictEqual(result, {host: "0.0.0.0", port: 8080});
     });
@@ -89,7 +89,7 @@ describe("@jiminp/stelaro config loader", () => {
         await writeFile(overlay_path, '[db]\nhost = "db.prod"\n');
 
         const config_schema = schema({db: {host: "string", port: "number"}});
-        const result = await loadTomlConfig(base_path, config_schema, null, overlay_path);
+        const result = await loadTomlConfig(base_path, config_schema, "my-component", overlay_path);
 
         assert.deepStrictEqual(result, {db: {host: "db.prod", port: 5432}});
     });
@@ -100,7 +100,7 @@ describe("@jiminp/stelaro config loader", () => {
         await writeFile(base_path, 'host = "localhost"\nport = 8080\n');
 
         const config_schema = schema({host: "string", port: "number"});
-        const result = await loadTomlConfig(base_path, config_schema, null, overlay_path);
+        const result = await loadTomlConfig(base_path, config_schema, "my-component", overlay_path);
 
         assert.deepStrictEqual(result, {host: "localhost", port: 8080});
     });
@@ -114,7 +114,7 @@ describe("@jiminp/stelaro config loader", () => {
         const config_schema = schema({host: "string"});
 
         await assert.rejects(
-            () => loadTomlConfig(base_path, config_schema, null, overlay_path),
+            () => loadTomlConfig(base_path, config_schema, "my-component", overlay_path),
             (error: unknown) => {
                 assert.ok(error instanceof ConfigFileError);
                 assert.strictEqual(error.file_path, overlay_path);
@@ -132,7 +132,7 @@ describe("@jiminp/stelaro secrets loader", () => {
         await writeFile(file_path, 'api_key = "sk-123"\n');
 
         const secrets_schema = schema({api_key: "string"});
-        const result = await loadTomlSecrets(file_path, secrets_schema);
+        const result = await loadTomlSecrets(file_path, secrets_schema, "my-component");
 
         assert.deepStrictEqual(result, {value: {api_key: "sk-123"}, base_found: true});
     });
@@ -141,7 +141,7 @@ describe("@jiminp/stelaro secrets loader", () => {
         const file_path = join(tempDir(), "secrets.toml");
         const secrets_schema = schema({"api_key?": "string"});
 
-        const result = await loadTomlSecrets(file_path, secrets_schema);
+        const result = await loadTomlSecrets(file_path, secrets_schema, "my-component");
 
         assert.deepStrictEqual(result, {value: {}, base_found: false});
     });
@@ -151,7 +151,7 @@ describe("@jiminp/stelaro secrets loader", () => {
         const secrets_schema = schema({api_key: "string"});
 
         await assert.rejects(
-            () => loadTomlSecrets(file_path, secrets_schema),
+            () => loadTomlSecrets(file_path, secrets_schema, "my-component"),
             (error: unknown) => {
                 assert.ok(error instanceof SecretsValidationError);
                 return true;
@@ -166,7 +166,7 @@ describe("@jiminp/stelaro secrets loader", () => {
         const secrets_schema = schema({api_key: "string"});
 
         await assert.rejects(
-            () => loadTomlSecrets(file_path, secrets_schema),
+            () => loadTomlSecrets(file_path, secrets_schema, "my-component"),
             (error: unknown) => {
                 assert.ok(error instanceof SecretsFileError);
                 return true;
@@ -181,7 +181,7 @@ describe("@jiminp/stelaro secrets loader", () => {
         await writeFile(overlay_path, 'db_pass = "prod-secret"\n');
 
         const secrets_schema = schema({api_key: "string", db_pass: "string"});
-        const result = await loadTomlSecrets(base_path, secrets_schema, null, overlay_path);
+        const result = await loadTomlSecrets(base_path, secrets_schema, "my-component", overlay_path);
 
         assert.deepStrictEqual(result, {
             value: {api_key: "sk-dev", db_pass: "prod-secret"},
@@ -195,7 +195,7 @@ describe("@jiminp/stelaro secrets loader", () => {
         await writeFile(overlay_path, 'api_key = "sk-prod"\n');
 
         const secrets_schema = schema({api_key: "string"});
-        const result = await loadTomlSecrets(base_path, secrets_schema, null, overlay_path);
+        const result = await loadTomlSecrets(base_path, secrets_schema, "my-component", overlay_path);
 
         assert.deepStrictEqual(result, {
             value: {api_key: "sk-prod"},
@@ -209,7 +209,7 @@ describe("@jiminp/stelaro secrets loader", () => {
         await writeFile(base_path, 'api_key = "sk-123"\n');
 
         const secrets_schema = schema({api_key: "string"});
-        const result = await loadTomlSecrets(base_path, secrets_schema, null, overlay_path);
+        const result = await loadTomlSecrets(base_path, secrets_schema, "my-component", overlay_path);
 
         assert.deepStrictEqual(result, {value: {api_key: "sk-123"}, base_found: true});
     });

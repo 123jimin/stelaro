@@ -2,6 +2,7 @@ import {randomBytes} from "node:crypto";
 
 import {Authenticator} from "@fastify/passport";
 import fastifySecureSession from "@fastify/secure-session";
+import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
 import {defineFastifyRoute, defineFastifyRoutes} from "@jiminp/stelaro-fastify";
 import {type as schema} from "arktype";
 import {DiscordScope, Strategy as DiscordStrategy} from "discord-strategy";
@@ -23,40 +24,21 @@ declare module "fastify" {
     interface PassportUser extends SessionUser {}
 }
 
-export const AuthSecrets = schema({
+const AuthSecrets = schema({
     google_client_id: "string",
     google_client_secret: "string",
     discord_client_id: "string",
     discord_client_secret: "string",
 });
 
-export type AuthSecrets = typeof AuthSecrets.infer;
+export const AuthCalls = defineComponentCalls("auth", {});
 
-/**
- * Registers session and passport plugins on `server`.
- * OAuth strategies read `getSecrets()` once the server is ready, after the application has loaded its secrets.
- */
-export async function registerAuth(server: FastifyInstance, getSecrets: () => AuthSecrets): Promise<void> {
-    // A per-process key invalidates every session cookie on restart.
-    await server.register(fastifySecureSession, {
-        key: randomBytes(32),
-        cookie: {path: "/"},
-    });
-    await server.register(fastifyPassport.initialize());
-    await server.register(fastifyPassport.secureSession());
-
-    fastifyPassport.registerUserSerializer<SessionUser, SessionUser>(
-        async (user) => user,
-    );
-    fastifyPassport.registerUserDeserializer<SessionUser, SessionUser>(
-        async (user) => user,
-    );
-
-    server.addHook("onReady", async () => {
-        const secrets = getSecrets();
-        // `app.secrets` is loaded by `app.start()`, which triggers `onReady` via the gateway's `listen`.
-        if(secrets == null) throw new Error("Auth secrets are not loaded; start the application first.");
-
+/** Component that registers the OAuth strategies when it starts. Their client credentials come from its secrets. */
+export const AuthComponent = defineComponent({
+    calls: AuthCalls,
+    uses: [],
+    secrets: AuthSecrets,
+    start({secrets}) {
         fastifyPassport.use("google", new GoogleStrategy(
             {
                 clientID: secrets.google_client_id,
@@ -91,7 +73,26 @@ export async function registerAuth(server: FastifyInstance, getSecrets: () => Au
                 } satisfies SessionUser);
             },
         ));
+    },
+    handlers: {},
+});
+
+/** Registers session and passport plugins on `server`. */
+export async function registerAuth(server: FastifyInstance): Promise<void> {
+    // A per-process key invalidates every session cookie on restart.
+    await server.register(fastifySecureSession, {
+        key: randomBytes(32),
+        cookie: {path: "/"},
     });
+    await server.register(fastifyPassport.initialize());
+    await server.register(fastifyPassport.secureSession());
+
+    fastifyPassport.registerUserSerializer<SessionUser, SessionUser>(
+        async (user) => user,
+    );
+    fastifyPassport.registerUserDeserializer<SessionUser, SessionUser>(
+        async (user) => user,
+    );
 }
 
 const _authenticateGoogle = fastifyPassport.authenticate("google", {scope: ["profile", "email"]});
@@ -122,7 +123,8 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
 }
 
 export const AuthRoutes = defineFastifyRoutes({
-    uses: [UsersCalls],
+    // AuthCalls has no calls; listing it makes the gateway start after the OAuth strategies exist.
+    uses: [UsersCalls, AuthCalls],
     routes: [
         {
             method: "GET",
@@ -137,7 +139,7 @@ export const AuthRoutes = defineFastifyRoutes({
                                 <li><a href="/login/discord">Login with Discord</a></li>
                             </ul>
                         </nav>
-                        <p>OAuth login needs real client credentials in <code>app/secrets.toml</code>.</p>
+                        <p>OAuth login needs real client credentials in <code>app/secrets/auth.toml</code>.</p>
                     </section>
                     <section>
                         <h2>Login with ID</h2>

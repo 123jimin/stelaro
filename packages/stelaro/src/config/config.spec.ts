@@ -50,16 +50,16 @@ function defineValueComponent<const TId extends ComponentId>(id: TId, hooks: Val
 }
 
 describe("@jiminp/stelaro configuration", () => {
-    const baseDir = useTempDir("config");
+    const tempDir = useTempDir("config");
 
     it("provides validated config to component start hooks and handlers", async () => {
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 42\n");
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 42\n");
 
         let start_value: number | null = null;
         const A = defineValueComponent("a", {start({config}) { start_value = config.value; }});
         const app = createApplication(
             defineApplication({components: [A], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
@@ -82,7 +82,7 @@ describe("@jiminp/stelaro configuration", () => {
         });
         const app = createApplication(
             defineApplication({components: [AComponent], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
@@ -91,38 +91,23 @@ describe("@jiminp/stelaro configuration", () => {
         await app.stop();
     });
 
-    it("exposes validated application config on the runtime after start", async () => {
-        await writeTestFile(join(baseDir(), "config.toml"), 'env = "dev"\n');
-
-        const app = createApplication(
-            defineApplication({
-                components: [],
-                config: schema({env: "string"}),
-                logger: noopLoggerFactory,
-            }),
-            {base_dir: baseDir()},
-        );
-        await app.start();
-
-        assert.strictEqual(app.config.env, "dev");
-
-        await app.stop();
-    });
-
     it("supplies missing fields from schema defaults", async () => {
-        await writeTestFile(join(baseDir(), "config.toml"), 'env = "dev"\n');
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "");
 
+        const ACalls = defineComponentCalls("a", {value: {input: EmptyInput, output: CounterOutput}});
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            config: schema({value: "number = 3000"}),
+            handlers: {value: ({config}) => ({count: config.value})},
+        });
         const app = createApplication(
-            defineApplication({
-                components: [],
-                config: schema({env: "string", port: "number = 3000"}),
-                logger: noopLoggerFactory,
-            }),
-            {base_dir: baseDir()},
+            defineApplication({components: [AComponent], logger: noopLoggerFactory}),
+            {base_dir: tempDir()},
         );
         await app.start();
 
-        assert.deepStrictEqual(app.config, {env: "dev", port: 3000});
+        assert.deepStrictEqual(await app.call(ACalls.calls.value, {}), {count: 3000});
 
         await app.stop();
     });
@@ -132,7 +117,7 @@ describe("@jiminp/stelaro configuration", () => {
         const A = defineValueComponent("a", {start() { started = true; }});
         const app = createApplication(
             defineApplication({components: [A], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
 
         await assert.rejects(
@@ -148,13 +133,13 @@ describe("@jiminp/stelaro configuration", () => {
     });
 
     it("fails startup with ConfigValidationError without running start hooks", async () => {
-        await writeTestFile(join(baseDir(), "a", "config.toml"), 'value = "not a number"\n');
+        await writeTestFile(join(tempDir(), "config", "a.toml"), 'value = "not a number"\n');
 
         let started = false;
         const A = defineValueComponent("a", {start() { started = true; }});
         const app = createApplication(
             defineApplication({components: [A], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
 
         await assert.rejects(
@@ -171,11 +156,10 @@ describe("@jiminp/stelaro configuration", () => {
 });
 
 describe("@jiminp/stelaro configuration reload", () => {
-    const baseDir = useTempDir("config-reload");
+    const tempDir = useTempDir("config-reload");
 
-    it("swaps application and component config before hooks run", async () => {
-        await writeTestFile(join(baseDir(), "config.toml"), 'env = "dev"\n');
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 10\n");
+    it("swaps component config before component hooks, then runs the application hook", async () => {
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 10\n");
 
         const hook_calls: string[] = [];
         let hook_value: number | null = null;
@@ -188,51 +172,41 @@ describe("@jiminp/stelaro configuration reload", () => {
         const app = createApplication(
             defineApplication({
                 components: [A],
-                config: schema({env: "string"}),
                 logger: noopLoggerFactory,
                 onConfigReload() {
                     hook_calls.push("application");
                 },
             }),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
-        await writeTestFile(join(baseDir(), "config.toml"), 'env = "prod"\n');
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 99\n");
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 99\n");
         await app.reloadConfig();
 
         assert.deepStrictEqual(hook_calls, ["component", "application"]);
         assert.strictEqual(hook_value, 99);
-        assert.strictEqual(app.config.env, "prod");
         assert.deepStrictEqual(await app.call(A.calls.calls.value, {}), {count: 99});
 
         await app.stop();
     });
 
     it("keeps every old config value when any config fails validation", async () => {
-        await writeTestFile(join(baseDir(), "config.toml"), 'env = "dev"\n');
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 1\n");
-        await writeTestFile(join(baseDir(), "b", "config.toml"), "value = 2\n");
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 1\n");
+        await writeTestFile(join(tempDir(), "config", "b.toml"), "value = 2\n");
 
         const A = defineValueComponent("a");
         const B = defineValueComponent("b");
         const app = createApplication(
-            defineApplication({
-                components: [A, B],
-                config: schema({env: "string"}),
-                logger: noopLoggerFactory,
-            }),
-            {base_dir: baseDir()},
+            defineApplication({components: [A, B], logger: noopLoggerFactory}),
+            {base_dir: tempDir()},
         );
         await app.start();
 
-        await writeTestFile(join(baseDir(), "config.toml"), 'env = "prod"\n');
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 10\n");
-        await writeTestFile(join(baseDir(), "b", "config.toml"), 'value = "bad"\n');
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 10\n");
+        await writeTestFile(join(tempDir(), "config", "b.toml"), 'value = "bad"\n');
         await assert.rejects(() => app.reloadConfig(), ConfigValidationError);
 
-        assert.strictEqual(app.config.env, "dev");
         assert.deepStrictEqual(await app.call(A.calls.calls.value, {}), {count: 1});
         assert.deepStrictEqual(await app.call(B.calls.calls.value, {}), {count: 2});
 
@@ -240,8 +214,8 @@ describe("@jiminp/stelaro configuration reload", () => {
     });
 
     it("runs component onConfigReload hooks concurrently", {timeout: 5_000}, async () => {
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 1\n");
-        await writeTestFile(join(baseDir(), "b", "config.toml"), "value = 2\n");
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 1\n");
+        await writeTestFile(join(tempDir(), "config", "b.toml"), "value = 2\n");
 
         // Each hook waits until both have started, which only completes if they overlap.
         let arrived = 0;
@@ -256,7 +230,7 @@ describe("@jiminp/stelaro configuration reload", () => {
                 components: [defineValueComponent("a", {onConfigReload}), defineValueComponent("b", {onConfigReload})],
                 logger: noopLoggerFactory,
             }),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
@@ -268,9 +242,9 @@ describe("@jiminp/stelaro configuration reload", () => {
     });
 
     it("runs every component hook, collects their failures, and skips the application hook", async () => {
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 1\n");
-        await writeTestFile(join(baseDir(), "b", "config.toml"), "value = 2\n");
-        await writeTestFile(join(baseDir(), "c", "config.toml"), "value = 3\n");
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 1\n");
+        await writeTestFile(join(tempDir(), "config", "b.toml"), "value = 2\n");
+        await writeTestFile(join(tempDir(), "config", "c.toml"), "value = 3\n");
 
         const a_error = new Error("a failed");
         const b_error = new Error("b failed");
@@ -286,7 +260,7 @@ describe("@jiminp/stelaro configuration reload", () => {
                 logger: noopLoggerFactory,
                 onConfigReload() { app_reloaded = true; },
             }),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
@@ -310,7 +284,7 @@ describe("@jiminp/stelaro configuration reload", () => {
                 logger: noopLoggerFactory,
                 onConfigReload() { throw new Error("app reload failed"); },
             }),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
@@ -321,27 +295,27 @@ describe("@jiminp/stelaro configuration reload", () => {
     it("throws LifecycleStateError when reloadConfig is called outside active state", async () => {
         const app = createApplication(
             defineApplication({components: [], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
 
         await assert.rejects(() => app.reloadConfig(), LifecycleStateError);
     });
 
     it("reloads only the target component config and hook with reloadComponentConfig", async () => {
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 1\n");
-        await writeTestFile(join(baseDir(), "b", "config.toml"), "value = 2\n");
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 1\n");
+        await writeTestFile(join(tempDir(), "config", "b.toml"), "value = 2\n");
 
         const reloaded: string[] = [];
         const A = defineValueComponent("a", {onConfigReload() { reloaded.push("a"); }});
         const B = defineValueComponent("b", {onConfigReload() { reloaded.push("b"); }});
         const app = createApplication(
             defineApplication({components: [A, B], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 10\n");
-        await writeTestFile(join(baseDir(), "b", "config.toml"), "value = 20\n");
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 10\n");
+        await writeTestFile(join(tempDir(), "config", "b.toml"), "value = 20\n");
         await app.reloadComponentConfig("a");
 
         assert.deepStrictEqual(reloaded, ["a"]);
@@ -355,16 +329,16 @@ describe("@jiminp/stelaro configuration reload", () => {
     });
 
     it("rejects reloadComponentConfig on validation failure and preserves old config", async () => {
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 1\n");
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 1\n");
 
         const A = defineValueComponent("a");
         const app = createApplication(
             defineApplication({components: [A], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
-        await writeTestFile(join(baseDir(), "a", "config.toml"), 'value = "bad"\n');
+        await writeTestFile(join(tempDir(), "config", "a.toml"), 'value = "bad"\n');
         await assert.rejects(() => app.reloadComponentConfig("a"), ConfigValidationError);
 
         assert.deepStrictEqual(await app.call(A.calls.calls.value, {}), {count: 1});
@@ -375,7 +349,7 @@ describe("@jiminp/stelaro configuration reload", () => {
     it("throws LifecycleStateError when reloadComponentConfig is called outside active state", async () => {
         const app = createApplication(
             defineApplication({components: [defineValueComponent("a")], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
 
         await assert.rejects(() => app.reloadComponentConfig("a"), LifecycleStateError);
@@ -383,11 +357,11 @@ describe("@jiminp/stelaro configuration reload", () => {
 });
 
 describe("@jiminp/stelaro environment config", () => {
-    const baseDir = useTempDir("env-config");
+    const tempDir = useTempDir("env-config");
 
     it("merges env overlay onto base component config, including fields absent from the base", async () => {
-        await writeTestFile(join(baseDir(), "counter", "config.toml"), "initial = 10\n");
-        await writeTestFile(join(baseDir(), "counter", "config.prod.toml"), "initial = 100\nstep = 1\n");
+        await writeTestFile(join(tempDir(), "config", "counter.toml"), "initial = 10\n");
+        await writeTestFile(join(tempDir(), "config", "counter.prod.toml"), "initial = 100\nstep = 1\n");
 
         const CounterCalls = defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}});
         const CounterComponent = defineComponent({
@@ -400,7 +374,7 @@ describe("@jiminp/stelaro environment config", () => {
         });
         const app = createApplication(
             defineApplication({components: [CounterComponent], logger: noopLoggerFactory}),
-            {base_dir: baseDir(), env: "prod"},
+            {base_dir: tempDir(), env: "prod"},
         );
         await app.start();
 
@@ -409,32 +383,13 @@ describe("@jiminp/stelaro environment config", () => {
         await app.stop();
     });
 
-    it("deep-merges env overlay onto base application config", async () => {
-        await writeTestFile(join(baseDir(), "config.toml"), 'env = "dev"\nport = 3000\n');
-        await writeTestFile(join(baseDir(), "config.staging.toml"), 'env = "staging"\n');
-
-        const app = createApplication(
-            defineApplication({
-                components: [],
-                config: schema({env: "string", port: "number"}),
-                logger: noopLoggerFactory,
-            }),
-            {base_dir: baseDir(), env: "staging"},
-        );
-        await app.start();
-
-        assert.deepStrictEqual(app.config, {env: "staging", port: 3000});
-
-        await app.stop();
-    });
-
     it("uses base config alone when env overlay file is missing", async () => {
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 10\n");
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 10\n");
 
         const A = defineValueComponent("a");
         const app = createApplication(
             defineApplication({components: [A], logger: noopLoggerFactory}),
-            {base_dir: baseDir(), env: "prod"},
+            {base_dir: tempDir(), env: "prod"},
         );
         await app.start();
 
@@ -444,31 +399,31 @@ describe("@jiminp/stelaro environment config", () => {
     });
 
     it("fails startup with ConfigValidationError when the overlay makes the merged config invalid", async () => {
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 10\n");
-        await writeTestFile(join(baseDir(), "a", "config.prod.toml"), 'value = "bad"\n');
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 10\n");
+        await writeTestFile(join(tempDir(), "config", "a.prod.toml"), 'value = "bad"\n');
 
         const app = createApplication(
             defineApplication({components: [defineValueComponent("a")], logger: noopLoggerFactory}),
-            {base_dir: baseDir(), env: "prod"},
+            {base_dir: tempDir(), env: "prod"},
         );
 
         await assert.rejects(() => app.start(), ConfigValidationError);
     });
 
     it("reloadConfig applies env overlay", async () => {
-        await writeTestFile(join(baseDir(), "a", "config.toml"), "value = 10\n");
-        await writeTestFile(join(baseDir(), "a", "config.prod.toml"), "value = 100\n");
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 10\n");
+        await writeTestFile(join(tempDir(), "config", "a.prod.toml"), "value = 100\n");
 
         const A = defineValueComponent("a");
         const app = createApplication(
             defineApplication({components: [A], logger: noopLoggerFactory}),
-            {base_dir: baseDir(), env: "prod"},
+            {base_dir: tempDir(), env: "prod"},
         );
         await app.start();
 
         assert.deepStrictEqual(await app.call(A.calls.calls.value, {}), {count: 100});
 
-        await writeTestFile(join(baseDir(), "a", "config.prod.toml"), "value = 200\n");
+        await writeTestFile(join(tempDir(), "config", "a.prod.toml"), "value = 200\n");
         await app.reloadConfig();
 
         assert.deepStrictEqual(await app.call(A.calls.calls.value, {}), {count: 200});
@@ -477,9 +432,9 @@ describe("@jiminp/stelaro environment config", () => {
     });
 
     it("reloadComponentConfig applies env overlay and does not reload secrets", async () => {
-        await writeTestFile(join(baseDir(), "vault", "config.toml"), 'label = "v1"\n');
-        await writeTestFile(join(baseDir(), "vault", "config.prod.toml"), 'label = "prod-v1"\n');
-        await writeTestFile(join(baseDir(), "vault", "secrets.toml"), 'api_key = "sk-original"\n');
+        await writeTestFile(join(tempDir(), "config", "vault.toml"), 'label = "v1"\n');
+        await writeTestFile(join(tempDir(), "config", "vault.prod.toml"), 'label = "prod-v1"\n');
+        await writeTestFile(join(tempDir(), "secrets", "vault.toml"), 'api_key = "sk-original"\n');
 
         const VaultCalls = defineComponentCalls("vault", {
             get: {input: EmptyInput, output: schema({key: "string", label: "string"})},
@@ -495,12 +450,12 @@ describe("@jiminp/stelaro environment config", () => {
         });
         const app = createApplication(
             defineApplication({components: [VaultComponent], logger: noopLoggerFactory}),
-            {base_dir: baseDir(), env: "prod"},
+            {base_dir: tempDir(), env: "prod"},
         );
         await app.start();
 
-        await writeTestFile(join(baseDir(), "vault", "config.prod.toml"), 'label = "prod-v2"\n');
-        await writeTestFile(join(baseDir(), "vault", "secrets.toml"), 'api_key = "sk-changed"\n');
+        await writeTestFile(join(tempDir(), "config", "vault.prod.toml"), 'label = "prod-v2"\n');
+        await writeTestFile(join(tempDir(), "secrets", "vault.toml"), 'api_key = "sk-changed"\n');
         await app.reloadComponentConfig("vault");
 
         assert.deepStrictEqual(await app.call(VaultCalls.calls.get, {}), {key: "sk-original", label: "prod-v2"});
@@ -510,10 +465,10 @@ describe("@jiminp/stelaro environment config", () => {
 });
 
 describe("@jiminp/stelaro secrets", () => {
-    const baseDir = useTempDir("secrets");
+    const tempDir = useTempDir("secrets");
 
     it("provides validated secrets to component start hooks and handlers", async () => {
-        await writeTestFile(join(baseDir(), "vault", "secrets.toml"), 'api_key = "sk-123"\n');
+        await writeTestFile(join(tempDir(), "secrets", "vault.toml"), 'api_key = "sk-123"\n');
 
         let start_secret: string | null = null;
         const VaultCalls = defineComponentCalls("vault", {
@@ -532,7 +487,7 @@ describe("@jiminp/stelaro secrets", () => {
         });
         const app = createApplication(
             defineApplication({components: [VaultComponent], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
@@ -553,7 +508,7 @@ describe("@jiminp/stelaro secrets", () => {
         });
         const app = createApplication(
             defineApplication({components: [AComponent], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
@@ -585,7 +540,7 @@ describe("@jiminp/stelaro secrets", () => {
         });
         const app = createApplication(
             defineApplication({components: [VaultComponent], logger}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
@@ -595,27 +550,9 @@ describe("@jiminp/stelaro secrets", () => {
         await app.stop();
     });
 
-    it("exposes validated application secrets on the runtime", async () => {
-        await writeTestFile(join(baseDir(), "secrets.toml"), 'master_key = "mk-abc"\n');
-
-        const app = createApplication(
-            defineApplication({
-                components: [],
-                secrets: schema({master_key: "string"}),
-                logger: noopLoggerFactory,
-            }),
-            {base_dir: baseDir()},
-        );
-        await app.start();
-
-        assert.strictEqual(app.secrets.master_key, "mk-abc");
-
-        await app.stop();
-    });
-
     it("deep-merges env overlay onto base secrets", async () => {
-        await writeTestFile(join(baseDir(), "vault", "secrets.toml"), 'api_key = "sk-dev"\ndb_pass = "local"\n');
-        await writeTestFile(join(baseDir(), "vault", "secrets.prod.toml"), 'db_pass = "prod-secret"\n');
+        await writeTestFile(join(tempDir(), "secrets", "vault.toml"), 'api_key = "sk-dev"\ndb_pass = "local"\n');
+        await writeTestFile(join(tempDir(), "secrets", "vault.prod.toml"), 'db_pass = "prod-secret"\n');
 
         const VaultCalls = defineComponentCalls("vault", {
             get: {input: EmptyInput, output: schema({api_key: "string", db_pass: "string"})},
@@ -630,7 +567,7 @@ describe("@jiminp/stelaro secrets", () => {
         });
         const app = createApplication(
             defineApplication({components: [VaultComponent], logger: noopLoggerFactory}),
-            {base_dir: baseDir(), env: "prod"},
+            {base_dir: tempDir(), env: "prod"},
         );
         await app.start();
 
@@ -640,8 +577,8 @@ describe("@jiminp/stelaro secrets", () => {
     });
 
     it("does not reload secrets during reloadConfig", async () => {
-        await writeTestFile(join(baseDir(), "vault", "secrets.toml"), 'api_key = "sk-original"\n');
-        await writeTestFile(join(baseDir(), "vault", "config.toml"), 'label = "v1"\n');
+        await writeTestFile(join(tempDir(), "secrets", "vault.toml"), 'api_key = "sk-original"\n');
+        await writeTestFile(join(tempDir(), "config", "vault.toml"), 'label = "v1"\n');
 
         const VaultCalls = defineComponentCalls("vault", {
             get: {input: EmptyInput, output: schema({key: "string", label: "string"})},
@@ -657,12 +594,12 @@ describe("@jiminp/stelaro secrets", () => {
         });
         const app = createApplication(
             defineApplication({components: [VaultComponent], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
         await app.start();
 
-        await writeTestFile(join(baseDir(), "vault", "secrets.toml"), 'api_key = "sk-changed"\n');
-        await writeTestFile(join(baseDir(), "vault", "config.toml"), 'label = "v2"\n');
+        await writeTestFile(join(tempDir(), "secrets", "vault.toml"), 'api_key = "sk-changed"\n');
+        await writeTestFile(join(tempDir(), "config", "vault.toml"), 'label = "v2"\n');
         await app.reloadConfig();
 
         assert.deepStrictEqual(await app.call(VaultCalls.calls.get, {}), {key: "sk-original", label: "v2"});
@@ -671,7 +608,7 @@ describe("@jiminp/stelaro secrets", () => {
     });
 
     it("fails startup with SecretsValidationError without running start hooks", async () => {
-        await writeTestFile(join(baseDir(), "vault", "secrets.toml"), "api_key = 42\n");
+        await writeTestFile(join(tempDir(), "secrets", "vault.toml"), "api_key = 42\n");
 
         let started = false;
         const VaultCalls = defineComponentCalls("vault", {run: {input: EmptyInput, output: CounterOutput}});
@@ -686,7 +623,7 @@ describe("@jiminp/stelaro secrets", () => {
         });
         const app = createApplication(
             defineApplication({components: [VaultComponent], logger: noopLoggerFactory}),
-            {base_dir: baseDir()},
+            {base_dir: tempDir()},
         );
 
         await assert.rejects(() => app.start(), SecretsValidationError);

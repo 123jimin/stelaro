@@ -9,28 +9,26 @@ paths = ["packages/stelaro/src/config/**"]
 
 ### Declaration and startup
 
-- Applications and components may independently declare Arktype schemas for
-  configuration and secrets. Schema defaults supply missing fields.
-- During application start, TOML configuration and secrets are loaded and
-  validated before component start hooks run.
-- Applications and components without the relevant schema require no file and
-  are skipped. A missing secrets file for a declared schema produces a warning
-  and validates an empty object.
+- Components may declare Arktype schemas for configuration and secrets. Schema
+  defaults supply missing fields.
+- During application start, each component's TOML configuration and secrets
+  are loaded from the config and secrets directories (s0019) and validated
+  before component start hooks run.
+- Components without the relevant schema require no file and are skipped. A
+  missing secrets file for a declared schema produces a warning and validates
+  an empty object.
 - Any startup validation failure fails startup and moves the application to
   `failed`.
 
 ### Environment overlays
 
 - When `--env` or `ApplicationOptions.env` selects an environment, its overlay
-  files are loaded after base files for application and component configuration
-  and secrets.
+  files are loaded after base files for component configuration and secrets.
 - `recursiveMerge` deep-merges overlays onto base values; overlay fields win.
   A missing overlay is ignored, and the merged result is validated.
 
 ### Exposure
 
-- Validated application configuration and secrets are exposed on the
-  application runtime.
 - Validated component configuration and secrets are exposed only through that
   component's context and are typed from its schemas. Undeclared values are
   absent.

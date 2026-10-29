@@ -3,7 +3,7 @@ import {join, resolve} from "node:path";
 import {describe, it} from "node:test";
 
 import type {Promisable} from "@jiminp/tooltool";
-import {TraversalError} from "arktype";
+import {TraversalError, type as schema} from "arktype";
 
 import {defineComponent, defineComponentCalls, mergeComponentCalls} from "../component/component.ts";
 import type {AnyComponentContext} from "../component/context.ts";
@@ -17,6 +17,8 @@ import {
     noopLoggerFactory,
     RenderOutput,
     SetCounterInput,
+    useTempDir,
+    writeTestFile,
 } from "../test-util.ts";
 import {createApplication, defineApplication, sortComponentsByUses} from "./application.ts";
 import {
@@ -641,30 +643,99 @@ describe("@jiminp/stelaro application core", () => {
 
         assert.strictEqual(reloaded_count, 1);
     });
+});
 
-    it("roots application and component data access under the resolved base directory", async () => {
-        let component_data_dir: string | null = null;
-        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
-        const AComponent = defineComponent({
-            calls: ACalls,
-            uses: [],
-            handlers: {
-                get({data}) {
-                    component_data_dir = data.dir;
-                    return {count: 0};
-                },
-            },
-        });
+describe("@jiminp/stelaro application directories", () => {
+    const tempDir = useTempDir("application-dirs");
+
+    const DirsCalls = defineComponentCalls("a", {
+        get: {input: EmptyInput, output: schema({value: "number", key: "string", data_dir: "string"})},
+    });
+    const DirsComponent = defineComponent({
+        calls: DirsCalls,
+        uses: [],
+        config: schema({value: "number"}),
+        secrets: schema({key: "string"}),
+        handlers: {
+            get: ({config, secrets, data}) => ({value: config.value, key: secrets.key, data_dir: data.dir}),
+        },
+    });
+
+    it("reads config, secrets, and data from their own absolute directories, outside base_dir", async () => {
+        const config_dir = join(tempDir(), "c");
+        const secrets_dir = join(tempDir(), "s");
+        const data_dir = join(tempDir(), "d");
+        await writeTestFile(join(config_dir, "a.toml"), "value = 1\n");
+        await writeTestFile(join(secrets_dir, "a.toml"), 'key = "k"\n');
+
         const app = createApplication(
-            defineApplication({components: [AComponent], logger: noopLoggerFactory}),
-            {base_dir: "test-base"},
+            defineApplication({components: [DirsComponent], logger: noopLoggerFactory}),
+            {base_dir: join(tempDir(), "base"), config_dir, secrets_dir, data_dir},
         );
         await app.start();
-        await app.call(ACalls.calls.get, {});
 
-        const base_dir = resolve("test-base");
-        assert.strictEqual(app.data.dir, join(base_dir, "data"));
-        assert.strictEqual(component_data_dir, join(base_dir, "a", "data"));
+        assert.deepStrictEqual(await app.call(DirsCalls.calls.get, {}), {value: 1, key: "k", data_dir: join(data_dir, "a")});
+        assert.strictEqual(app.data.dir, data_dir);
+
+        await app.stop();
+    });
+
+    it("uses config, secrets, and data in base_dir for omitted directories", async () => {
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 2\n");
+        await writeTestFile(join(tempDir(), "secrets", "a.toml"), 'key = "base"\n');
+
+        const app = createApplication(
+            defineApplication({components: [DirsComponent], logger: noopLoggerFactory}),
+            {base_dir: tempDir()},
+        );
+        await app.start();
+
+        const data_dir = join(tempDir(), "data");
+        assert.deepStrictEqual(await app.call(DirsCalls.calls.get, {}), {value: 2, key: "base", data_dir: join(data_dir, "a")});
+        assert.strictEqual(app.data.dir, data_dir);
+
+        await app.stop();
+    });
+
+    it("uses the working directory as base_dir when it is omitted", async () => {
+        const cwd = process.cwd();
+        process.chdir(tempDir());
+        try {
+            await writeTestFile(join("config", "a.toml"), "value = 3\n");
+            await writeTestFile(join("secrets", "a.toml"), 'key = "cwd"\n');
+
+            const app = createApplication(defineApplication({components: [DirsComponent], logger: noopLoggerFactory}));
+            await app.start();
+
+            assert.deepStrictEqual(await app.call(DirsCalls.calls.get, {}), {value: 3, key: "cwd", data_dir: resolve("data", "a")});
+            assert.strictEqual(app.data.dir, resolve("data"));
+
+            await app.stop();
+        } finally {
+            process.chdir(cwd);
+        }
+    });
+
+    it("resolves relative directories against base_dir, and a relative base_dir against the working directory", async () => {
+        const cwd = process.cwd();
+        process.chdir(tempDir());
+        try {
+            await writeTestFile(join("b", "c", "a.toml"), "value = 4\n");
+            await writeTestFile(join("b", "s", "a.toml"), 'key = "relative"\n');
+
+            const app = createApplication(
+                defineApplication({components: [DirsComponent], logger: noopLoggerFactory}),
+                {base_dir: "b", config_dir: "c", secrets_dir: "s", data_dir: "d"},
+            );
+            await app.start();
+
+            assert.deepStrictEqual(await app.call(DirsCalls.calls.get, {}), {value: 4, key: "relative", data_dir: resolve("b", "d", "a")});
+            assert.strictEqual(app.data.dir, resolve("b", "d"));
+
+            await app.stop();
+        } finally {
+            process.chdir(cwd);
+        }
     });
 });
 

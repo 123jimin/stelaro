@@ -1,4 +1,3 @@
-import {resolve} from "node:path";
 import {parseArgs as nodeParseArgs} from "node:util";
 
 /**
@@ -7,20 +6,22 @@ import {parseArgs as nodeParseArgs} from "node:util";
  * @category Application
  */
 export type ParsedArgs = {
-    /** Resolved base directory path, or `undefined` if not specified */
-    readonly base_dir: string | undefined;
+    /** Base directory as given, or `null` if not specified */
+    readonly base_dir: string | null;
+    /** Config directory as given, or `null` if not specified */
+    readonly config_dir: string | null;
+    /** Secrets directory as given, or `null` if not specified */
+    readonly secrets_dir: string | null;
+    /** Data directory as given, or `null` if not specified */
+    readonly data_dir: string | null;
     /** Environment name for config/secrets overlay selection */
     readonly env: string | null;
 };
 
-function resolvePath(value: string | undefined): string | undefined {
-    return value != null ? resolve(value) : value;
-}
-
 /**
  * Parses CLI arguments into application bootstrap options.
  *
- * Recognizes `--base-dir` and `--env` flags.
+ * Recognizes `--base-dir`, `--config-dir`, `--secrets-dir`, `--data-dir`, and `--env` flags.
  *
  * @param argv - Argument array (default: `process.argv.slice(2)`)
  * @returns Parsed arguments
@@ -34,6 +35,15 @@ export function parseArgs(argv?: string[]): ParsedArgs {
             "base-dir": {
                 type: "string",
             },
+            "config-dir": {
+                type: "string",
+            },
+            "secrets-dir": {
+                type: "string",
+            },
+            "data-dir": {
+                type: "string",
+            },
             "env": {
                 type: "string",
             },
@@ -43,7 +53,10 @@ export function parseArgs(argv?: string[]): ParsedArgs {
     });
 
     return {
-        base_dir: resolvePath(values["base-dir"]),
+        base_dir: values["base-dir"] ?? null,
+        config_dir: values["config-dir"] ?? null,
+        secrets_dir: values["secrets-dir"] ?? null,
+        data_dir: values["data-dir"] ?? null,
         env: values["env"] ?? null,
     };
 }
