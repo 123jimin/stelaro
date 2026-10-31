@@ -72,7 +72,8 @@ function isLocalSchema(call_schema: ComponentCallSchema): boolean;
 - A handler may be a callable `(context, input) => ...` or an object with
   `handle(context, input)`; both dispatch identically.
 - `EmptyInput` is the input schema for a call that takes no
-  arguments. It accepts only `{}` and rejects arrays and objects with any keys.
+  arguments. It accepts only plain objects without own enumerable keys, such
+  as `{}`, and rejects everything else, arrays included.
 - `defineLocalInput<T>()` and `defineLocalOutput<T>()` return a call input or
   output schema for values of type `T` that never leave the process. Dispatch
   passes such a value through without checking it. The component that creates

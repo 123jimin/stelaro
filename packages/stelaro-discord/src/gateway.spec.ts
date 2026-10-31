@@ -82,8 +82,7 @@ async function startGateway(
     const errors: unknown[][] = [];
     const calls: {readonly reference: unknown; readonly input: unknown}[] = [];
     const context = {
-        // s0017 puts the token in config, but the gateway reads it from secrets. Both carry it.
-        config: {application_id: "app-1", token: "token-1", ...config},
+        config: {application_id: "app-1", ...config},
         secrets: {token: "token-1"},
         log: {debug() {}, info() {}, warn() {}, error: (...args: unknown[]) => { errors.push(args); }},
         call: (reference: unknown, input: unknown) => {

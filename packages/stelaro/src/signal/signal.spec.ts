@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import {once} from "node:events";
+import {extname} from "node:path";
 import {afterEach, describe, it, mock} from "node:test";
+import {Worker} from "node:worker_threads";
 
 import {createApplication, defineApplication} from "../application/application.ts";
 import {attachSignalHandlers} from "./signal.ts";
@@ -229,5 +232,27 @@ describe("attachSignalHandlers", () => {
 
         assert.equal(info.mock.callCount(), 1);
         assert.ok(String(info.mock.calls[0]!.arguments[0]).includes("signal"));
+    });
+
+    it("no-ops or reports an Error, without crashing, when attached in a worker thread", async () => {
+        // A worker receives no signals. It imports the module next to this one, `.ts` or `.js`.
+        const worker = new Worker(`
+            const {parentPort, workerData} = require("node:worker_threads");
+            import(workerData).then(({attachSignalHandlers}) => {
+                try {
+                    attachSignalHandlers({stop: () => new Promise(() => {})}, {logger: console})();
+                    parentPort.postMessage("no-op");
+                } catch (error) {
+                    parentPort.postMessage(error instanceof Error ? "reported" : "threw a non-Error");
+                }
+            });
+        `, {eval: true, workerData: new URL(`signal${extname(import.meta.filename)}`, import.meta.url).href});
+        const messages: unknown[] = [];
+        worker.on("message", (message) => messages.push(message));
+        // `once` rejects on the worker's `error` event, e.g. a failed import.
+        const [exit_code] = await once(worker, "exit") as [number];
+
+        assert.strictEqual(exit_code, 0);
+        assert.ok(messages.length === 1 && ["no-op", "reported"].includes(messages[0] as string), String(messages));
     });
 });

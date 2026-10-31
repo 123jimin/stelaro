@@ -10,7 +10,9 @@ export class TopologicalCycleError<T> extends Error {
 }
 
 /** Depth-first post-order: each node follows its dependencies, otherwise `nodes` order.
- *  Dependencies outside `nodes` are ignored; nodes in or depending on a cycle are `remaining`. */
+ *  Dependencies outside `nodes` are ignored. Throws `RangeError` for a node listed twice, and
+ *  {@link TopologicalCycleError} on a cycle, whose `remaining` holds the nodes in or depending on a
+ *  cycle in `nodes` order. */
 export function topologicalSort<T>(
     nodes: readonly T[],
     edges: (node: T) => Iterable<T>,

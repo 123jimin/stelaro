@@ -54,6 +54,34 @@ describe("@jiminp/stelaro concurrency limiter", () => {
         for(const release of await Promise.all(pending)) release();
     });
 
+    it("ignores repeated calls of one release function", async () => {
+        const limiter = createConcurrencyLimiter(1);
+        const release1 = await limiter.acquire("a");
+        const pending = [limiter.acquire("a"), limiter.acquire("a")];
+
+        release1();
+        release1();
+        assert.deepStrictEqual(await Promise.all(pending.map(isSettled)), [true, false]);
+
+        (await pending[0]!)();
+        (await pending[1]!)();
+    });
+
+    it("grants waiting acquires in call order", async () => {
+        const limiter = createConcurrencyLimiter(1);
+        const order: number[] = [];
+        const release = await limiter.acquire("a");
+        const pending = [0, 1, 2].map(async (i) => {
+            const release_i = await limiter.acquire("a");
+            order.push(i);
+            release_i();
+        });
+
+        release();
+        await Promise.all(pending);
+        assert.deepStrictEqual(order, [0, 1, 2]);
+    });
+
     it("grants the full capacity again after every slot is released", async () => {
         const limiter = createConcurrencyLimiter(2);
         for(const release of [await limiter.acquire("a"), await limiter.acquire("a")]) release();
@@ -76,5 +104,11 @@ describe("@jiminp/stelaro concurrency limiter", () => {
         release_a();
         (await pending_b)();
         (await pending_empty)();
+    });
+
+    it("throws RangeError unless max_concurrent is a positive integer", () => {
+        for(const max of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+            assert.throws(() => createConcurrencyLimiter(max), RangeError, String(max));
+        }
     });
 });

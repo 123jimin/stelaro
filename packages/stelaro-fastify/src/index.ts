@@ -100,7 +100,7 @@ export class NotFoundError extends StelaroError {
 
 /**
  * Thrown when a call cannot be exposed: its name is not URL-safe, its input or output is a local
- * schema, or its `callPath` is not under `base`.
+ * schema, or its path is not normalized or not under `base`.
  *
  * @category Errors
  */
@@ -471,14 +471,25 @@ export function mountFastifyRoutes(
 // A call name may be put in a URL path segment unescaped.
 const CALL_NAME = /^[A-Za-z0-9_-]+$/u;
 
+// A normalized URL path: `/`-separated non-empty segments of URL-unreserved characters, none `.` or
+// `..`. It needs no escaping, URL parsing keeps it, and it has no Fastify route syntax (`:`, `*`).
+const NORMALIZED_PATH = /^(?:\/(?!\.{1,2}(?:\/|$))[\w.~-]+)+$/u;
+
 /** Options for {@link createExposeCallsFactory}.
  *
  * @category Calls
  */
 export type ExposeCallsFactoryOptions = {
-    /** Returns the URL path of a call, which must be under `base` and match the client's `callPath` */
+    /**
+     * Returns the URL path of a call, which must be normalized like `base`, be under `base`, and
+     * match the client's `callPath`
+     */
     readonly callPath: ComponentClientFactoryOptions["callPath"];
-    /** URL path of the namespace that holds every call, without a trailing slash, e.g. `/_call` */
+    /**
+     * URL path of the namespace that holds every call, e.g. `/_call`. It must be normalized:
+     * `/`-separated non-empty segments of ASCII letters, digits, `-`, `.`, `_`, and `~`, none of
+     * them `.` or `..`.
+     */
     readonly base: string;
     /** Fastify route `config` of every route, exposed and not-found alike */
     readonly config?: NonNullable<RouteOptions["config"]>;
@@ -500,8 +511,8 @@ export type ExposeCallsFactory = {
      * @returns A group using `calls`
      *
      * @throws {InvalidCallEndpointError} If a call name has characters other than ASCII letters,
-     *   digits, `_`, and `-`, a call's input or output is a local schema, or a call path does not
-     *   lie under `base`
+     *   digits, `_`, and `-`, a call's input or output is a local schema, or a call path is not
+     *   normalized or does not lie under `base`
      */
     exposeCalls<const TCalls extends AnyComponentCalls>(calls: TCalls): FastifyRouteGroup<readonly [TCalls]>;
     /** A group answering every `GET` of `base` or a path under it with {@link NotFoundError} */
@@ -518,6 +529,7 @@ export type ExposeCallsFactory = {
  *
  * @param options - Call paths, their namespace, and route `config`
  * @returns `exposeCalls`, and `not_found_routes` claiming every other `GET` under `base`
+ * @throws {RangeError} If `base` is not normalized
  *
  * @remarks
  * Mount `not_found_routes` once per namespace, so that the server's error handler, not its
@@ -538,6 +550,9 @@ export type ExposeCallsFactory = {
  */
 export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): ExposeCallsFactory {
     const {callPath, base} = options;
+    if(!NORMALIZED_PATH.test(base)) {
+        throw new RangeError(`base must be a normalized URL path; got ${JSON.stringify(base)}.`);
+    }
     const route_options = options.config == null ? {} : {config: options.config};
     const prefix = `${base}/`;
 
@@ -553,6 +568,9 @@ export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): Ex
                         throw new InvalidCallEndpointError(reference.component_id, reference.name, "its input or output is a local schema");
                     }
                     const path = callPath(reference);
+                    if(!NORMALIZED_PATH.test(path)) {
+                        throw new InvalidCallEndpointError(reference.component_id, reference.name, `its path ${JSON.stringify(path)} is not normalized`);
+                    }
                     if(!path.startsWith(prefix)) {
                         throw new InvalidCallEndpointError(reference.component_id, reference.name, `its path ${JSON.stringify(path)} is not under ${JSON.stringify(base)}`);
                     }

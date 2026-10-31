@@ -16,7 +16,9 @@ import {
     defineCounterComponent,
     noopLoggerFactory,
     RenderOutput,
+    seededRandom,
     SetCounterInput,
+    shuffle,
     useTempDir,
     writeTestFile,
 } from "../test-util.ts";
@@ -56,27 +58,6 @@ function assertSortedByUses(sorted: readonly AnyComponent[], components: readonl
             assert.ok(used_position < position.get(component.calls.id)!, `${used.id} before ${component.calls.id}`);
         }
     }
-}
-
-/** Returns a deterministic pseudo-random number generator (mulberry32) yielding values in [0, 1). */
-function seededRandom(seed: number): () => number {
-    let state = seed >>> 0;
-    return () => {
-        state = (state + 0x6d2b79f5) >>> 0;
-        let t = state;
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 2 ** 32;
-    };
-}
-
-function shuffle<T>(items: readonly T[], random: () => number): T[] {
-    const shuffled = [...items];
-    for(let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
-    }
-    return shuffled;
 }
 
 /** Application operations without the narrowing that rejects unregistered references and ids at compile time. */

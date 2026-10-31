@@ -3,7 +3,7 @@ id = "t0010"
 title = "Review spec tests against worklog specs"
 tags = ["test"]
 status = "active"
-modifies = []
+modifies = ["s0003", "s0014", "s0016", "s0017", "s0028", "s0032"]
 +++
 
 # Review spec tests against worklog specs
@@ -31,25 +31,33 @@ Review every `*.spec.ts` under `packages/` against the specs that govern it, and
 
 ## Findings
 
-State: every test file reviewed and edited; awaiting human review. `pnpm build`, `pnpm lint` pass; `pnpm test` has 1 failing test on purpose; every package runs in under 2 s.
+State: every test file reviewed and edited. `pnpm build`, `pnpm lint` pass; `pnpm test` has 1 failing test on purpose.
 
 Divergence (failing test): s0003 `mergeComponentCalls` throws `DuplicateCallError` for call names inherited from `Object.prototype` (`toString`, `constructor`), because `component.ts` checks with `in` (`component.spec.ts`).
 
 Specified but unimplemented, unmarked: none found.
 
-Relaxation candidates:
+### Resolved by the human
 
-- s0022 `confine` "under `node:fs` resolution": Win32 device names and NTFS stream syntax depend on the Windows version; state lexical containment with a platform caveat.
-- s0016 `exposeCalls` "a path not under `${base}/`": a literal prefix check admits `/api/../x`; say whether a prefix check suffices.
-- s0003 `EmptyInput` "objects with any keys": non-enumerable own keys pass; say "own enumerable keys".
-- s0027 one `IntlShape` per populated locale: the code caches one per requested locale string without bound.
+The human permitted spec edits for these items, to be reviewed before commit, and an implementation change for s0016.
 
-Spec gaps (code behavior with no spec; tests removed or not written):
+- s0003: `EmptyInput` accepts only plain objects without own enumerable keys (spec relaxed; TSDoc aligned).
+- s0016: `base` and call paths must be normalized: non-empty segments of URL-unreserved characters, none `.` or `..`. Otherwise `createExposeCallsFactory` throws `RangeError` for `base`, and `exposeCalls` throws `InvalidCallEndpointError` for a call path (spec, `index.ts`, tests). The rule also excludes Fastify route syntax (`:`, `*`) and `%`, which Fastify registers literally but matches decoded.
+- s0017, s0014: the Discord token sits in secrets (spec amended). s0017 now cites s0032 and says a call over the concurrency limit waits.
+- s0020: the timeout range needs no spec text. A worker-thread test covers the no-signal environment.
+- s0028: references corrected to s0002, s0008, and s0020.
+- s0032 (new) specifies the rate and concurrency limiters, with tests.
+- `topologicalSort` stays unspecified (not exported from the package); its TSDoc now states the duplicate and cycle errors, and `topological-sort.spec.ts` tests that contract.
 
-- s0017: the token sits in secrets though the spec says config; rejecting malformed patterns and duplicate commands; cleanup after a failed login; dispatch by command type; whether the concurrency limit rejects or queues.
-- s0008: a missing declared config file.
-- s0022: `FileWriter.json` with a value that has no JSON form.
-- s0027: repeated `load`, reader rejection, malformed locale tags, output for a missing interpolation value.
-- s0028 says s0002 defines lifecycle events and levels; s0002 defines neither.
-- s0020: the accepted timeout range; the no-signal environment rule has no test that runs from `dist`.
-- The rate and concurrency limiters have no spec; argument validation and FIFO order are TSDoc only.
+### Open
+
+- s0022 `confine` (awaiting decision): no escape observed under Node 24 on Windows 11 (build 26200). Node prefixes paths with `\\?\`, so reserved device names (`CON`, `NUL`, `COM1`, `CONIN$`), trailing dots and spaces, and short names are ordinary files. `name:stream` stays in the named file within the base, and `..::$INDEX_ALLOCATION` fails with `ENOENT`. Bun does not prefix: `NUL` there is the null device. The guarantee rests on Node's prefixing, which Node does not document as a contract. Rejecting reserved device names per segment costs about 10 lines, a new error (`confine` never throws today), and Windows-only tests that CI (Ubuntu only) cannot run. Realpath containment would add I/O to path operations and change the symlink policy.
+- s0027 `IntlShape` cache (awaiting decision): one shape per distinct `t` locale string, malformed or unpopulated included, retained until the next `load`. Keys are unbounded when callers pass client-supplied tags. Equivalent tags are not shared: `ko-kr` and `KO-KR` miss the `ko-KR` catalog and return source text. Fix: canonicalize with `Intl.getCanonicalLocales`, and serve unpopulated and malformed tags from the default-locale shape. That caps shapes at populated locales + 1 without changing output; FormatJS already formats missing translations in `defaultLocale`.
+- s0008 (spec gap): s0008 does not say what happens when a component declares a config schema but its config file is missing. The code requires the file: `ConfigFileError` fails startup (`failed`), or rejects a reload and keeps old values. The spec says only that missing secrets warn and that schema defaults supply missing fields, which a reader may extend to a missing file. s0008 also omits that a `ConfigFileError` (e.g. malformed TOML) fails startup; s0007 only names the error.
+- s0022 `FileWriter.json` (suggestion = current code): reject with `TypeError` and touch nothing, no directory or file, when `JSON.stringify` returns `undefined` (top-level `undefined`, function, symbol) or throws (`BigInt`, cycles). Nested values follow `JSON.stringify`.
+- s0027 (suggestions):
+  - Repeated `load` replaces earlier loaded catalogs with the seed overlaid by this load's catalogs, all at once on success; `t` uses the previous catalogs until then. The logger is replaced, falling back to the console. This matches the code.
+  - A reader rejection rejects `load` and changes nothing. This matches the code. A non-object catalog or a non-string message should reject `load` with `TypeError`; the code does not check it.
+  - A malformed `default_locale` throws `RangeError` (as now); malformed `locales` entries and seed keys should too. In `t`, a malformed tag is reported and gets source text formatted in `default_locale` (as now).
+  - A missing interpolation value returns the selected message's unformatted pattern, which is what the code does, reported once (the code reports twice).
+- s0017 (not addressed): malformed patterns, duplicate commands, cleanup after a failed login, dispatch by command type. The Lifecycle bullet lists login before registration, but the code registers commands, attaches listeners, then logs in.

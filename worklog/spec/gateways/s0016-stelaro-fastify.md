@@ -170,6 +170,11 @@ class CallFailedError extends Error {
 
 - `createExposeCallsFactory` creates `exposeCalls`, which
   serves component calls over HTTP at the paths `callPath` returns.
+  `base` MUST be a normalized URL path; otherwise `createExposeCallsFactory`
+  throws `RangeError`. A normalized URL path is `/`-separated non-empty
+  segments of ASCII letters, digits, `-`, `.`, `_`, and `~`, none of them `.`
+  or `..`. It needs no escaping, URL parsing keeps it, and it holds no Fastify
+  route syntax.
   `exposeCalls` serves each call of a surface as a JSON `POST` and passes the
   request body, `null` included, to `call` unchanged, so the call's schema
   validates it once. It replies with the output in an `OutputBody`. If the
@@ -177,7 +182,8 @@ class CallFailedError extends Error {
   Every other failure, a nested call's input failure included, propagates unchanged.
 - `exposeCalls` throws `InvalidCallEndpointError` for a call
   name with characters other than ASCII letters, digits, `_`, and `-`, a
-  path not under `${base}/`, or a local input or output schema (s0003).
+  path that is not normalized or not under `${base}/`, or a local input or
+  output schema (s0003).
   `not_found_routes` answers a `GET` of `base` or
   any path under it with `NotFoundError`. `config` is the Fastify route
   `config` of every route either creates.

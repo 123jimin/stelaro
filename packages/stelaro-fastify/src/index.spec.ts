@@ -662,6 +662,30 @@ describe("createExposeCallsFactory", () => {
         }
     });
 
+    it("throws InvalidCallEndpointError for a call path that is not normalized, even if it starts with `base` and `/`", () => {
+        const paths = [
+            "/api/../probe/take", "/api/./probe/take", "/api/v1/..", "/api/%2e%2E/x", "/api/..%2Fx", "/api/%41",
+            "/api/x\\..\\..\\y", "/api/probe/take?x=1", "/api/probe/take#x", "/api/probe take", "/api/é",
+            "/api/:x", "/api/*", "/api//take", "/api/take/", "/api/", "/api/a:b",
+        ];
+        for(const path of paths) {
+            const {exposeCalls} = createExposeCallsFactory({callPath: () => path, base: "/api"});
+            assert.throws(() => exposeCalls(ProbeCalls), InvalidCallEndpointError, path);
+        }
+    });
+
+    it("throws RangeError for a `base` that is not normalized", () => {
+        for(const base of [
+            "", "/", "/api/", "api", "/x/../api", "/./api", "/..", "/%2e%2e", "/%41", "\\api", "/api?x", "/a b",
+            "//api", "//", "//a:b", "/:ns", "/*", "/é",
+        ]) {
+            assert.throws(() => createExposeCallsFactory({callPath, base}), RangeError, JSON.stringify(base));
+        }
+        for(const base of ["/api", "/_call", "/a/b", "/v1.2", "/~u", "/..."]) {
+            assert.doesNotThrow(() => createExposeCallsFactory({callPath, base}), base);
+        }
+    });
+
     it("throws InvalidCallEndpointError for a call with a local input or output", () => {
         const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
         const declarations = {

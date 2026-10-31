@@ -115,8 +115,8 @@ function perChannel(interaction: BaseInteraction): string;
 - The gateway receives a pre-created discord.js `Client`, attaches listeners,
   and bridges Discord interactions/events to component calls. It does not
   create the client.
-- Config provides `token`, `application_id`, and optional `guild_id` for
-  development-only command registration.
+- Config provides `application_id` and optional `guild_id` for
+  development-only command registration. Secrets provide `token` (s0008).
 - Mount groups contribute commands, events, interactions, guards, and `uses`.
   Effective dependencies merge gateway and mount `uses`, deduplicated by
   reference.
@@ -152,11 +152,11 @@ function perChannel(interaction: BaseInteraction): string;
   mount, then handler guards run outer-to-inner; the first error aborts.
   Guards apply to commands, persistent interactions, and autocomplete, not
   events. Autocomplete rejection returns empty choices.
-- Commands and persistent interactions may define a per-definition
-  sliding-window rate limit and keyed concurrency limit; both default to
-  `perUser`. Autocomplete uses a separate rate-limit instance and no
-  concurrency limit. Rejection returns an ephemeral message, or empty choices
-  for autocomplete.
+- Commands and persistent interactions may define a per-definition rate limit
+  and concurrency limit (s0032); both default to `perUser`. Autocomplete uses a
+  separate rate-limit instance and no concurrency limit. A rate-limit rejection
+  returns an ephemeral message, or empty choices for autocomplete; a call over
+  the concurrency limit waits for a slot.
 - `perUser`, `perGuild`, and `perChannel` return user id, guild id or `dm`, and
   channel id or `unknown`, respectively.
 
@@ -171,7 +171,7 @@ function perChannel(interaction: BaseInteraction): string;
 
 ### Lifecycle
 
-- Start logs in with the configured token, registers commands, and attaches
+- Start logs in, registers commands, and attaches
   event and interaction listeners. Stop removes listeners and destroys the
   client.
 

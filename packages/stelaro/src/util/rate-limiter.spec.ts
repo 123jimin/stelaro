@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {describe, it, type TestContext} from "node:test";
+import {setTimeout} from "node:timers/promises";
 
 import {createRateLimiter} from "./rate-limiter.ts";
 
@@ -19,15 +20,50 @@ describe("@jiminp/stelaro rate limiter", () => {
         assert.deepStrictEqual([1, 2, 3, 4].map(() => limiter.check("a")), [true, true, true, false]);
     });
 
-    it("allows calls again once the window has passed", (t) => {
+    it("stops counting a call exactly `window_ms` after it was counted", (t) => {
         const advance = useFakeClock(t);
         const limiter = createRateLimiter(1, 100);
 
         assert.strictEqual(limiter.check("a"), true);
         advance(99);
         assert.strictEqual(limiter.check("a"), false);
-        advance(2);
+        advance(1);
         assert.strictEqual(limiter.check("a"), true);
+    });
+
+    it("does not count rejected calls", (t) => {
+        const advance = useFakeClock(t);
+        const limiter = createRateLimiter(1, 100);
+
+        assert.strictEqual(limiter.check("a"), true);
+        advance(50);
+        assert.strictEqual(limiter.check("a"), false);
+        advance(50);
+        assert.strictEqual(limiter.check("a"), true);
+    });
+
+    it("ignores wall-clock changes", async (t) => {
+        const day_ms = 86_400_000;
+        // Only `Date` is faked; the window elapses in real time.
+        t.mock.timers.enable({apis: ["Date"], now: 10 * day_ms});
+        const limiter = createRateLimiter(1, 50);
+
+        assert.strictEqual(limiter.check("a"), true);
+        t.mock.timers.setTime(11 * day_ms);
+        assert.strictEqual(limiter.check("a"), false);
+        t.mock.timers.setTime(9 * day_ms);
+        await setTimeout(60);
+        assert.strictEqual(limiter.check("a"), true);
+    });
+
+    it("throws RangeError unless limit is a positive integer and window_ms a positive finite number", () => {
+        for(const limit of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+            assert.throws(() => createRateLimiter(limit, 100), RangeError, `limit ${limit}`);
+        }
+        for(const window_ms of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+            assert.throws(() => createRateLimiter(1, window_ms), RangeError, `window_ms ${window_ms}`);
+        }
+        assert.doesNotThrow(() => createRateLimiter(1, 0.5));
     });
 
     it("tracks keys independently", (t) => {

@@ -15,8 +15,8 @@ export interface Schema {
 }
 
 /**
- * The input schema for a call that takes no arguments. It accepts only `{}` and rejects arrays
- * and objects with any keys.
+ * The input schema for a call that takes no arguments. It accepts only plain objects without own
+ * enumerable keys, such as `{}`, and rejects everything else, arrays included.
  *
  * @category Component
  */

@@ -26,8 +26,9 @@ type LoggerFactory = (scope: string) => Logger;
 - The default logger prefixes output with its scope and maps `debug`, `info`,
   `warn`, and `error` to the matching console method while preserving arbitrary
   arguments.
-- Core application and lifecycle behavior emits through this contract; s0002
-  defines lifecycle events and levels.
+- Core application and lifecycle behavior emits through this contract. s0002
+  (configuration and lifecycle transitions), s0008 (missing secrets files), and
+  s0020 (shutdown) say what each logs.
 
 ## Constraints
 
