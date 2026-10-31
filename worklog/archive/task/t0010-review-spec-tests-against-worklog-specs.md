@@ -2,7 +2,7 @@
 id = "t0010"
 title = "Review spec tests against worklog specs"
 tags = ["test"]
-status = "active"
+status = "done"
 modifies = ["s0003", "s0014", "s0016", "s0017", "s0028", "s0032", "s0008", "s0022", "s0027", "s0002", "s0020", "s0030"]
 +++
 
@@ -33,13 +33,13 @@ Review every `*.spec.ts` under `packages/` against the specs that govern it, and
 
 State: every test file reviewed and edited. `pnpm build`, `pnpm lint` pass; `pnpm test` has 1 failing test on purpose.
 
-Divergence (failing test): s0003 `mergeComponentCalls` throws `DuplicateCallError` for call names inherited from `Object.prototype` (`toString`, `constructor`), because `component.ts` checks with `in` (`component.spec.ts`).
+Divergence (failing test, follow-up t0011): s0003 `mergeComponentCalls` throws `DuplicateCallError` for call names inherited from `Object.prototype` (`toString`, `constructor`), because `component.ts` checks with `in` (`component.spec.ts`).
 
 Specified but unimplemented, unmarked: none found.
 
 ### Resolved by the human
 
-The human permitted spec edits for these items, to be reviewed before commit, and implementation changes for s0016 and s0027.
+The human permitted spec edits for these items, to be reviewed before commit, and implementation changes for s0016, s0017, and s0027.
 
 - s0003: `EmptyInput` accepts only plain objects without own enumerable keys (spec relaxed; TSDoc aligned).
 - s0016: `base` and call paths must be normalized: non-empty segments of URL-unreserved characters, none `.` or `..`. Otherwise `createExposeCallsFactory` throws `RangeError` for `base`, and `exposeCalls` throws `InvalidCallEndpointError` for a call path (spec, `index.ts`, tests). The rule also excludes Fastify route syntax (`:`, `*`) and `%`, which Fastify registers literally but matches decoded.
