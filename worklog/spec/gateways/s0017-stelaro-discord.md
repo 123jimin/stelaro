@@ -123,8 +123,15 @@ function perChannel(interaction: BaseInteraction): string;
 
 ### Commands and autocomplete
 
-- Commands use discord.js slash/context-menu builders and register on start.
+- Commands use discord.js slash/context-menu builders and register in the
+  `start` hook (see Lifecycle).
   With `guild_id` registration is guild-scoped; otherwise it is global.
+- A command is identified by its type (chat input, user, or message) and name.
+  Commands of different types may share a name; `defineDiscordGateway()`
+  throws `RangeError` when two commands across its mounts share both.
+- A command interaction dispatches to the command of its type and name;
+  autocomplete dispatches to the chat-input command of its name. An
+  interaction for no defined command is ignored.
 - `defineDiscordCommand()` narrows the interaction from the builder type. An
   optional Arktype-compatible options schema validates before handling and
   types `context.options`.
@@ -142,9 +149,15 @@ function perChannel(interaction: BaseInteraction): string;
   are collected and logged after all siblings finish.
 - `fetch_partials: true` fetches partial arguments that expose `fetch()` before
   invoking the event handler.
-- Persistent button, select-menu, and modal handlers match custom-id patterns.
-  `{name}` segments become string `params`; literal segments match exactly.
-  Transient collector interactions remain the originating handler's concern.
+- Persistent button, select-menu, and modal handlers match colon-delimited
+  custom-id patterns. A segment that is exactly `{name}`, where `name` is one
+  or more ASCII letters, digits, or underscores, becomes a string in `params`;
+  any other segment matches exactly. A custom id matches only with as many
+  segments as the pattern. Patterns may overlap; the first matching pattern in
+  definition order, across mounts in order, handles the interaction.
+- A literal segment containing `{` or `}`, or a repeated parameter name, makes
+  a pattern malformed; `defineDiscordGateway()` throws `RangeError` for it.
+- Transient collector interactions remain the originating handler's concern.
 
 ### Guards and limits
 
@@ -171,9 +184,14 @@ function perChannel(interaction: BaseInteraction): string;
 
 ### Lifecycle
 
-- Start logs in, registers commands, and attaches
-  event and interaction listeners. Stop removes listeners and destroys the
-  client.
+- The `start` hook registers commands, attaches event and interaction
+  listeners, then logs in, so events emitted during login are handled.
+- If registration fails, the `start` hook fails before attaching listeners or
+  logging in.
+- If login fails, the `start` hook removes its listeners and fails with the
+  login error. Registered commands remain. `stop()` skips a component whose
+  `start` hook failed (s0002), so this is the only cleanup.
+- The `stop` hook removes listeners and destroys the client.
 
 ## Constraints
 

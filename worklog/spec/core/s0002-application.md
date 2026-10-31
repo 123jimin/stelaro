@@ -53,19 +53,24 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
   part of the surface the component was defined with (`mergeComponentCalls`, s0003).
   - An unregistered id fails with `MissingDependencyError`.
   - A reference the registered component does not have fails with `UnregisteredCallError`.
-- Components start in topological dependency order and stop in reverse order.
-  A component is active when its start hook is absent or completes.
-- `sortComponentsByUses(components)` returns components in the
-  order they start in, so code outside an application can follow it. It ignores
-  uses of components that are not listed, and rejects duplicate ids and cycles
-  as `createApplication` does.
-- `start()` moves `idle → starting → active`. A start failure moves the app to
-  `failed`; already-started components are not rolled back.
-- `stop()` moves `active | failed → stopping → idle`, stops only active
-  components, and attempts cleanup best-effort. All stop errors are collected
+- Terms: `start()` and `stop()` are the application's methods; a component's
+  `start` and `stop` hooks (s0003) are steps they run. Specs use these forms
+  and the `LifecycleState` names rather than a bare "start" or "stop".
+- `start()` runs component `start` hooks in topological dependency order;
+  `stop()` runs `stop` hooks in reverse order. A component becomes active when
+  its `start` hook is absent or completes.
+- `sortComponentsByUses(components)` returns components in the order `start()`
+  runs their `start` hooks, so code outside an application can follow it. It
+  ignores uses of components that are not listed, and rejects duplicate ids and
+  cycles as `createApplication` does.
+- `start()` moves `idle → starting → active`. If it fails, whether loading
+  configuration (s0008) or in a `start` hook, the app moves to `failed`;
+  components already active are not rolled back.
+- `stop()` moves `active | failed → stopping → idle` and runs the `stop` hooks
+  of active components only, best-effort. All `stop` hook errors are collected
   in an `AggregateError`; the app still reaches `idle`.
-- Calls are valid only in `active` or `reloading`. `start`, `stop`, and config
-  reload operations reject when called from an invalid state with
+- Calls are valid only in `active` or `reloading`. `start()`, `stop()`, and the
+  reload methods reject when called from an invalid state with
   `LifecycleStateError`.
 - `reloadConfig()` and `reloadComponentConfig()` are valid only in `active`.
   Reload enters `reloading`, validates the new configuration, invokes the

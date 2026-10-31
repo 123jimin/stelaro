@@ -134,7 +134,8 @@ class CallFailedError extends Error {
 - Handlers read the gateway's configuration through `getConfig()`, typed by
   the configuration type a route's context names. The output of the gateway's
   `config` must satisfy that type. After a configuration reload `getConfig()`
-  returns the new configuration; the listen settings apply at start only.
+  returns the new configuration; the listen settings apply only when the
+  `start` hook runs.
 - Routes specify method and path. Every other standard `RouteOptions` field is
   forwarded without interpretation.
 - Optional Arktype-compatible `params`, `body`, and `querystring` schemas
@@ -157,10 +158,10 @@ class CallFailedError extends Error {
   only by bypassing the types, rejects with `UnboundCallError`.
   `getConfig` serves the handlers' `getConfig`; on routes mounted without one it
   throws `UnboundConfigError`.
-- Start mounts the gateway's own routes and every mount through
+- The `start` hook mounts the gateway's own routes and every mount through
   `mountFastifyRoutes` with the component's `call` and the current
-  configuration as `getConfig`, then listens; stop closes
-  the server. Both transitions log the address/close at `info` through the
+  configuration as `getConfig`, then listens; the `stop` hook closes the
+  server. Each hook logs the address or the close at `info` through the
   component logger.
 - Access logging belongs to Fastify. Applications may unify it with Stelaro by
   supplying a gateway-id-tagged child `loggerInstance` from the shared backend

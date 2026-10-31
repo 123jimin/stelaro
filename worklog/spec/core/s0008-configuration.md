@@ -11,16 +11,16 @@ paths = ["packages/stelaro/src/config/**"]
 
 - Components may declare Arktype schemas for configuration and secrets. Schema
   defaults supply missing fields.
-- During application start, each component's TOML configuration and secrets
+- During `start()` (s0002), each component's TOML configuration and secrets
   are loaded from the config and secrets directories (s0019) and validated
-  before component start hooks run.
+  before any component `start` hook runs.
 - Components without the relevant schema require no file and are skipped.
 - A component with a configuration schema requires its base configuration
   file, even when an environment overlay exists; a missing one is a
   `ConfigFileError`. A missing secrets file for a declared schema produces a
   warning and validates an empty object.
-- Any startup file or validation failure (s0007) fails startup and moves the
-  application to `failed`.
+- Any file or validation failure during `start()` (s0007) makes it reject and
+  moves the application to `failed`.
 
 ### Environment overlays
 

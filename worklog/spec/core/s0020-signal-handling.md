@@ -9,10 +9,10 @@ paths = ["packages/stelaro/src/signal/**"]
 
 - Signal handling is opt-in. `attachSignalHandlers(application, options?)`
   listens for `SIGINT` and `SIGTERM` and returns a cleanup function.
-- On the first signal, it logs shutdown and calls `app.stop()`. Further signals
-  are ignored while stopping.
+- On the first signal, it logs shutdown and calls `app.stop()`. Later signals
+  to that attachment are ignored.
 - Successful shutdown exits with code 0. A rejected `stop()`, including
-  `LifecycleStateError` when the app is not stoppable, exits with code 1.
+  `LifecycleStateError` from a state `stop()` rejects (s0002), exits with code 1.
 - Shutdown exits with code 1 if `stop()` exceeds the configured timeout. The
   default is 10 seconds; `null` disables it.
 - Cleanup removes only listeners installed by that attachment, after which

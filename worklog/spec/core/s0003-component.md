@@ -78,8 +78,8 @@ function isLocalSchema(call_schema: ComponentCallSchema): boolean;
   output schema for values of type `T` that never leave the process. Dispatch
   passes such a value through without checking it. The component that creates
   such a value disposes of it. A handler may keep a local input after the call
-  returns; the caller's component stops first, so it withdraws the input in its
-  stop hook when the input must not be used after that.
+  returns. `stop()` runs the caller's `stop` hook before the handler's (s0002),
+  so the caller withdraws the input there when it must not be used after that.
   - `isLocalSchema` tells whether a schema came from either
     factory, so that gateways can refuse local schemas.
 - UNIMPLEMENTED Components may use gateway capabilities through typed
@@ -87,7 +87,7 @@ function isLocalSchema(call_schema: ComponentCallSchema): boolean;
 - A state factory creates state for one component in one application runtime.
   Definitions reused across runtimes receive independent state, and components
   in one runtime never share state.
-- State persists across stop/start cycles of its application runtime but has no
+- State persists across `stop()` and `start()` of its application but has no
   persistent-storage semantics.
 
 ## Constraints

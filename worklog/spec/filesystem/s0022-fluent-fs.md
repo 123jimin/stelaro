@@ -88,6 +88,10 @@ function fluentPath(base: string): FluentPath;
   Permission, parsing, and validation errors are propagated.
 - Writers support UTF-8 text, `Buffer`, JSON, and TOML; they create parent
   directories and overwrite existing files.
+- `json` follows `JSON.stringify`. When it yields no text (`undefined`, a
+  function, a symbol), `json` rejects with `TypeError`; when it throws
+  (`TypeError` for `BigInt` and cycles), `json` rejects with that error. Either
+  way it creates or changes nothing.
 
 ## Constraints
 

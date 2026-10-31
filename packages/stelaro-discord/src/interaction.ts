@@ -46,7 +46,9 @@ export type InteractionHandlerContext<
 /**
  * Defines a handler matched by a colon-delimited `customId` pattern.
  *
- * Pattern segments wrapped in `{braces}` are extracted as named parameters.
+ * A segment that is exactly `{name}`, where `name` is ASCII letters, digits, or `_`, is extracted as a
+ * named parameter; any other segment matches literally. A literal segment containing `{` or `}`, or a
+ * repeated parameter name, is malformed, and `defineDiscordGateway` throws `RangeError` for it.
  *
  * @typeParam TUses - Declared component call surfaces (default: `readonly AnyComponentCalls[]`)
  * @typeParam TPattern - Colon-delimited `customId` pattern (default: `string`)
@@ -102,7 +104,7 @@ export type CompiledPattern = {
     readonly param_indices: ReadonlyMap<number, string>;
 };
 
-/** Compiles a colon-delimited `customId` pattern, throwing on stray braces, non-word names, or duplicate names. */
+/** Compiles a colon-delimited `customId` pattern, throwing `RangeError` on stray braces, non-word names, or duplicate names. */
 export function compilePattern(pattern: string): CompiledPattern {
     const segments: string[] = [];
     const param_indices = new Map<number, string>();
@@ -112,13 +114,13 @@ export function compilePattern(pattern: string): CompiledPattern {
         const name = /^\{(\w+)\}$/.exec(segment)?.[1];
         if(name == null) {
             if(/[{}]/.test(segment)) {
-                throw new Error(`Invalid segment "${segment}" in interaction pattern "${pattern}".`);
+                throw new RangeError(`Invalid segment "${segment}" in interaction pattern "${pattern}".`);
             }
             segments.push(segment);
             continue;
         }
         if(param_names.has(name)) {
-            throw new Error(`Duplicate parameter "${name}" in interaction pattern "${pattern}".`);
+            throw new RangeError(`Duplicate parameter "${name}" in interaction pattern "${pattern}".`);
         }
         param_names.add(name);
         segments.push("");
@@ -143,16 +145,16 @@ export function matchPattern(
 
     if(parts.length !== compiled.segments.length) return null;
 
-    const params: Record<string, string> = {};
+    const params: [string, string][] = [];
 
     for(let i = 0; i < compiled.segments.length; i++) {
         const param_name = compiled.param_indices.get(i);
         if(param_name != null) {
-            params[param_name] = parts[i]!;
+            params.push([param_name, parts[i]!]);
         } else if(compiled.segments[i] !== parts[i]) {
             return null;
         }
     }
 
-    return params;
+    return Object.fromEntries(params);
 }

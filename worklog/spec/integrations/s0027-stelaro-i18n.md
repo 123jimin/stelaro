@@ -60,6 +60,8 @@ function catalogKey(descriptor: MessageDescriptor): string;
 
 - `createI18n` synchronously creates a holder suitable for a component state
   factory. `messages` seeds per-locale string catalogs immediately without I/O.
+  It throws `RangeError` when `default_locale`, a `locales` entry, or a
+  `messages` key is not a well-formed tag.
 - `load` reads `{catalog_dir}/{locale}.json` for each configured locale through
   a caller-supplied `CatalogReader`; defaults are `i18n` and
   `[default_locale]`. A null or absent result is an empty catalog.
@@ -67,8 +69,12 @@ function catalogKey(descriptor: MessageDescriptor): string;
   may provide `fetch`. The optional structural logger may be `context.log`.
 - Loaded ids overlay an existing seed for that locale; loaded ids win and
   seed-only ids survive. `locales` restricts only `load`, not seeded locales.
-- Catalog locales match case-insensitively (ASCII only), as BCP 47 tags do. A
-  catalog under a malformed tag is ignored.
+- Each `load` replaces the previously loaded catalogs and the logger once every
+  read succeeds; until then `t` uses the previous ones, and when loads overlap
+  the last to finish wins. A rejecting reader rejects `load` with its error, and
+  a result that is not a plain object of strings rejects it with `TypeError`;
+  either way nothing changes.
+- Catalog locales match case-insensitively (ASCII only), as BCP 47 tags do.
 
 ### Translation
 
@@ -80,13 +86,17 @@ function catalogKey(descriptor: MessageDescriptor): string;
 - A descriptor key (`catalogKey`) is explicit `id`, otherwise `defaultMessage`.
   `description` is translator context and never part of the key.
 - Fallback is translated message, then `defaultMessage`, then the literal key.
-  Missing translation or use before loading returns readable source text,
-  formatted in `default_locale`. A malformed locale gets the same fallback and
-  is reported at least on its first use after each `load`.
+  Missing translation, use before loading, or a locale without a catalog,
+  malformed ones included, returns readable source text formatted in
+  `default_locale`.
 - Messages use ICU MessageFormat; number, date, plural, and select behavior uses
   platform `Intl` without a CLDR bundle.
-- Malformed ICU and missing interpolation values are reported through the
-  logger supplied to `load`. Without one, errors use `console.error`. Missing
+- A message that fails to format (malformed ICU or a missing interpolation
+  value) falls back as a missing translation does. When the source fails too,
+  `t` returns the unformatted pattern of the translation, or of the source when
+  untranslated.
+- Formatting failures are reported through the logger supplied to `load`, at
+  most once per `t` call. Without one, errors use `console.error`. Missing
   translation is expected fallback and is not logged. Reporting never throws
   or replaces fallback output.
 - `t` infers values from `defaultMessage`. Simple placeholders are strict;
@@ -100,7 +110,7 @@ function catalogKey(descriptor: MessageDescriptor): string;
 ### Component wiring
 
 - A component holds the synchronous `I18n` in its state, calls `load` from its
-  start hook, and calls `t` or `bind` from handlers. The holder is non-null and
+  `start` hook, and calls `t` or `bind` from handlers. The holder is non-null and
   catalog loading is the only I/O.
 
 ## Constraints

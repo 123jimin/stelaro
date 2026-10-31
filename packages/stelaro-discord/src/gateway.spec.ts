@@ -43,9 +43,12 @@ type Limits = {readonly rate_limit?: RateLimitOptions; readonly concurrency?: Co
 class FakeClient extends EventEmitter {
     readonly logins: string[] = [];
     destroyed = false;
+    /** Runs inside `login`; a throw fails the login. */
+    onLogin: (() => void) | null = null;
 
     async login(token: string): Promise<string> {
         this.logins.push(token);
+        this.onLogin?.();
         return token;
     }
 
@@ -70,12 +73,13 @@ async function startGateway(
     t: TestContext,
     definition: Partial<Pick<DiscordGatewayDefinition, "mounts" | "guards" | "uses">>,
     config: {readonly guild_id?: string} = {},
+    fakes: {readonly client?: FakeClient; readonly register?: () => Promise<unknown>} = {},
 ) {
-    const client = new FakeClient();
+    const client = fakes.client ?? new FakeClient();
     const registrations: {readonly route: string; readonly body: unknown}[] = [];
     t.mock.method(REST.prototype, "put", (route: string, options?: {body?: unknown}) => {
         registrations.push({route, body: options?.body});
-        return Promise.resolve([]);
+        return fakes.register?.() ?? Promise.resolve([]);
     });
 
     const gateway = defineDiscordGateway({id: "discord", client: client as unknown as Client, uses: [], ...definition});
@@ -317,25 +321,79 @@ describe("defineDiscordGateway", () => {
         }
     });
 
-    it("dispatches a context-menu command to its handler with its interaction", async (t) => {
+    it("throws RangeError for two commands of one type and name, within or across mounts", () => {
+        const ping = () => defineDiscordCommand({data: slashData("ping"), handle() {}});
+        const inspect = () => defineDiscordCommand({
+            data: new ContextMenuCommandBuilder().setName("inspect").setType(ApplicationCommandType.User),
+            handle() {},
+        });
+
+        for(const mounts of [
+            [mount({commands: [ping(), ping()]})],
+            [mount({commands: [ping()]}), mount({commands: [ping()]})],
+            [mount({commands: [inspect()]}), mount({commands: [inspect()]})],
+        ]) {
+            assert.throws(() => defineDiscordGateway({id: "discord", client: new FakeClient() as unknown as Client, uses: [], mounts}), RangeError);
+        }
+    });
+
+    it("registers commands of different types sharing a name and dispatches each interaction by its type", async (t) => {
         const handled: unknown[] = [];
-        const {client} = await startGateway(t, {
+        const {client, registrations} = await startGateway(t, {
+            mounts: [
+                mount({
+                    commands: [
+                        defineDiscordCommand({
+                            data: new ContextMenuCommandBuilder().setName("search").setType(ApplicationCommandType.User),
+                            handle({interaction}) { handled.push(["user", interaction]); },
+                        }),
+                        defineDiscordCommand({
+                            data: new ContextMenuCommandBuilder().setName("search").setType(ApplicationCommandType.Message),
+                            handle({interaction}) { handled.push(["message", interaction]); },
+                        }),
+                    ],
+                }),
+                mount({
+                    commands: [defineDiscordCommand({
+                        data: searchData(),
+                        handle({interaction}) { handled.push(["chat_input", interaction]); },
+                        autocomplete: {query: () => ["chat_input"]},
+                    })],
+                }),
+            ],
+        });
+        const {interaction: message} = stubInteraction("context_menu", {commandName: "search", commandType: ApplicationCommandType.Message});
+        const {interaction: user} = stubInteraction("context_menu", {commandName: "search", commandType: ApplicationCommandType.User});
+        const {interaction: slash} = slashInteraction("search");
+        const {interaction: typing, sent} = autocompleteInteraction("search", {name: "query", value: ""});
+
+        for(const interaction of [message, user, slash, typing]) await emit(client, Events.InteractionCreate, interaction);
+
+        assert.strictEqual((registrations[0]!.body as unknown[]).length, 3);
+        assert.deepStrictEqual(handled, [["message", message], ["user", user], ["chat_input", slash]]);
+        assert.deepStrictEqual(sent, [{method: "respond", payload: [{name: "chat_input", value: "chat_input"}]}]);
+    });
+
+    it("ignores a command interaction whose type and name match no command", async (t) => {
+        const handled: unknown[] = [];
+        const {client, errors} = await startGateway(t, {
             mounts: [mount({
-                commands: [
-                    defineDiscordCommand({data: slashData("ping"), handle() { handled.push("slash"); }}),
-                    defineDiscordCommand({
-                        data: new ContextMenuCommandBuilder().setName("Inspect").setType(ApplicationCommandType.User),
-                        handle({interaction}) { handled.push(interaction); },
-                    }),
-                ],
+                commands: [defineDiscordCommand({
+                    data: new ContextMenuCommandBuilder().setName("inspect").setType(ApplicationCommandType.Message),
+                    handle() { handled.push("message"); },
+                })],
             })],
         });
-        const {interaction: menu} = stubInteraction("context_menu", {commandName: "Inspect", commandType: ApplicationCommandType.User});
+        const user = stubInteraction("context_menu", {commandName: "inspect", commandType: ApplicationCommandType.User});
+        const slash = slashInteraction("inspect");
+        const typing = autocompleteInteraction("inspect", {name: "query", value: ""});
+        const other = stubInteraction("context_menu", {commandName: "Inspect", commandType: ApplicationCommandType.Message});
 
-        await emit(client, Events.InteractionCreate, menu);
+        for(const {interaction} of [user, slash, typing, other]) await emit(client, Events.InteractionCreate, interaction);
 
-        assert.strictEqual(handled.length, 1);
-        assert.strictEqual(handled[0], menu);
+        assert.deepStrictEqual(handled, []);
+        assert.deepStrictEqual([user, slash, typing, other].flatMap(({sent}) => sent), []);
+        assert.deepStrictEqual(errors, []);
     });
 });
 
@@ -768,6 +826,52 @@ describe("persistent interactions", () => {
             ["delete", {quote_id: "modal"}],
         ]);
     });
+
+    it("matches case-sensitive parameter names, empty literal segments, and names shadowing Object.prototype", async (t) => {
+        const handled: unknown[] = [];
+        const {client} = await startGateway(t, {
+            mounts: [mount({
+                interactions: [
+                    defineDiscordInteraction({pattern: "{a}:{A}:{_1}::end", handle({params}) { handled.push(params); }}),
+                    defineDiscordInteraction({pattern: "{__proto__}:{constructor}", handle({params}) { handled.push(params); }}),
+                ],
+            })],
+        });
+
+        await emit(client, Events.InteractionCreate, componentInteraction("x:y:z::end").interaction);
+        await emit(client, Events.InteractionCreate, componentInteraction("p:c").interaction);
+
+        assert.deepStrictEqual(handled[0], {a: "x", A: "y", _1: "z"});
+        assert.deepStrictEqual(handled[1], {["__proto__"]: "p", constructor: "c"});
+        assert.strictEqual(handled.length, 2);
+    });
+
+    it("hands a custom id matching overlapping patterns to the first in definition order, across mounts", async (t) => {
+        const handled: unknown[] = [];
+        const {client} = await startGateway(t, {
+            mounts: [
+                mount({
+                    interactions: [
+                        defineDiscordInteraction({pattern: "vote:{id}", handle({params}) { handled.push(["first", params]); }}),
+                        defineDiscordInteraction({pattern: "vote:{option}", handle({params}) { handled.push(["second", params]); }}),
+                    ],
+                }),
+                mount({interactions: [defineDiscordInteraction({pattern: "vote:x", handle({params}) { handled.push(["third", params]); }})]}),
+            ],
+        });
+
+        await emit(client, Events.InteractionCreate, componentInteraction("vote:x").interaction);
+
+        assert.deepStrictEqual(handled, [["first", {id: "x"}]]);
+    });
+
+    for(const pattern of ["vote:{id", "vote:id}", "vote:{}", "vote:{a-b}", "vote:{ id }", "vote:{é}", "vote:{id}x", "vote:x{id}", "vote:{{id}}", "{id}:vote:{id}"]) {
+        it(`throws RangeError when the gateway is defined with the malformed pattern "${pattern}"`, () => {
+            const mounts = [mount({interactions: [defineDiscordInteraction({pattern, handle() {}})]})];
+
+            assert.throws(() => defineDiscordGateway({id: "discord", client: new FakeClient() as unknown as Client, uses: [], mounts}), RangeError);
+        });
+    }
 });
 
 describe("guards", () => {
@@ -1312,12 +1416,66 @@ describe("key extractors", () => {
 });
 
 describe("lifecycle", () => {
-    const mounts = [mount({events: [defineDiscordEvent({type: Events.MessageCreate, handle() {}})]})];
+    const mounts = [mount({
+        commands: [defineDiscordCommand({data: slashData("ping"), handle() {}})],
+        events: [defineDiscordEvent({type: Events.MessageCreate, handle() {}})],
+    })];
 
-    it("start logs the client in with the gateway's token", async (t) => {
-        const {client} = await startGateway(t, {mounts});
+    it("start registers commands, then logs the client in with the gateway's token, handling events and interactions emitted during login", async (t) => {
+        const order: unknown[] = [];
+        const client = new FakeClient();
+        client.onLogin = () => {
+            order.push("login");
+            client.emit(Events.MessageCreate, "during-login");
+            client.emit(Events.InteractionCreate, slashInteraction("ping").interaction);
+        };
+        await startGateway(t, {
+            mounts: [mount({
+                commands: [defineDiscordCommand({data: slashData("ping"), handle() { order.push("ping"); }})],
+                events: [defineDiscordEvent({type: Events.MessageCreate, handle({event}) { order.push(event[0]); }})],
+            })],
+        }, {}, {
+            client,
+            register: () => {
+                order.push("register");
+                return Promise.resolve([]);
+            },
+        });
+        await setImmediate();
 
         assert.deepStrictEqual(client.logins, ["token-1"]);
+        assert.deepStrictEqual(order, ["register", "login", "during-login", "ping"]);
+    });
+
+    it("fails start with the registration error before attaching listeners or logging in", async (t) => {
+        const error = new Error("Registration failed.");
+        const client = new FakeClient();
+
+        await assert.rejects(startGateway(t, {mounts}, {}, {client, register: () => Promise.reject(error)}), (thrown) => thrown === error);
+
+        assert.deepStrictEqual(client.eventNames(), []);
+        assert.deepStrictEqual(client.logins, []);
+    });
+
+    it("fails start with the login error after removing only its listeners, leaving commands registered", async (t) => {
+        const error = new Error("Login failed.");
+        const foreign = () => {};
+        const client = new FakeClient();
+        client.on(Events.InteractionCreate, foreign);
+        client.onLogin = () => { throw error; };
+        let registrations = 0;
+
+        await assert.rejects(startGateway(t, {mounts}, {}, {
+            client,
+            register: () => {
+                registrations++;
+                return Promise.resolve([]);
+            },
+        }), (thrown) => thrown === error);
+
+        assert.deepStrictEqual(client.listeners(Events.InteractionCreate), [foreign]);
+        assert.strictEqual(client.listenerCount(Events.MessageCreate), 0);
+        assert.strictEqual(registrations, 1);
     });
 
     it("stop removes only the gateway's listeners and waits for the client to be destroyed", async (t) => {

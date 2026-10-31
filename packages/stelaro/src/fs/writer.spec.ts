@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {readFile, writeFile} from "node:fs/promises";
+import {readdir, readFile, writeFile} from "node:fs/promises";
 import {join} from "node:path";
 import {describe, it} from "node:test";
 
@@ -82,5 +82,25 @@ describe("@jiminp/stelaro fluent file writer", () => {
         await fp.join("dir", "b.txt").write().text("b");
         assert.strictEqual(await readFile(join(testDir(), "dir", "a.txt"), "utf-8"), "a");
         assert.strictEqual(await readFile(join(testDir(), "dir", "b.txt"), "utf-8"), "b");
+    });
+
+    it("rejects a JSON value without a JSON form with TypeError, creating and changing nothing", async () => {
+        const cyclic: Record<string, unknown> = {};
+        cyclic["self"] = cyclic;
+        const existing = join(testDir(), "existing.json");
+        await writeFile(existing, "old");
+        // eslint-disable-next-line no-undefined -- `undefined` is the input under test
+        for(const value of [undefined, () => 1, Symbol("s"), 1n, {n: 1n}, cyclic]) {
+            await assert.rejects(() => fluentPath(testDir()).join("sub", "x.json").write().json(value), TypeError, String(typeof value));
+            await assert.rejects(() => fluentPath(existing).write().json(value), TypeError, String(typeof value));
+        }
+        assert.deepStrictEqual(await readdir(testDir()), ["existing.json"]);
+        assert.strictEqual(await readFile(existing, "utf-8"), "old");
+    });
+
+    it("writes nested values without a JSON form as JSON.stringify does", async () => {
+        // eslint-disable-next-line no-undefined -- `undefined` is the input under test
+        await fluentPath(testDir()).join("nested.json").write().json({a: undefined, f: () => 1, list: [undefined, () => 1]});
+        assert.deepStrictEqual(JSON.parse(await readFile(join(testDir(), "nested.json"), "utf-8")), {list: [null, null]});
     });
 });

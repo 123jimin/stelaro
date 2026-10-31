@@ -150,6 +150,63 @@ describe("createI18n", () => {
             await loading;
             assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: "Hi"}), "Salut");
         });
+
+        it("throws RangeError for a malformed default_locale, locales entry, or messages key", () => {
+            for(const malformed of ["", "en_US", "x", "en--US", "\u212Ao"]) {
+                assert.throws(() => createI18n({default_locale: malformed}), RangeError, JSON.stringify(malformed));
+                assert.throws(() => createI18n({default_locale: "en", locales: ["fr", malformed]}), RangeError, JSON.stringify(malformed));
+                assert.throws(() => createI18n({default_locale: "en", messages: {[malformed]: {}}}), RangeError, JSON.stringify(malformed));
+            }
+        });
+
+        it("rejects a load whose catalog is not a plain object of strings with TypeError, keeping the previous state", async (t) => {
+            const console_spy = spyConsole(t);
+            const i18n = createI18n({default_locale: "en", locales: ["en", "fr"]});
+            await i18n.load(fakeReader({"i18n/fr.json": {greeting: "Salut {name}"}}));
+            const catalogs: unknown[] = [
+                [], ["Salut"], "Salut", 1, true, {greeting: 1}, {greeting: null}, {greeting: {}},
+                new Map([["greeting", "Salut"]]), new Response("{}"), new Date(0),
+            ];
+            for(const catalog of catalogs) {
+                const log = spyLogger();
+                await assert.rejects(
+                    () => i18n.load((subpath) => Promise.resolve(subpath === "i18n/fr.json" ? catalog : {greeting: "Hello {name}"}), log),
+                    TypeError,
+                    String(catalog),
+                );
+                assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: "Hi {name}"}, {name: "A"}), "Salut A");
+                assert.equal(i18n.t("en", {id: "greeting", defaultMessage: "Hi {name}"}, {name: "A"}), "Hi A");
+            }
+            // A malformed translation still reports to the previous load's (absent) logger: the console.
+            i18n.t("fr", {id: "greeting", defaultMessage: "Hi {name}"}, {} as {name: string});
+            assert.ok(console_spy.error() > 0);
+        });
+
+        it("rejects a load whose reader rejects with the reader's error, keeping the previous state", async (t) => {
+            spyConsole(t);
+            const i18n = createI18n({default_locale: "en", locales: ["fr", "ko"]});
+            const first_log = spyLogger();
+            await i18n.load(fakeReader({"i18n/fr.json": {greeting: "Salut"}}), first_log);
+            const failure = new Error("unreadable");
+            await assert.rejects(
+                () => i18n.load((subpath) => subpath === "i18n/ko.json" ? Promise.reject(failure) : Promise.resolve({greeting: "Allô"}), spyLogger()),
+                (error: unknown) => error === failure,
+            );
+            assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: "Hi"}), "Salut");
+            i18n.t("fr", {defaultMessage: "{n, plural, one {#}"}, {});
+            assert.ok(first_log.calls.length > 0);
+        });
+
+        it("replaces previously loaded catalogs and the logger on every load", async (t) => {
+            const console_spy = spyConsole(t);
+            const i18n = createI18n({default_locale: "en", locales: ["fr"], messages: {fr: {farewell: "Adieu"}}});
+            await i18n.load(fakeReader({"i18n/fr.json": {greeting: "Salut", farewell: "Au revoir"}}), spyLogger());
+            await i18n.load(fakeReader({}));
+            assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: "Hi"}), "Hi");
+            assert.equal(i18n.t("fr", {id: "farewell", defaultMessage: "Bye"}), "Adieu");
+            i18n.t("fr", {defaultMessage: "{n, plural, one {#}"}, {});
+            assert.ok(console_spy.error() > 0);
+        });
     });
 
     describe("translation", () => {
@@ -351,6 +408,37 @@ describe("createI18n", () => {
             assert.ok(console_spy.error() > 0);
         });
 
+        it("reports and falls back without throwing when the logger throws", async (t) => {
+            spyConsole(t);
+            const i18n = createI18n({default_locale: "en", locales: ["fr"]});
+            const throwing = () => { throw new Error("logger down"); };
+            await i18n.load(fakeReader({"i18n/fr.json": {greeting: "Bonjour {name}"}}), {debug: throwing, info: throwing, warn: throwing, error: throwing});
+            assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: "Hello"}), "Hello");
+            assert.equal(i18n.t("fr", {defaultMessage: "{n, plural, one {#}"}, {}), "{n, plural, one {#}");
+        });
+
+        it("reports once per call even when the logger calls t", async (t) => {
+            spyConsole(t);
+            const i18n = createI18n({default_locale: "en", locales: ["ko"]});
+            const calls: unknown[] = [];
+            const record = (...args: unknown[]) => {
+                calls.push(args);
+                i18n.t("ko", {defaultMessage: "Logged"});
+            };
+            await i18n.load(fakeReader({"i18n/ko.json": {greeting: "안녕 {name}"}}), {debug: record, info: record, warn: record, error: record});
+            assert.equal(i18n.t("ko", {id: "greeting", defaultMessage: "Hi {name}"}, {} as {name: string}), "안녕 {name}");
+            assert.equal(calls.length, 1);
+        });
+
+        it("reports the first formatting failure for a locale without platform data", async (t) => {
+            spyConsole(t);
+            const i18n = createI18n({default_locale: "en", locales: ["xx"]});
+            const log = spyLogger();
+            await i18n.load(fakeReader({"i18n/xx.json": {greeting: "{name} xx"}}), log);
+            assert.equal(i18n.t("xx", {id: "greeting", defaultMessage: "Hi"}), "Hi");
+            assert.ok(log.calls.some(([error]) => String(error).includes("FORMAT_ERROR")), String(log.calls));
+        });
+
         it("does not report a missing translation to the logger", async (t) => {
             const console_spy = spyConsole(t);
             const i18n = createI18n({default_locale: "en", locales: ["fr"]});
@@ -372,33 +460,26 @@ describe("createI18n", () => {
             assert.equal(console_spy.any(), 0);
         });
 
-        it("reports a malformed locale and returns source text formatted in default_locale", async (t) => {
-            const console_spy = spyConsole(t);
-            const i18n = createI18n({
-                default_locale: "de",
-                locales: ["fr_FR!"],
-                messages: {"en_US!": {amount: "{n} wrong"}, "ko": {amount: "{n} 원"}},
-            });
-            const log = spyLogger();
-            await i18n.load(fakeReader({"i18n/fr_FR!.json": {amount: "{n} faux"}}), log);
+        it("returns source text formatted in default_locale for a malformed locale", async () => {
+            const i18n = createI18n({default_locale: "de", messages: {ko: {amount: "{n} 원"}}});
+            await i18n.load(fakeReader({}));
             const message = {id: "amount", defaultMessage: "{n, number} Euro"} as const;
             // "\u212Ao" lowercases to "ko" outside ASCII.
-            for(const locale of ["en_US!", "fr_FR!", "", "x", "en--US", "\u212Ao"]) {
-                log.calls.length = 0;
+            for(const locale of ["en_US!", "", "x", "en--US", "\u212Ao"]) {
                 assert.equal(i18n.t(locale, message, {n: 1234.5}), "1.234,5 Euro", JSON.stringify(locale));
-                assert.ok(log.calls.length > 0, JSON.stringify(locale));
             }
-            assert.equal(console_spy.any(), 0);
         });
 
-        it("reports a malformed locale through the logger of a later load", async (t) => {
+        it("reports a failing translation and its failing source once, returning the translation's pattern", async (t) => {
             spyConsole(t);
-            const i18n = createI18n({default_locale: "en"});
-            i18n.t("en_US!", {defaultMessage: "Hi"});
+            const i18n = createI18n({default_locale: "en", locales: ["ko"]});
             const log = spyLogger();
-            await i18n.load(fakeReader({}), log);
-            assert.equal(i18n.t("en_US!", {defaultMessage: "Hi"}), "Hi");
-            assert.ok(log.calls.length > 0);
+            await i18n.load(fakeReader({"i18n/ko.json": {greeting: "안녕 {name}"}}), log);
+            const values = {} as {name: string};
+            assert.equal(i18n.t("ko", {id: "greeting", defaultMessage: "Hi {name}"}, values), "안녕 {name}");
+            assert.equal(log.calls.length, 1);
+            assert.equal(i18n.t("en", {id: "greeting", defaultMessage: "Hi {name}"}, values), "Hi {name}");
+            assert.equal(log.calls.length, 2);
         });
     });
 

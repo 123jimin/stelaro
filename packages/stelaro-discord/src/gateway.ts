@@ -133,7 +133,7 @@ export type DiscordGatewayDefinition<
  * @typeParam TMounts - Mount groups contributing commands, events, and interactions
  * @param definition - Gateway definition
  * @returns A stelaro component definition
- * @throws {Error} If two commands share a type and name, or an interaction pattern is malformed
+ * @throws {RangeError} If two commands share a type and name, or an interaction pattern is malformed
  *
  * @example
  * ```ts
@@ -171,7 +171,7 @@ export function defineDiscordGateway<
             const type = data.type ?? ApplicationCommandType.ChatInput;
             const key = commandKey(type, data.name);
             if(command_entries.has(key)) {
-                throw new Error(`Duplicate Discord command "${data.name}" of type ${type}.`);
+                throw new RangeError(`Duplicate Discord command "${data.name}" of type ${type}.`);
             }
             command_entries.set(key, {
                 ...createPipeline(mount_guards, cmd),
@@ -308,7 +308,7 @@ export function defineDiscordGateway<
             async function dispatchAutocomplete(
                 interaction: AutocompleteInteraction,
             ): Promise<void> {
-                const entry = command_entries.get(commandKey(interaction.commandType, interaction.commandName));
+                const entry = command_entries.get(commandKey(ApplicationCommandType.ChatInput, interaction.commandName));
                 const autocomplete = entry?.definition.autocomplete;
                 if(entry == null || autocomplete == null) return;
 
