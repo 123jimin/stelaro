@@ -1,6 +1,6 @@
 import {defineComponent} from "@jiminp/stelaro";
 import {defineFastifyRoute, defineFastifyRoutes, sendHtml} from "@jiminp/stelaro-fastify";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 
 import {requireAuth} from "./auth.ts";
 import {CommentsCalls} from "./comments.ts";
@@ -98,7 +98,7 @@ export const ThreadsRoutes = defineFastifyRoutes({
         defineFastifyRoute({
             method: "GET",
             path: "/threads/:thread_id",
-            params: schema({thread_id: "string"}),
+            params: type({thread_id: "string"}),
             async handle({request, reply, params, call, html}) {
                 const thread = await call(ThreadsCalls.calls.get, {thread_id: params.thread_id});
                 if(thread == null) {
@@ -137,7 +137,7 @@ export const ThreadsRoutes = defineFastifyRoutes({
             method: "POST",
             path: "/threads",
             preHandler: [requireAuth],
-            body: schema({title: "string", body: "string"}),
+            body: type({title: "string", body: "string"}),
             async handle({request, body: form, call, redirect}) {
                 if(request.user == null) return;
                 const {user_id} = await call(UsersCalls.calls.resolve, {

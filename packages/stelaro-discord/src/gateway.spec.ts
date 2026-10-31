@@ -4,7 +4,7 @@ import {describe, it, type TestContext} from "node:test";
 import {setImmediate} from "node:timers/promises";
 
 import {defineComponentCalls, UserFacingError} from "@jiminp/stelaro";
-import {ArkErrors, type as schema} from "arktype";
+import {ArkErrors, type} from "arktype";
 import {
     ApplicationCommandOptionType,
     ApplicationCommandType,
@@ -58,7 +58,7 @@ class FakeClient extends EventEmitter {
     }
 }
 
-const CounterCalls = defineComponentCalls("counter", {current: {input: schema({}), output: schema("number")}});
+const CounterCalls = defineComponentCalls("counter", {current: {input: type({}), output: type("number")}});
 
 function lifecycleContext<T>(context: unknown): T {
     return context as T;
@@ -193,7 +193,7 @@ const EPHEMERAL_REPLY = {method: "reply", payload: {content: "Nope", flags: Mess
 
 describe("handler typing", () => {
     it("rejects inline handler calls outside the mount's `uses` at the type level, alongside helper-defined handlers", () => {
-        const GreeterCalls = defineComponentCalls("greeter", {greet: {input: schema("string"), output: schema("string")}});
+        const GreeterCalls = defineComponentCalls("greeter", {greet: {input: type("string"), output: type("string")}});
 
         defineDiscordMounts({
             uses: [CounterCalls],
@@ -214,7 +214,7 @@ describe("handler typing", () => {
     it("types the interaction from the command builder and the options from the schema", () => {
         defineDiscordCommand({
             data: slashData("count"),
-            options: schema({count: "number"}),
+            options: type({count: "number"}),
             handle({interaction, options}) {
                 const count: number = options.count;
                 void count;
@@ -282,7 +282,7 @@ describe("defineDiscordGateway", () => {
     });
 
     it("merges gateway and mount uses, deduplicated by reference", () => {
-        const GreeterCalls = defineComponentCalls("greeter", {greet: {input: schema("string"), output: schema("string")}});
+        const GreeterCalls = defineComponentCalls("greeter", {greet: {input: type("string"), output: type("string")}});
 
         const {uses} = defineDiscordGateway({
             id: "discord",
@@ -512,7 +512,7 @@ describe("command options", () => {
                     data: slashData("count")
                         .addStringOption((option) => option.setName("label").setDescription("Label"))
                         .addIntegerOption((option) => option.setName("count").setDescription("Count")),
-                    options: schema({label: "string", count: "number"}).pipe(({label, count}) => ({text: `${label}:${count * 2}`})),
+                    options: type({label: "string", count: "number"}).pipe(({label, count}) => ({text: `${label}:${count * 2}`})),
                     handle({options}) { handled.push(options); },
                 })],
             })],

@@ -4,16 +4,16 @@ import {dirname, join} from "node:path";
 import {afterEach, beforeEach} from "node:test";
 
 import type {Promisable} from "@jiminp/tooltool";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 
 import {defineComponent, defineComponentCalls} from "./component/component.ts";
 import type {Logger, LoggerFactory} from "./component/logger.ts";
 import type {AnyComponentCalls, ComponentCalls, ComponentId} from "./component/types.ts";
 import {EmptyInput} from "./schema.ts";
 
-export const CounterOutput = schema({count: "number"});
-export const SetCounterInput = schema({count: "number"});
-export const RenderOutput = schema({html: "string"});
+export const CounterOutput = type({count: "number"});
+export const SetCounterInput = type({count: "number"});
+export const RenderOutput = type({html: "string"});
 
 export function createTempDir(prefix: string): Promise<string> {
     return mkdtemp(join(tmpdir(), `stelaro-${prefix}-`));

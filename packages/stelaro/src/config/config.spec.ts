@@ -5,7 +5,7 @@ import {describe, it} from "node:test";
 import {setImmediate} from "node:timers/promises";
 
 import type {Promisable} from "@jiminp/tooltool";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 
 import {
     createApplication,
@@ -33,7 +33,7 @@ import {
     SecretsValidationError,
 } from "./error.ts";
 
-const ValueConfig = schema({value: "number"});
+const ValueConfig = type({value: "number"});
 
 type ValueContext = {readonly config: {value: number}};
 
@@ -53,12 +53,12 @@ function defineValueComponent<const TId extends ComponentId>(id: TId, hooks: Val
     });
 }
 
-const VaultSecrets = schema({api_key: "string"});
+const VaultSecrets = type({api_key: "string"});
 
 /** Defines a `vault` component whose `get` call returns its `api_key` secret. */
 function defineVaultComponent(start: () => void = () => {}) {
     return defineComponent({
-        calls: defineComponentCalls("vault", {get: {input: EmptyInput, output: schema({key: "string"})}}),
+        calls: defineComponentCalls("vault", {get: {input: EmptyInput, output: type({key: "string"})}}),
         uses: [],
         secrets: VaultSecrets,
         start,
@@ -112,7 +112,7 @@ describe("@jiminp/stelaro configuration", () => {
         await writeTestFile(join(tempDir(), "secrets", "a.toml"), "not valid = = = toml");
 
         const ACalls = defineComponentCalls("a", {
-            run: {input: EmptyInput, output: schema({has_config: "boolean", has_secrets: "boolean"})},
+            run: {input: EmptyInput, output: type({has_config: "boolean", has_secrets: "boolean"})},
         });
         const AComponent = defineComponent({
             calls: ACalls,
@@ -139,7 +139,7 @@ describe("@jiminp/stelaro configuration", () => {
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
-            config: schema({value: "number = 3000"}),
+            config: type({value: "number = 3000"}),
             handlers: {value: ({config}) => ({count: config.value})},
         });
         const app = createApplication(
@@ -179,7 +179,7 @@ describe("@jiminp/stelaro configuration", () => {
         const AComponent = defineComponent({
             calls: defineComponentCalls("a", {value: {input: EmptyInput, output: CounterOutput}}),
             uses: [],
-            config: schema({value: "number = 3000"}),
+            config: type({value: "number = 3000"}),
             start() { started = true; },
             handlers: {value: ({config}) => ({count: config.value})},
         });
@@ -569,7 +569,7 @@ describe("@jiminp/stelaro environment config", () => {
         const CounterComponent = defineComponent({
             calls: CounterCalls,
             uses: [],
-            config: schema({initial: "number", step: "number"}),
+            config: type({initial: "number", step: "number"}),
             handlers: {
                 current: ({config}) => ({count: config.initial + config.step}),
             },
@@ -590,12 +590,12 @@ describe("@jiminp/stelaro environment config", () => {
         await writeTestFile(join(tempDir(), "config", "db.prod.toml"), '[pool]\nhost = "db.prod"\n');
 
         const DbCalls = defineComponentCalls("db", {
-            get: {input: EmptyInput, output: schema({host: "string", port: "number"})},
+            get: {input: EmptyInput, output: type({host: "string", port: "number"})},
         });
         const DbComponent = defineComponent({
             calls: DbCalls,
             uses: [],
-            config: schema({pool: {host: "string", port: "number"}}),
+            config: type({pool: {host: "string", port: "number"}}),
             handlers: {get: ({config}) => config.pool},
         });
         const app = createApplication(
@@ -719,12 +719,12 @@ describe("@jiminp/stelaro environment config", () => {
         await writeTestFile(join(tempDir(), "secrets", "vault.toml"), 'api_key = "sk-original"\n');
 
         const VaultCalls = defineComponentCalls("vault", {
-            get: {input: EmptyInput, output: schema({key: "string", label: "string"})},
+            get: {input: EmptyInput, output: type({key: "string", label: "string"})},
         });
         const VaultComponent = defineComponent({
             calls: VaultCalls,
             uses: [],
-            config: schema({label: "string"}),
+            config: type({label: "string"}),
             secrets: VaultSecrets,
             handlers: {
                 get: ({config, secrets}) => ({key: secrets.api_key, label: config.label}),
@@ -755,7 +755,7 @@ describe("@jiminp/stelaro secrets", () => {
         const {logger, warnings} = createWarningRecorder();
         let start_secret: string | null = null;
         const VaultCalls = defineComponentCalls("vault", {
-            get: {input: EmptyInput, output: schema({key: "string"})},
+            get: {input: EmptyInput, output: type({key: "string"})},
         });
         const VaultComponent = defineComponent({
             calls: VaultCalls,
@@ -784,12 +784,12 @@ describe("@jiminp/stelaro secrets", () => {
     it("warns and validates an empty object when the secrets file is missing", async () => {
         const {logger, warnings} = createWarningRecorder();
         const VaultCalls = defineComponentCalls("vault", {
-            get: {input: EmptyInput, output: schema({key: "string"})},
+            get: {input: EmptyInput, output: type({key: "string"})},
         });
         const VaultComponent = defineComponent({
             calls: VaultCalls,
             uses: [],
-            secrets: schema({api_key: "string = 'default'"}),
+            secrets: type({api_key: "string = 'default'"}),
             handlers: {
                 get: ({secrets}) => ({key: secrets.api_key}),
             },
@@ -865,12 +865,12 @@ describe("@jiminp/stelaro secrets", () => {
         await writeTestFile(join(tempDir(), "secrets", "vault.prod.toml"), 'db_pass = "prod-secret"\n');
 
         const VaultCalls = defineComponentCalls("vault", {
-            get: {input: EmptyInput, output: schema({api_key: "string", db_pass: "string"})},
+            get: {input: EmptyInput, output: type({api_key: "string", db_pass: "string"})},
         });
         const VaultComponent = defineComponent({
             calls: VaultCalls,
             uses: [],
-            secrets: schema({api_key: "string", db_pass: "string"}),
+            secrets: type({api_key: "string", db_pass: "string"}),
             handlers: {
                 get: ({secrets}) => ({api_key: secrets.api_key, db_pass: secrets.db_pass}),
             },
@@ -921,12 +921,12 @@ describe("@jiminp/stelaro secrets", () => {
         await writeTestFile(join(tempDir(), "config", "vault.toml"), 'label = "v1"\n');
 
         const VaultCalls = defineComponentCalls("vault", {
-            get: {input: EmptyInput, output: schema({key: "string", label: "string"})},
+            get: {input: EmptyInput, output: type({key: "string", label: "string"})},
         });
         const VaultComponent = defineComponent({
             calls: VaultCalls,
             uses: [],
-            config: schema({label: "string"}),
+            config: type({label: "string"}),
             secrets: VaultSecrets,
             handlers: {
                 get: ({config, secrets}) => ({key: secrets.api_key, label: config.label}),

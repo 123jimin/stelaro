@@ -11,7 +11,7 @@ import {
     UserFacingError,
 } from "@jiminp/stelaro";
 import {multimapAdd, type Promisable} from "@jiminp/tooltool";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 import {
     ApplicationCommandType,
     type AutocompleteInteraction,
@@ -50,12 +50,12 @@ import {replyUserError} from "./middleware/reply.ts";
 import type {DiscordMountGroup} from "./mount.ts";
 import {resolvePartials} from "./partial.ts";
 
-const DiscordGatewayConfig = schema({
+const DiscordGatewayConfig = type({
     "application_id": "string",
     "guild_id?": "string",
 });
 
-const DiscordGatewaySecrets = schema({
+const DiscordGatewaySecrets = type({
     token: "string",
 });
 
@@ -168,10 +168,10 @@ export function defineDiscordGateway<
 
         for(const cmd of mount.commands ?? []) {
             const data = cmd.data.toJSON();
-            const type = data.type ?? ApplicationCommandType.ChatInput;
-            const key = commandKey(type, data.name);
+            const command_type = data.type ?? ApplicationCommandType.ChatInput;
+            const key = commandKey(command_type, data.name);
             if(command_entries.has(key)) {
-                throw new RangeError(`Duplicate Discord command "${data.name}" of type ${type}.`);
+                throw new RangeError(`Duplicate Discord command "${data.name}" of type ${command_type}.`);
             }
             command_entries.set(key, {
                 ...createPipeline(mount_guards, cmd),

@@ -12,7 +12,7 @@ import {
     StelaroError,
 } from "@jiminp/stelaro";
 import type {Nullable, Promisable} from "@jiminp/tooltool";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 import type {
     FastifyInstance,
     FastifyListenOptions,
@@ -25,10 +25,10 @@ import type {
 import type {ComponentClientFactoryOptions, OutputBody} from "./client.ts";
 
 /** The listen settings, part of every gateway's configuration. */
-const ListenConfig = schema({"port": "number", "host?": "string"});
+const ListenConfig = type({"port": "number", "host?": "string"});
 
 /** The configuration of a gateway without `config`. */
-const NoConfig = schema({});
+const NoConfig = type({});
 
 /**
  * The rejection of a handler's `call` on routes mounted without one. {@link mountFastifyRoutes}

@@ -16,3 +16,4 @@
 
 - Prefer `null` over `undefined` for representing nullish values.
   - Prefer `== null` over `=== undefined`.
+- Import arktype's `type` unaliased: `import {type} from "arktype"`.

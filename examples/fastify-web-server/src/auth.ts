@@ -4,7 +4,7 @@ import {Authenticator} from "@fastify/passport";
 import fastifySecureSession from "@fastify/secure-session";
 import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
 import {defineFastifyRoute, defineFastifyRoutes} from "@jiminp/stelaro-fastify";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 import {DiscordScope, Strategy as DiscordStrategy} from "discord-strategy";
 import type {FastifyInstance, FastifyReply, FastifyRequest} from "fastify";
 import {Strategy as GoogleStrategy} from "passport-google-oauth20";
@@ -24,7 +24,7 @@ declare module "fastify" {
     interface PassportUser extends SessionUser {}
 }
 
-const AuthSecrets = schema({
+const AuthSecrets = type({
     google_client_id: "string",
     google_client_secret: "string",
     discord_client_id: "string",
@@ -185,7 +185,7 @@ export const AuthRoutes = defineFastifyRoutes({
         defineFastifyRoute({
             method: "POST",
             path: "/login/id",
-            body: schema({name: "string"}),
+            body: type({name: "string"}),
             async handle({request, body: form, call, redirect}) {
                 const user: SessionUser = {provider: "id", provider_account_id: form.name, display_name: form.name};
                 await call(UsersCalls.calls.resolve, user);

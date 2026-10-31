@@ -1,5 +1,5 @@
 import {type DataAccess, defineComponent} from "@jiminp/stelaro";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 
 import {appendJsonl, readJsonl} from "../storage.ts";
 import {type QuoteRecord, QuotesCalls, QuoteSchema} from "./calls.ts";
@@ -8,7 +8,7 @@ const QUOTES_PATH = "quotes.jsonl";
 const DELETIONS_PATH = "quote-deletions.jsonl";
 const QUOTES_PER_PAGE = 10;
 
-const DeletionSchema = schema({
+const DeletionSchema = type({
     quote_id: "string",
     deleted_at: "string",
 });
@@ -27,7 +27,7 @@ async function readQuotes(data: DataAccess): Promise<QuoteRecord[]> {
 export const QuotesComponent = defineComponent({
     calls: QuotesCalls,
     uses: [],
-    config: schema({
+    config: type({
         board_channel_id: "string",
         reaction_emoji: "string",
         reaction_threshold: "number",

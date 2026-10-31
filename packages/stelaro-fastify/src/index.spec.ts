@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {describe, it, type TestContext} from "node:test";
 
 import {CallInputError, createApplication, defineComponent, defineComponentCalls, defineLocalInput, defineLocalOutput, type Logger} from "@jiminp/stelaro";
-import {TraversalError, type as schema} from "arktype";
+import {TraversalError, type} from "arktype";
 import Fastify, {type FastifyInstance, type FastifyListenOptions, type InjectOptions} from "fastify";
 
 import {type CallEndpointReference, CallFailedError, createComponentClientFactory, type ErrorBody, type OutputBody} from "./client.ts";
@@ -27,10 +27,10 @@ type CapturedRecord = {readonly level: LogLevel; readonly args: readonly unknown
 type RecordedCall = readonly [reference: unknown, input: unknown];
 
 const CounterCalls = defineComponentCalls("counter", {
-    current: {input: schema({}), output: schema({count: "number"})},
+    current: {input: type({}), output: type({count: "number"})},
 });
 const GreeterCalls = defineComponentCalls("greeter", {
-    greet: {input: schema({name: "string"}), output: schema("string")},
+    greet: {input: type({name: "string"}), output: type("string")},
 });
 
 const listen_address = "http://127.0.0.1:0";
@@ -119,7 +119,7 @@ describe("defineFastifyGateway", () => {
             routes: [defineFastifyRoute({
                 method: "POST",
                 path: "/greet",
-                body: schema({name: "string"}),
+                body: type({name: "string"}),
                 handle: ({call, body}) => call(GreeterCalls.calls.greet, body),
             })],
         });
@@ -164,7 +164,7 @@ describe("defineFastifyGateway", () => {
         ]);
     });
 
-    const CountConfig = schema({count: "string.numeric.parse"});
+    const CountConfig = type({count: "string.numeric.parse"});
     type CountContext = GatewayHandlerContext<readonly [], typeof CountConfig.infer>;
     const count_routes = defineFastifyRoutes({
         uses: [],
@@ -183,7 +183,7 @@ describe("defineFastifyGateway", () => {
         assert.deepStrictEqual(CountingConfig.assert({port: 8080, count: "3"}), {port: 8080, count: 3});
         assert.throws(() => CountingConfig.assert({port: 8080}));
         assert.throws(() => CountingConfig.assert({count: "3"}));
-        const StrictConfig = defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: schema({"+": "reject", "count": "number"})}).config;
+        const StrictConfig = defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: type({"+": "reject", "count": "number"})}).config;
         assert.ok(StrictConfig);
         assert.deepStrictEqual(StrictConfig.assert({port: 8080, host: "127.0.0.1", count: 3}), {port: 8080, host: "127.0.0.1", count: 3});
         assert.throws(() => StrictConfig.assert({port: 8080, count: 3, other: ""}));
@@ -214,7 +214,7 @@ describe("defineFastifyGateway", () => {
     it("type-checks that the gateway's `config` covers the configuration each mount and route reads", () => {
         // @ts-expect-error -- the gateway declares no `config`
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], mounts: [count_routes]});
-        const OtherConfig = schema({other: "string"});
+        const OtherConfig = type({other: "string"});
         // @ts-expect-error -- the gateway's `config` has no `count`
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: OtherConfig, mounts: [count_routes]});
         const BothConfig = OtherConfig.and(CountConfig);
@@ -310,9 +310,9 @@ describe("mountFastifyRoutes", () => {
             defineFastifyRoute({
                 method: "POST",
                 path: "/checked/:id",
-                params: schema({id: "string.numeric.parse"}),
-                body: schema({name: "string"}),
-                querystring: schema({n: "string.numeric.parse"}),
+                params: type({id: "string.numeric.parse"}),
+                body: type({name: "string"}),
+                querystring: type({n: "string.numeric.parse"}),
                 handle: () => {
                     checked_count++;
                     return {};
@@ -321,14 +321,14 @@ describe("mountFastifyRoutes", () => {
             defineFastifyRoute({
                 method: "POST",
                 path: "/echo/:id",
-                params: schema({id: "string.numeric.parse"}),
-                body: schema({name: "string"}),
+                params: type({id: "string.numeric.parse"}),
+                body: type({name: "string"}),
                 handle: ({params, body}) => ({params, body}),
             }),
             defineFastifyRoute({
                 method: "GET",
                 path: "/search",
-                querystring: schema({n: "string.numeric.parse"}),
+                querystring: type({n: "string.numeric.parse"}),
                 handle: ({querystring}) => querystring,
             }),
             {
@@ -371,8 +371,8 @@ describe("mountFastifyRoutes", () => {
         defineFastifyRoute({
             method: "POST",
             path: "/:id",
-            params: schema({id: "string.numeric.parse"}),
-            body: schema({name: "string"}),
+            params: type({id: "string.numeric.parse"}),
+            body: type({name: "string"}),
             handle: ({params, body, querystring}) => {
                 const id: number = params.id;
                 const name: string = body.name;
@@ -521,7 +521,7 @@ describe("mountFastifyRoutes", () => {
     });
 
     it("serves handlers' getConfig through the `getConfig` option, and throws UnboundConfigError without one", async (t) => {
-        const CountConfig = schema({count: "number"});
+        const CountConfig = type({count: "number"});
         type CountContext = GatewayHandlerContext<readonly [], typeof CountConfig.infer>;
         const reading = defineFastifyRoutes({
             uses: [],
@@ -546,8 +546,8 @@ describe("mountFastifyRoutes", () => {
 
 describe("createExposeCallsFactory", () => {
     const ProbeCalls = defineComponentCalls("probe", {
-        take: {input: schema("null").or({n: "number"}), output: schema("unknown")},
-        at: {input: schema({when: "string.date.parse"}), output: schema({year: "number"})},
+        take: {input: type("null").or({n: "number"}), output: type("unknown")},
+        at: {input: type({when: "string.date.parse"}), output: type({year: "number"})},
     });
     const callPath = ({component_id, name}: CallEndpointReference) => `/api/v1/${component_id}/${name}`;
     const silent_log: Logger = {debug() {}, info() {}, warn() {}, error() {}};
@@ -573,8 +573,8 @@ describe("createExposeCallsFactory", () => {
 
     it("round-trips calls and ErrorBody messages with a client of the same callPath", async (t) => {
         const ShopCalls = defineComponentCalls("shop", {
-            name: {input: schema({}), output: schema("string")},
-            buy: {input: schema({n: "number"}), output: schema({n: "number"})},
+            name: {input: type({}), output: type("string")},
+            buy: {input: type({n: "number"}), output: type({n: "number"})},
         });
         const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
         // eslint-disable-next-line new-cap -- Fastify's public API
@@ -646,11 +646,11 @@ describe("createExposeCallsFactory", () => {
     it("throws InvalidCallEndpointError for a call name that is not ASCII letters, digits, `_`, and `-`", () => {
         const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
         for(const name of [":id", "*", "a/b", "a?b", "a#b", "a%2F", "..", "a.b", "a b", "", "é", "ａ", "a\u0000", "a\n"]) {
-            const calls = defineComponentCalls("probe", {[name]: {input: schema("null"), output: schema("null")}});
+            const calls = defineComponentCalls("probe", {[name]: {input: type("null"), output: type("null")}});
             assert.throws(() => exposeCalls(calls), (err: unknown) => err instanceof InvalidCallEndpointError && err.component_id === "probe" && err.call_name === name, JSON.stringify(name));
         }
         for(const name of ["getInfo", "get_info", "get-info", "v2"]) {
-            const calls = defineComponentCalls("probe", {[name]: {input: schema("null"), output: schema("null")}});
+            const calls = defineComponentCalls("probe", {[name]: {input: type("null"), output: type("null")}});
             assert.doesNotThrow(() => exposeCalls(calls), name);
         }
     });
@@ -689,8 +689,8 @@ describe("createExposeCallsFactory", () => {
     it("throws InvalidCallEndpointError for a call with a local input or output", () => {
         const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
         const declarations = {
-            input: {input: defineLocalInput<() => void>(), output: schema("null")},
-            output: {input: schema("null"), output: defineLocalOutput<() => void>()},
+            input: {input: defineLocalInput<() => void>(), output: type("null")},
+            output: {input: type("null"), output: defineLocalOutput<() => void>()},
         };
         for(const [name, declaration] of Object.entries(declarations)) {
             const calls = defineComponentCalls("probe", {take: declaration});

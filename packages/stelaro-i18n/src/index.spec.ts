@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {describe, it, type TestContext} from "node:test";
 
-import {catalogKey, type CatalogReader, createI18n, defineMessages, type Logger} from "./index.ts";
+import {catalogKey, type CatalogReader, createI18n, defineMessages, type Logger, type MessageDescriptor} from "./index.ts";
 
 /** A CatalogReader stand-in serving catalogs from memory. */
 function fakeReader(catalogs: Record<string, Record<string, string>>): CatalogReader {
@@ -40,6 +40,13 @@ describe("catalogKey", () => {
         assert.equal(catalogKey({defaultMessage: "Hi", description: "Greeting on the home page"}), "Hi");
         assert.equal(catalogKey({id: "greeting", defaultMessage: "Hi", description: "Greeting"}), "greeting");
     });
+
+    it("throws RangeError for an empty key", () => {
+        for(const descriptor of [{id: "", defaultMessage: "Hi"}, {defaultMessage: ""}, {id: "", defaultMessage: ""}]) {
+            assert.throws(() => catalogKey(descriptor), RangeError, JSON.stringify(descriptor));
+        }
+        assert.equal(catalogKey({id: "k", defaultMessage: ""}), "k");
+    });
 });
 
 describe("defineMessages", () => {
@@ -57,6 +64,46 @@ describe("defineMessages", () => {
         const typeChecks = (): void => {
             // @ts-expect-error the inferred placeholder requires its value.
             i18n.t("en", messages.greeting);
+        };
+        void typeChecks;
+    });
+
+    it("rejects descriptors with a literal empty key at the type level", () => {
+        // Type-level checks only; never invoked.
+        const typeChecks = (): void => {
+            // @ts-expect-error an explicit id must not be empty.
+            defineMessages({greeting: {id: "", defaultMessage: "Hi"}});
+            // @ts-expect-error an id-less descriptor needs non-empty source text.
+            defineMessages({greeting: {defaultMessage: ""}});
+            defineMessages({greeting: {id: "greeting", defaultMessage: ""}});
+        };
+        void typeChecks;
+    });
+});
+
+describe("empty message keys", () => {
+    it("make t and bind(...).t throw RangeError, before or after loading", async () => {
+        const i18n = createI18n({default_locale: "en", locales: ["fr"], messages: {fr: {"": "vide"}}});
+        const descriptors: MessageDescriptor[] = [{id: "", defaultMessage: "Hi"}, {defaultMessage: ""}];
+        for(const descriptor of descriptors) {
+            assert.throws(() => i18n.t("fr", descriptor), RangeError, JSON.stringify(descriptor));
+            assert.throws(() => i18n.bind("en").t(descriptor), RangeError, JSON.stringify(descriptor));
+        }
+        await i18n.load(fakeReader({"i18n/fr.json": {"": "vide"}}));
+        for(const descriptor of descriptors) assert.throws(() => i18n.t("fr", descriptor), RangeError, JSON.stringify(descriptor));
+    });
+
+    it("are rejected by t and bind(...).t at the type level when literal", () => {
+        const i18n = createI18n({default_locale: "en"});
+        // Type-level checks only; never invoked.
+        const typeChecks = (): void => {
+            // @ts-expect-error an explicit id must not be empty.
+            i18n.t("en", {id: "", defaultMessage: "Hi"});
+            // @ts-expect-error an id-less descriptor needs non-empty source text.
+            i18n.t("en", {defaultMessage: ""});
+            // @ts-expect-error an explicit id must not be empty.
+            i18n.bind("en").t({id: "", defaultMessage: "Hi"});
+            i18n.t("en", {id: "greeting", defaultMessage: ""});
         };
         void typeChecks;
     });

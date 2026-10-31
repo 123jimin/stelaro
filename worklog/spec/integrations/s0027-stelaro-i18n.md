@@ -83,8 +83,11 @@ function catalogKey(descriptor: MessageDescriptor): string;
   catalogs, not by the locales `t` receives. `t` selects a shape from the
   explicit locale; no ambient locale exists, so concurrent locales are
   independent.
-- A descriptor key (`catalogKey`) is explicit `id`, otherwise `defaultMessage`.
-  `description` is translator context and never part of the key.
+- A descriptor key (`catalogKey`) is explicit `id`, otherwise `defaultMessage`
+  (s0030). `description` is translator context and never part of the key.
+- An empty key is a programming error: `catalogKey`, and so `t`, throws
+  `RangeError`. `t`, `bind(locale).t`, and `defineMessages` SHOULD reject a
+  literal empty key at the type level.
 - Fallback is translated message, then `defaultMessage`, then the literal key.
   Missing translation, use before loading, or a locale without a catalog,
   malformed ones included, returns readable source text formatted in

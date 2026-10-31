@@ -19,9 +19,11 @@ tags = ["i18n", "localization", "formatjs", "tooling"]
   `I18n`. Their loading, seeding, overlay, and fallback behavior belongs to
   s0027.
 - A message key is its explicit descriptor `id`, or its `defaultMessage` when
-  the id is absent. Final translation and runtime catalogs MUST use that same
-  key. If extraction generates another id for an id-less descriptor, the
-  consumer's merge step MUST remap it to the source-text key.
+  the id is absent. A key MUST be non-empty: an explicit `id` is non-empty, and
+  an id-less descriptor has a non-empty `defaultMessage`. Final translation and
+  runtime catalogs MUST use that same key. If extraction generates another id
+  for an id-less descriptor, the consumer's merge step MUST remap it to the
+  source-text key.
 - No Babel or SWC transform is required: explicit ids are authored in source,
   and id-less runtime keys are derived from `defaultMessage`.
 

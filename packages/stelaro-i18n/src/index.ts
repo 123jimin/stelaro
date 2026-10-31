@@ -38,13 +38,17 @@ export type CatalogReader = (subpath: string) => Promise<unknown>;
  * @category i18n
  */
 export type MessageDescriptor = {
-    /** Stable catalog key, unique within the component (default: `defaultMessage`) */
+    /** Stable catalog key, unique within the component and non-empty (default: `defaultMessage`) */
     readonly id?: string;
-    /** ICU source text and the final fallback */
+    /** ICU source text and the final fallback; non-empty when `id` is absent */
     readonly defaultMessage: string;
     /** Optional translator context, carried through extraction. Never part of the key. */
     readonly description?: string;
 };
+
+// Disallows empty catalog key.
+type NonEmptyKey<D extends MessageDescriptor> =
+    (D extends {readonly id: infer Id extends string} ? Id : D["defaultMessage"]) extends "" ? never : unknown;
 
 /**
  * A locale's runtime catalog: message id → translated string.
@@ -118,11 +122,12 @@ export type I18n = {
      * Translates `message` for an explicit `locale`, matched case-insensitively against catalog
      * locales. Synchronous; falls back to the message's source (`defaultMessage`), formatted in
      * `default_locale`, when a translation is missing, before {@link I18n.load}, or for a locale
-     * without a catalog, malformed ones included.
+     * without a catalog, malformed ones included. Throws `RangeError` when the message's key
+     * ({@link catalogKey}) is empty.
      */
     t<const D extends MessageDescriptor>(
         locale: Locale,
-        message: D,
+        message: D & NonEmptyKey<D>,
         ...values: OptionalIfVoid<MessageValues<D["defaultMessage"]>>
     ): string;
     /**
@@ -144,7 +149,7 @@ export type BoundI18n<L extends Locale = Locale> = {
      * Translates `message` for the bound locale. Same fallback chain and typing as {@link I18n.t}.
      */
     t<const D extends MessageDescriptor>(
-        message: D,
+        message: D & NonEmptyKey<D>,
         ...values: OptionalIfVoid<MessageValues<D["defaultMessage"]>>
     ): string;
 };
@@ -173,10 +178,13 @@ function assertCatalog(subpath: string, value: unknown): Catalog {
  *
  * @param descriptor - The source message
  * @returns The descriptor's catalog key
+ * @throws {RangeError} When the key is empty
  * @category i18n
  */
 export function catalogKey(descriptor: MessageDescriptor): string {
-    return descriptor.id ?? descriptor.defaultMessage;
+    const key = descriptor.id ?? descriptor.defaultMessage;
+    if(key === "") throw new RangeError("A message key must not be empty.");
+    return key;
 }
 
 /** A catalog under the locale tag it was given with. */
@@ -234,7 +242,7 @@ export function createI18n(options: I18nOptions): I18n {
             defaultLocale: options.default_locale,
             messages,
             onError(error) {
-                if(error.code === IntlErrorCode.MISSING_TRANSLATION || reports_left === 0) return;
+                if(error.code === IntlErrorCode.MISSING_TRANSLATION || reports_left <= 0) return;
                 reports_left--;
                 try {
                     (logger ?? console).error(error);
@@ -263,8 +271,9 @@ export function createI18n(options: I18nOptions): I18n {
     const source_shape = createShape(options.default_locale, {});
 
     function translate(locale: Locale, message: MessageDescriptor, values?: Record<string, PrimitiveValue>): string {
-        // FormatJS requires an id.
-        const keyed = message.id == null ? {...message, id: catalogKey(message)} : message;
+        // FormatJS requires an id; `catalogKey` also rejects an empty one.
+        const id = catalogKey(message);
+        const keyed = message.id === id ? message : {...message, id};
         const shape = shapes.get(localeKey(locale)) ?? source_shape;
         const outer_reports_left = reports_left;
         reports_left = 1;
@@ -310,6 +319,8 @@ export function createI18n(options: I18nOptions): I18n {
  * @returns The same map, with literal types preserved
  * @category i18n
  */
-export function defineMessages<const T extends Record<string, MessageDescriptor>>(messages: T): T {
+export function defineMessages<const T extends Record<string, MessageDescriptor>>(
+    messages: T & {readonly [K in keyof T]: NonEmptyKey<T[K]>},
+): T {
     return messages;
 }

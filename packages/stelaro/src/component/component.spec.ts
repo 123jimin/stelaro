@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 
 import {assertEqualType} from "@jiminp/tooltool";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 
 import {createApplication, defineApplication} from "../application/application.ts";
 import {DuplicateCallError} from "../application/error.ts";
@@ -18,8 +18,8 @@ import {defineComponent, defineComponentCalls, mergeComponentCalls} from "./comp
 import type {AnyComponentContext, ComponentContext} from "./context.ts";
 import type {AnyComponent, CallInput, CallOutput} from "./types.ts";
 
-const ParsedInput = schema({value: "string.numeric.parse"});
-const DefaultedOutput = schema({count: "number = 0"});
+const ParsedInput = type({value: "string.numeric.parse"});
+const DefaultedOutput = type({count: "number = 0"});
 
 describe("@jiminp/stelaro component core", () => {
     it("defines call references that carry their component id, call name, and schemas", () => {
@@ -471,8 +471,8 @@ function assertTypeBehavior() {
     void defineComponent({
         calls: PageCalls,
         uses: [],
-        config: schema({port: "number"}),
-        secrets: schema({api_key: "string"}),
+        config: type({port: "number"}),
+        secrets: type({api_key: "string"}),
         handlers: {
             render(_context) {
                 assertEqualType<typeof _context.config, {port: number}>();

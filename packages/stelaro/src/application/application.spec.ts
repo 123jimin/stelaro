@@ -3,7 +3,7 @@ import {join, resolve} from "node:path";
 import {describe, it} from "node:test";
 
 import type {Promisable} from "@jiminp/tooltool";
-import {TraversalError, type as schema} from "arktype";
+import {TraversalError, type} from "arktype";
 
 import {defineComponent, defineComponentCalls, mergeComponentCalls} from "../component/component.ts";
 import type {AnyComponentContext} from "../component/context.ts";
@@ -444,7 +444,7 @@ describe("@jiminp/stelaro application core", () => {
         let handled = 0;
         const CounterCalls = defineComponentCalls("counter", {set: {input: SetCounterInput, output: CounterOutput}});
         // Same component id and call name, but declared separately with another input schema.
-        const LookalikeCalls = defineComponentCalls("counter", {set: {input: schema({name: "string"}), output: CounterOutput}});
+        const LookalikeCalls = defineComponentCalls("counter", {set: {input: type({name: "string"}), output: CounterOutput}});
         const CounterComponent = defineComponent({
             calls: CounterCalls,
             uses: [],
@@ -787,13 +787,13 @@ describe("@jiminp/stelaro application directories", () => {
     const tempDir = useTempDir("application-dirs");
 
     const DirsCalls = defineComponentCalls("a", {
-        get: {input: EmptyInput, output: schema({value: "number", key: "string", data_dir: "string"})},
+        get: {input: EmptyInput, output: type({value: "number", key: "string", data_dir: "string"})},
     });
     const DirsComponent = defineComponent({
         calls: DirsCalls,
         uses: [],
-        config: schema({value: "number"}),
-        secrets: schema({key: "string"}),
+        config: type({value: "number"}),
+        secrets: type({key: "string"}),
         handlers: {
             get: ({config, secrets, data}) => ({value: config.value, key: secrets.key, data_dir: data.dir}),
         },
@@ -1031,7 +1031,7 @@ describe("@jiminp/stelaro application lifecycle guards during a component config
         const AComponent = defineComponent({
             calls: ACalls,
             uses: [],
-            config: schema({value: "number"}),
+            config: type({value: "number"}),
             async onConfigReload() {
                 hook_entered.resolve();
                 await gate.promise;

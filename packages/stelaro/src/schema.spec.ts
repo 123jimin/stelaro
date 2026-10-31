@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {describe, it} from "node:test";
 
-import {TraversalError, type as schema} from "arktype";
+import {TraversalError, type} from "arktype";
 
 import {defineLocalInput, defineLocalOutput, EmptyInput, isLocalSchema} from "./schema.ts";
 
@@ -24,7 +24,7 @@ describe("isLocalSchema", () => {
         assert.strictEqual(isLocalSchema(defineLocalInput<unknown>()), true);
         assert.strictEqual(isLocalSchema(defineLocalOutput<unknown>()), true);
         assert.strictEqual(isLocalSchema(EmptyInput), false);
-        assert.strictEqual(isLocalSchema(schema("unknown")), false);
+        assert.strictEqual(isLocalSchema(type("unknown")), false);
         assert.strictEqual(isLocalSchema({inferIn: null, infer: null, assert: (input: unknown) => input}), false);
     });
 });

@@ -1,13 +1,13 @@
 import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 
 import {appendJsonl, readJsonl} from "./storage.ts";
 
 const DATA_PATH = "users.jsonl";
 
-const ProviderSchema = schema("'google' | 'discord' | 'id'");
+const ProviderSchema = type("'google' | 'discord' | 'id'");
 
-const UserSchema = schema({
+const UserSchema = type({
     user_id: "string",
     provider: ProviderSchema,
     provider_account_id: "string",
@@ -19,7 +19,7 @@ type UserRecord = typeof UserSchema.infer;
 
 export const UsersCalls = defineComponentCalls("users", {
     resolve: {
-        input: schema({
+        input: type({
             provider: ProviderSchema,
             provider_account_id: "string",
             display_name: "string",

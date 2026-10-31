@@ -6,14 +6,14 @@ import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
 
 import {defineComponentCalls} from "@jiminp/stelaro";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 
 import {CallFailedError, createComponentClientFactory, type ErrorBody, getCallPath, isErrorBody, type OutputBody} from "./client.ts";
 
 const ProbeCalls = defineComponentCalls("probe", {
-    take: {input: schema("null").or({n: "number"}), output: schema("unknown")},
-    list: {input: schema({}), output: schema("unknown")},
-    count: {input: schema({}), output: schema({count: "number"})},
+    take: {input: type("null").or({n: "number"}), output: type("unknown")},
+    list: {input: type({}), output: type("unknown")},
+    count: {input: type({}), output: type({count: "number"})},
 });
 
 const createComponentClient = createComponentClientFactory({callPath: (reference) => getCallPath("/api", reference)});

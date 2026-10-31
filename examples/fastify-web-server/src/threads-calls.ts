@@ -1,7 +1,7 @@
 import {defineComponentCalls} from "@jiminp/stelaro";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 
-export const ThreadSchema = schema({
+export const ThreadSchema = type({
     thread_id: "string",
     author_user_id: "string",
     title: "string",
@@ -13,7 +13,7 @@ export type ThreadRecord = typeof ThreadSchema.infer;
 
 export const ThreadsCalls = defineComponentCalls("threads", {
     create: {
-        input: schema({
+        input: type({
             author_user_id: "string",
             title: "string",
             body: "string",
@@ -21,13 +21,13 @@ export const ThreadsCalls = defineComponentCalls("threads", {
         output: ThreadSchema,
     },
     list: {
-        input: schema({}),
-        output: schema({
+        input: type({}),
+        output: type({
             threads: ThreadSchema.array(),
         }),
     },
     get: {
-        input: schema({thread_id: "string"}),
+        input: type({thread_id: "string"}),
         output: ThreadSchema.or("null"),
     },
 });

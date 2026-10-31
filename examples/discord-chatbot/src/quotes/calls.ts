@@ -1,7 +1,7 @@
 import {defineComponentCalls} from "@jiminp/stelaro";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 
-export const QuoteSchema = schema({
+export const QuoteSchema = type({
     quote_id: "string",
     content: "string",
     author_discord_user_id: "string",
@@ -16,7 +16,7 @@ export type QuoteRecord = typeof QuoteSchema.infer;
 
 export const QuotesCalls = defineComponentCalls("quotes", {
     "create": {
-        input: schema({
+        input: type({
             content: "string",
             author_discord_user_id: "string",
             author_display_name: "string",
@@ -25,30 +25,30 @@ export const QuotesCalls = defineComponentCalls("quotes", {
             source_message_id: "string | null",
         }),
         // Returns the existing quote with `created: false` when `source_message_id` was already saved
-        output: schema({quote: QuoteSchema, created: "boolean"}),
+        output: type({quote: QuoteSchema, created: "boolean"}),
     },
     "delete": {
-        input: schema({quote_id: "string", deleted_by_discord_user_id: "string"}),
-        output: schema({deleted: "boolean"}),
+        input: type({quote_id: "string", deleted_by_discord_user_id: "string"}),
+        output: type({deleted: "boolean"}),
     },
     "random": {
-        input: schema({"author_discord_user_id?": "string"}),
+        input: type({"author_discord_user_id?": "string"}),
         output: QuoteSchema.or("null"),
     },
     "search": {
-        input: schema({query: "string"}),
-        output: schema({quotes: QuoteSchema.array()}),
+        input: type({query: "string"}),
+        output: type({quotes: QuoteSchema.array()}),
     },
     "getReactionConfig": {
-        input: schema({}),
-        output: schema({
+        input: type({}),
+        output: type({
             board_channel_id: "string",
             reaction_emoji: "string",
             reaction_threshold: "number",
         }),
     },
     "list": {
-        input: schema({"author_discord_user_id?": "string", "page": "number"}),
-        output: schema({quotes: QuoteSchema.array(), total_pages: "number"}),
+        input: type({"author_discord_user_id?": "string", "page": "number"}),
+        output: type({quotes: QuoteSchema.array(), total_pages: "number"}),
     },
 });

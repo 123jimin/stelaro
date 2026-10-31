@@ -1,6 +1,6 @@
 import {defineComponent, defineComponentCalls} from "@jiminp/stelaro";
 import {defineFastifyRoute, defineFastifyRoutes, sendHtml} from "@jiminp/stelaro-fastify";
-import {type as schema} from "arktype";
+import {type} from "arktype";
 
 import {requireAuth} from "./auth.ts";
 import {THREAD_NOT_FOUND_HTML} from "./html.ts";
@@ -10,7 +10,7 @@ import {UsersCalls} from "./users.ts";
 
 const DATA_PATH = "comments.jsonl";
 
-const CommentSchema = schema({
+const CommentSchema = type({
     comment_id: "string",
     thread_id: "string",
     author_user_id: "string",
@@ -22,7 +22,7 @@ type CommentRecord = typeof CommentSchema.infer;
 
 export const CommentsCalls = defineComponentCalls("comments", {
     create: {
-        input: schema({
+        input: type({
             thread_id: "string",
             author_user_id: "string",
             body: "string",
@@ -31,8 +31,8 @@ export const CommentsCalls = defineComponentCalls("comments", {
         output: CommentSchema.or("null"),
     },
     listByThread: {
-        input: schema({thread_id: "string"}),
-        output: schema({
+        input: type({thread_id: "string"}),
+        output: type({
             comments: CommentSchema.array(),
         }),
     },
@@ -79,8 +79,8 @@ export const CommentsRoutes = defineFastifyRoutes({
             method: "POST",
             path: "/threads/:thread_id/comments",
             preHandler: [requireAuth],
-            params: schema({thread_id: "string"}),
-            body: schema({body: "string"}),
+            params: type({thread_id: "string"}),
+            body: type({body: "string"}),
             async handle({request, reply, params, body: form, call, redirect}) {
                 if(request.user == null) return;
                 const {user_id} = await call(UsersCalls.calls.resolve, {

@@ -3,7 +3,7 @@ id = "t0010"
 title = "Review spec tests against worklog specs"
 tags = ["test"]
 status = "active"
-modifies = ["s0003", "s0014", "s0016", "s0017", "s0028", "s0032", "s0008", "s0022", "s0027"]
+modifies = ["s0003", "s0014", "s0016", "s0017", "s0028", "s0032", "s0008", "s0022", "s0027", "s0002", "s0020", "s0030"]
 +++
 
 # Review spec tests against worklog specs
@@ -55,8 +55,5 @@ The human permitted spec edits for these items, to be reviewed before commit, an
 - s0008: a component with a configuration schema requires its base file, even with an overlay; a missing one is a `ConfigFileError`. File failures, like validation failures, fail startup or keep old values on reload. Tests added for a missing file at startup, with an overlay, and on reload.
 - s0017 gaps: commands are keyed by type and name, and duplicates throw `RangeError` at definition; a command interaction dispatches by its type and name, autocomplete to the chat-input command, and an unmatched one is ignored. Custom-id patterns (colon segments, `{name}` parameters) throw `RangeError` at definition when malformed; overlapping patterns are allowed and the first in definition order wins. The `start` hook registers commands, attaches listeners, then logs in; if login fails, it removes its listeners and fails with the login error. Code: plain `Error` became `RangeError`, and a `{__proto__}` parameter is kept. Spec, code, tests.
 - Lifecycle terms: s0002 now defines `start()`/`stop()` (application methods) versus the `start`/`stop` hooks (component steps); s0002, s0003, s0008, s0016, s0017, s0020, and s0027 use them instead of a bare "start" or "stop".
-
-### Open
-
-- Empty message key (awaiting decision): `{id: ""}`, `{id: "", defaultMessage: "Hi"}`, and `{defaultMessage: ""}` make FormatJS throw a generic `Error`; `{id: "k", defaultMessage: ""}` returns `"k"`. Suggestion: s0030 requires a non-empty key; `catalogKey` throws `RangeError` for an empty one, so `t` fails with that instead; `t` and `defineMessages` reject literal empty keys at the type level.
-- Aliased arktype import (awaiting decision): the "import `type` unaliased" rule comes from the parent project's `AGENTS.md`; stelaro's `AGENTS.md` has no such rule, and all 19 stelaro files that import arktype (packages and examples) use `type as schema`. Either treat it as stelaro's convention, or add the rule to stelaro's `AGENTS.md` and rewrite all 19 files.
+- Empty message key: s0030 requires a non-empty key. `catalogKey`, and so `t` and `bind(...).t`, throws `RangeError` for an empty one (FormatJS threw a generic `Error`); `t`, `bind(...).t`, and `defineMessages` reject a literal empty key at the type level. Spec, code, tests.
+- Arktype import: stelaro's `AGENTS.md` now requires `import {type} from "arktype"`, and the 19 files that aliased it as `schema` were rewritten.

@@ -1,4 +1,4 @@
-import {type as schema} from "arktype";
+import {type} from "arktype";
 
 import type {ComponentCallSchema} from "./component/types.ts";
 
@@ -20,7 +20,7 @@ export interface Schema {
  *
  * @category Component
  */
-export const EmptyInput = schema({"+": "reject"})
+export const EmptyInput = type({"+": "reject"})
     .narrow((value, ctx) => Object.getPrototypeOf(value) === Object.prototype || ctx.mustBe("a plain object"));
 
 /**
