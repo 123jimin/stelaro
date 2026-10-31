@@ -31,16 +31,14 @@ export function defineComponentCalls<
         throw new InvalidComponentIdError(id);
     }
 
-    const calls: Record<ComponentCallName, AnyComponentCallReference> = {};
-
-    for(const [name, declaration] of Object.entries(declarations)) {
-        calls[name] = {
+    const calls: Record<ComponentCallName, AnyComponentCallReference> = Object.fromEntries(
+        Object.entries(declarations).map(([name, declaration]) => [name, {
             component_id: id,
             name,
             input: declaration.input,
             output: declaration.output,
-        };
-    }
+        }]),
+    );
 
     return {
         id,
@@ -67,23 +65,26 @@ export function mergeComponentCalls<
     const TFirst extends AnyComponentCalls,
     const TRest extends readonly (AnyComponentCalls & {readonly id: TFirst["id"]})[],
 >(first: TFirst, ...rest: TRest): MergedComponentCalls<readonly [TFirst, ...TRest]> {
-    const calls: Record<ComponentCallName, AnyComponentCallReference> = {...first.calls};
+    const entries = Object.entries(first.calls);
+    const names = new Set(Object.keys(first.calls));
     const duplicate_keys: string[] = [];
     for(const surface of rest) {
         if(surface.id !== first.id) {
             throw new MismatchedComponentIdError(first.id, surface.id);
         }
         for(const [name, reference] of Object.entries(surface.calls)) {
-            if(name in calls) {
+            if(names.has(name)) {
                 duplicate_keys.push(`${first.id}.${name}`);
             }
-            calls[name] = reference;
+            names.add(name);
+            entries.push([name, reference]);
         }
     }
     if(duplicate_keys.length > 0) {
         throw new DuplicateCallError(duplicate_keys);
     }
 
+    const calls: Record<ComponentCallName, AnyComponentCallReference> = Object.fromEntries(entries);
     return {id: first.id, calls} as MergedComponentCalls<readonly [TFirst, ...TRest]>;
 }
 

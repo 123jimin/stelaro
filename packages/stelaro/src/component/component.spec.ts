@@ -110,11 +110,14 @@ describe("@jiminp/stelaro component core", () => {
             toString: {input: EmptyInput, output: CounterOutput},
             constructor: {input: EmptyInput, output: CounterOutput},
             hasOwnProperty: {input: EmptyInput, output: CounterOutput},
+            ["__proto__"]: {input: EmptyInput, output: CounterOutput},
         });
         const CounterCalls = mergeComponentCalls(ACalls, BCalls);
 
-        assert.deepStrictEqual(new Set(Object.keys(CounterCalls.calls)), new Set(["current", "toString", "constructor", "hasOwnProperty"]));
+        const names = ["current", "toString", "constructor", "hasOwnProperty", "__proto__"];
+        assert.deepStrictEqual(new Set(Object.keys(CounterCalls.calls)), new Set(names));
         assert.strictEqual(CounterCalls.calls.toString, BCalls.calls.toString);
+        assert.strictEqual(Object.getOwnPropertyDescriptor(CounterCalls.calls, "__proto__")?.value.name, "__proto__");
 
         const CCalls = defineComponentCalls("counter", {toString: {input: EmptyInput, output: CounterOutput}});
         assert.throws(
