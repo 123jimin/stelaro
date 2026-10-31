@@ -69,7 +69,10 @@ function fluentPath(base: string): FluentPath;
 - `join` returns an absolute path and intentionally permits traversal above the
   base.
 - `confine` guarantees that every result, including adversarial input, is the
-  original base or its descendant under `node:fs` resolution:
+  original base or its descendant under Node's `node:fs` resolution:
+  - On Windows, Node opens paths with the `\\?\` prefix, so reserved device
+    names (`CON`, `NUL`, `COM1`), trailing dots and spaces, and `:` stream
+    suffixes stay inside the base.
   - `.` and `..` are resolved; surplus `..` stops at the base.
   - Both `/` and `\` are separators.
   - Absolute and drive-rooted segments reset to the base.
@@ -101,6 +104,9 @@ function fluentPath(base: string): FluentPath;
 
 ## Dangers
 
-- The containment guarantee assumes `node:fs`/libuv path interpretation and is
-  not realpath-based. A future backend may reinterpret otherwise inert names;
-  confinement MUST be re-evaluated when abstracting the backend.
+- The containment guarantee assumes Node's `node:fs` path interpretation and is
+  not realpath-based. It rests on Node's `\\?\` prefixing on Windows, which Node
+  does not document as a contract; other runtimes differ (under Bun, `NUL` is
+  the null device). A future backend or runtime may reinterpret otherwise inert
+  names; confinement MUST be re-evaluated when abstracting the backend or
+  supporting another runtime.

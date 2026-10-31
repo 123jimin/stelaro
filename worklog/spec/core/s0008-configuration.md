@@ -14,11 +14,13 @@ paths = ["packages/stelaro/src/config/**"]
 - During application start, each component's TOML configuration and secrets
   are loaded from the config and secrets directories (s0019) and validated
   before component start hooks run.
-- Components without the relevant schema require no file and are skipped. A
-  missing secrets file for a declared schema produces a warning and validates
-  an empty object.
-- Any startup validation failure fails startup and moves the application to
-  `failed`.
+- Components without the relevant schema require no file and are skipped.
+- A component with a configuration schema requires its base configuration
+  file, even when an environment overlay exists; a missing one is a
+  `ConfigFileError`. A missing secrets file for a declared schema produces a
+  warning and validates an empty object.
+- Any startup file or validation failure (s0007) fails startup and moves the
+  application to `failed`.
 
 ### Environment overlays
 
@@ -36,8 +38,8 @@ paths = ["packages/stelaro/src/config/**"]
 ### Reload
 
 - `reloadConfig()` is valid only while `active`. It reads and validates every
-  configuration file before changing any reference. A validation failure keeps
-  all old values.
+  configuration file before changing any reference. A file or validation
+  failure keeps all old values.
 - After successful validation, all configuration references are swapped, then
   component `onConfigReload` hooks run concurrently. Every component hook runs
   to completion even when another fails.
@@ -48,7 +50,7 @@ paths = ["packages/stelaro/src/config/**"]
 - `reloadComponentConfig(component_id)` is valid only while `active`; its id
   type MUST be narrowed to registered components. It validates before swapping
   only the target's reference, then invokes only that component's reload hook.
-  A validation failure preserves the old value.
+  A file or validation failure preserves the old value.
 - Both reload methods return `void`. Neither reloads secrets.
 
 ## Constraints

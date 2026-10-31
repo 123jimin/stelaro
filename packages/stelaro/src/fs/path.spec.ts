@@ -23,6 +23,7 @@ const hostile_segments: readonly (readonly string[])[] = [
     ["C:..\\..\\j"],
     ["a/C:/../../k"],
     ["..／..／l", "..＼..＼m"],
+    ["..::$INDEX_ALLOCATION"],
 ];
 
 describe("@jiminp/stelaro fluent path", () => {
@@ -194,5 +195,18 @@ describe("@jiminp/stelaro fluent path", () => {
 
         assert.deepStrictEqual((await readdir(root)).sort(), ["base", "secret.txt"]);
         assert.strictEqual(await readFile(join(root, "secret.txt"), "utf-8"), "SECRET");
+    });
+
+    it("keeps reserved Windows device names and stream suffixes as files inside the base through node:fs", async () => {
+        // On Windows these stay files only through Node's `\\?\` prefixing (s0022); elsewhere they are plain names.
+        const root = testDir();
+        const fp = fluentPath(join(root, "base"));
+        for(const name of ["NUL", "con", "COM1", "CONIN$", "nul.txt", "a:b"]) {
+            const confined = fp.confine(name);
+            assert.strictEqual(dirname(confined.path), join(root, "base"), name);
+            await confined.write().text(`content of ${name}`);
+            assert.strictEqual(await confined.read().text(), `content of ${name}`, name);
+        }
+        assert.deepStrictEqual(await readdir(root), ["base"]);
     });
 });

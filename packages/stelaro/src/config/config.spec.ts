@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {rm} from "node:fs/promises";
 import {join} from "node:path";
 import {describe, it} from "node:test";
 import {setImmediate} from "node:timers/promises";
@@ -173,6 +174,33 @@ describe("@jiminp/stelaro configuration", () => {
         await assertFailed(app);
     });
 
+    it("fails startup with ConfigFileError when a component's config file is missing, even if defaults cover every field", async () => {
+        let started = false;
+        const AComponent = defineComponent({
+            calls: defineComponentCalls("a", {value: {input: EmptyInput, output: CounterOutput}}),
+            uses: [],
+            config: schema({value: "number = 3000"}),
+            start() { started = true; },
+            handlers: {value: ({config}) => ({count: config.value})},
+        });
+        const app = createApplication(
+            defineApplication({components: [AComponent], logger: noopLoggerFactory}),
+            {base_dir: tempDir()},
+        );
+
+        await assert.rejects(
+            () => app.start(),
+            (error: unknown) => {
+                assert.ok(error instanceof ConfigFileError);
+                assert.strictEqual(error.component_id, "a");
+                assert.strictEqual(error.file_path, join(tempDir(), "config", "a.toml"));
+                return true;
+            },
+        );
+        assert.strictEqual(started, false);
+        await assertFailed(app);
+    });
+
     it("validates every component's config before any start hook runs", async () => {
         await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 1\n");
         await writeTestFile(join(tempDir(), "config", "b.toml"), 'value = "not a number"\n');
@@ -313,6 +341,29 @@ describe("@jiminp/stelaro configuration reload", () => {
         await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 10\n");
         await writeTestFile(join(tempDir(), "config", "b.toml"), "not valid = = = toml");
         await assert.rejects(() => app.reloadConfig(), ConfigFileError);
+
+        assert.deepStrictEqual(await app.call(A.calls.calls.value, {}), {count: 1});
+        assert.deepStrictEqual(await app.call(B.calls.calls.value, {}), {count: 2});
+
+        await app.stop();
+    });
+
+    it("keeps every old config value when a config file is deleted before reload", async () => {
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 1\n");
+        await writeTestFile(join(tempDir(), "config", "b.toml"), "value = 2\n");
+
+        const A = defineValueComponent("a");
+        const B = defineValueComponent("b");
+        const app = createApplication(
+            defineApplication({components: [A, B], logger: noopLoggerFactory}),
+            {base_dir: tempDir()},
+        );
+        await app.start();
+
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 10\n");
+        await rm(join(tempDir(), "config", "b.toml"));
+        await assert.rejects(() => app.reloadConfig(), ConfigFileError);
+        await assert.rejects(() => app.reloadComponentConfig("b"), ConfigFileError);
 
         assert.deepStrictEqual(await app.call(A.calls.calls.value, {}), {count: 1});
         assert.deepStrictEqual(await app.call(B.calls.calls.value, {}), {count: 2});
@@ -602,6 +653,21 @@ describe("@jiminp/stelaro environment config", () => {
         );
 
         await assert.rejects(() => app.start(), ConfigValidationError);
+        await assertFailed(app);
+    });
+
+    it("fails startup with ConfigFileError when the base config file is missing but the overlay exists", async () => {
+        await writeTestFile(join(tempDir(), "config", "a.prod.toml"), "value = 30\n");
+
+        const app = createApplication(
+            defineApplication({components: [defineValueComponent("a")], logger: noopLoggerFactory}),
+            {base_dir: tempDir(), env: "prod"},
+        );
+
+        await assert.rejects(
+            () => app.start(),
+            (error: unknown) => error instanceof ConfigFileError && error.file_path === join(tempDir(), "config", "a.toml"),
+        );
         await assertFailed(app);
     });
 

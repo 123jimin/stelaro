@@ -172,6 +172,27 @@ describe("createI18n", () => {
             assert.equal(i18n.t("de", {id: "greeting", defaultMessage: "Hi {name}"}, {name: "World"}), "Hi World");
         });
 
+        it("formats the fallback for a locale without a catalog in default_locale", () => {
+            const i18n = createI18n({default_locale: "de", messages: {en: {amount: "{n, number} EUR"}}});
+            const message = {id: "amount", defaultMessage: "{n, number} Euro"} as const;
+            assert.equal(i18n.t("fr", message, {n: 1234.5}), "1.234,5 Euro");
+            assert.equal(i18n.t("en", message, {n: 1234.5}), "1,234.5 EUR");
+        });
+
+        it("matches catalog locales case-insensitively", async () => {
+            const i18n = createI18n({default_locale: "en", locales: ["zh-hant-tw"], messages: {"ko-KR": {Hi: "안녕"}}});
+            await i18n.load(fakeReader({"i18n/zh-hant-tw.json": {Hi: "你好"}}));
+            for(const locale of ["ko-KR", "ko-kr", "KO-KR", "Ko-kR"]) assert.equal(i18n.t(locale, {defaultMessage: "Hi"}), "안녕", locale);
+            for(const locale of ["zh-Hant-TW", "ZH-HANT-TW"]) assert.equal(i18n.t(locale, {defaultMessage: "Hi"}), "你好", locale);
+            assert.equal(i18n.t("ko", {defaultMessage: "Hi"}), "Hi");
+        });
+
+        it("merges seeded and loaded catalogs whose locales differ only in case", async () => {
+            const i18n = createI18n({default_locale: "en", locales: ["fr-ca"], messages: {"fr-CA": {Hi: "Salut", Bye: "Bye-seed"}}});
+            await i18n.load(fakeReader({"i18n/fr-ca.json": {Bye: "Au revoir"}}));
+            assert.deepEqual(["Hi", "Bye"].map((text) => i18n.t("fr-CA", {defaultMessage: text})), ["Salut", "Au revoir"]);
+        });
+
         it("falls back to the literal key when defaultMessage is empty", () => {
             const i18n = createI18n({default_locale: "en"});
             assert.equal(i18n.t("fr", {id: "greeting", defaultMessage: ""}), "greeting");
@@ -349,6 +370,35 @@ describe("createI18n", () => {
             assert.equal(i18n.t("ko", {id: "greeting", defaultMessage: "Hi"}), "Hi");
             assert.equal(i18n.t("en", {defaultMessage: "Bye"}), "Bye");
             assert.equal(console_spy.any(), 0);
+        });
+
+        it("reports a malformed locale and returns source text formatted in default_locale", async (t) => {
+            const console_spy = spyConsole(t);
+            const i18n = createI18n({
+                default_locale: "de",
+                locales: ["fr_FR!"],
+                messages: {"en_US!": {amount: "{n} wrong"}, "ko": {amount: "{n} 원"}},
+            });
+            const log = spyLogger();
+            await i18n.load(fakeReader({"i18n/fr_FR!.json": {amount: "{n} faux"}}), log);
+            const message = {id: "amount", defaultMessage: "{n, number} Euro"} as const;
+            // "\u212Ao" lowercases to "ko" outside ASCII.
+            for(const locale of ["en_US!", "fr_FR!", "", "x", "en--US", "\u212Ao"]) {
+                log.calls.length = 0;
+                assert.equal(i18n.t(locale, message, {n: 1234.5}), "1.234,5 Euro", JSON.stringify(locale));
+                assert.ok(log.calls.length > 0, JSON.stringify(locale));
+            }
+            assert.equal(console_spy.any(), 0);
+        });
+
+        it("reports a malformed locale through the logger of a later load", async (t) => {
+            spyConsole(t);
+            const i18n = createI18n({default_locale: "en"});
+            i18n.t("en_US!", {defaultMessage: "Hi"});
+            const log = spyLogger();
+            await i18n.load(fakeReader({}), log);
+            assert.equal(i18n.t("en_US!", {defaultMessage: "Hi"}), "Hi");
+            assert.ok(log.calls.length > 0);
         });
     });
 

@@ -67,16 +67,22 @@ function catalogKey(descriptor: MessageDescriptor): string;
   may provide `fetch`. The optional structural logger may be `context.log`.
 - Loaded ids overlay an existing seed for that locale; loaded ids win and
   seed-only ids survive. `locales` restricts only `load`, not seeded locales.
+- Catalog locales match case-insensitively (ASCII only), as BCP 47 tags do. A
+  catalog under a malformed tag is ignored.
 
 ### Translation
 
-- Each populated locale has one `@formatjs/intl` `IntlShape`. `t` selects it
-  from the explicit locale; no ambient locale exists, so concurrent locales are
+- Each locale with a catalog has one `@formatjs/intl` `IntlShape`; one more
+  shape serves every other locale, so the number of shapes is bounded by the
+  catalogs, not by the locales `t` receives. `t` selects a shape from the
+  explicit locale; no ambient locale exists, so concurrent locales are
   independent.
 - A descriptor key (`catalogKey`) is explicit `id`, otherwise `defaultMessage`.
   `description` is translator context and never part of the key.
 - Fallback is translated message, then `defaultMessage`, then the literal key.
-  Missing translation or use before loading returns readable source text.
+  Missing translation or use before loading returns readable source text,
+  formatted in `default_locale`. A malformed locale gets the same fallback and
+  is reported at least on its first use after each `load`.
 - Messages use ICU MessageFormat; number, date, plural, and select behavior uses
   platform `Intl` without a CLDR bundle.
 - Malformed ICU and missing interpolation values are reported through the
@@ -111,8 +117,8 @@ function catalogKey(descriptor: MessageDescriptor): string;
 
 ## Anticipated Changes
 
-- Component wiring helpers, locale negotiation, bounded formatter caching, and
-  a smaller or parser-free ICU runtime may be considered.
+- Component wiring helpers, locale negotiation, and a smaller or parser-free ICU
+  runtime may be considered.
 
 ## Dangers
 

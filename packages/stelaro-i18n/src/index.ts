@@ -61,11 +61,17 @@ export type Catalog = Record<string, string>;
 export type I18nOptions = {
     /** Source / fallback locale; must be a well-formed tag the runtime supports */
     readonly default_locale: Locale;
-    /** Locales `load` requests from the reader (default: `[default_locale]`) */
+    /**
+     * Locales `load` requests from the reader (default: `[default_locale]`); a malformed one's
+     * catalog is ignored
+     */
     readonly locales?: Nullable<readonly Locale[]>;
     /** Subpath prefix passed to the reader (default: `"i18n"`) */
     readonly catalog_dir?: Nullable<string>;
-    /** In-memory catalogs by locale, usable by `t`/`bind` without {@link I18n.load}; independent of `locales` */
+    /**
+     * In-memory catalogs by locale, usable by `t`/`bind` without {@link I18n.load}; independent of
+     * `locales`. Locales match case-insensitively; a malformed one's catalog is ignored.
+     */
     readonly messages?: Nullable<Readonly<Partial<Record<Locale, Catalog>>>>;
 };
 
@@ -105,9 +111,10 @@ export type I18n = {
      */
     load(read: CatalogReader, log?: Logger): Promise<void>;
     /**
-     * Translates `message` for an explicit `locale`. Synchronous; falls back to the message's
-     * source (`defaultMessage`) when a translation is missing or before {@link I18n.load}. A malformed
-     * `locale` tag is reported and gets the source formatted in `default_locale`.
+     * Translates `message` for an explicit `locale`, matched case-insensitively against catalog
+     * locales. Synchronous; falls back to the message's source (`defaultMessage`), formatted in
+     * `default_locale`, when a translation is missing or before {@link I18n.load}. A malformed
+     * `locale` tag is reported and gets that fallback.
      */
     t<const D extends MessageDescriptor>(
         locale: Locale,
@@ -159,6 +166,19 @@ export function catalogKey(descriptor: MessageDescriptor): string {
     return descriptor.id ?? descriptor.defaultMessage;
 }
 
+// Tags `t` received without a catalog. Remembering them skips the well-formedness check, which
+// costs about as much as a translation; the bound keeps client-supplied tags from growing memory.
+const MAX_FALLBACK_TAGS = 256;
+
+/** A catalog under the locale tag it was given with. */
+type LocaleCatalog = {readonly locale: Locale; readonly messages: Catalog};
+
+/** Folds only ASCII case, as BCP 47 does: `toLowerCase` maps some non-ASCII letters to ASCII
+ *  (`"\u212A"` to `"k"`), which would let a malformed tag reach a catalog. */
+function localeKey(locale: Locale): string {
+    return locale.replace(/[A-Z]+/gu, (upper) => upper.toLowerCase());
+}
+
 /**
  * Creates a component-scoped {@link I18n} backed by FormatJS. Synchronous and safe to call inside
  * a component state factory; catalogs are read later by {@link I18n.load}.
@@ -192,36 +212,59 @@ export function createI18n(options: I18nOptions): I18n {
     }
     const cache = createIntlCache();
     const catalog_dir = options.catalog_dir ?? "i18n";
-    const seed = new Map<Locale, Catalog>();
-    if(options.messages != null) {
-        for(const [locale, catalog] of Object.entries(options.messages)) {
-            if(catalog != null) seed.set(locale, catalog);
-        }
+    // BCP 47 tags are case-insensitive, so catalogs and shapes are keyed by `localeKey`.
+    // A catalog under a malformed tag is unreachable: a malformed request tag gets no catalog.
+    const addCatalog = (target: Map<string, LocaleCatalog>, locale: Locale, messages: Catalog): void => {
+        if(!isWellFormedLocale(locale)) return;
+        const key = localeKey(locale);
+        target.set(key, {locale, messages: {...target.get(key)?.messages, ...messages}});
+    };
+    const seed = new Map<string, LocaleCatalog>();
+    for(const [locale, messages] of Object.entries(options.messages ?? {})) {
+        if(messages != null) addCatalog(seed, locale, messages);
     }
-    let messages_by_locale: ReadonlyMap<Locale, Catalog> = seed;
-    const shapes = new Map<Locale, IntlShape>();
+    let catalogs: ReadonlyMap<string, LocaleCatalog> = seed;
+    // One shape per catalog, rebuilt after each load; `source_shape` serves every other tag.
+    const shapes = new Map<string, IntlShape>();
+    let source_shape: IntlShape | null = null;
+    const fallback_tags = new Set<string>();
     let logger: Logger | null = null;
 
-    function shapeFor(locale: Locale): IntlShape {
-        const cached = shapes.get(locale);
-        if(cached != null) return cached;
-        const well_formed = isWellFormedLocale(locale);
-        if(!well_formed) {
-            (logger ?? console).error(
-                `Malformed locale "${locale}"; using source text formatted in "${options.default_locale}".`,
-            );
-        }
-        const shape = createIntl({
-            locale: well_formed ? locale : options.default_locale,
+    function createShape(locale: Locale, messages: Catalog): IntlShape {
+        return createIntl({
+            locale,
             defaultLocale: options.default_locale,
-            messages: well_formed ? messages_by_locale.get(locale) ?? {} : {},
+            messages,
             onError(error) {
                 if(error.code === IntlErrorCode.MISSING_TRANSLATION) return;
                 (logger ?? console).error(error);
             },
         }, cache);
-        shapes.set(locale, shape);
-        return shape;
+    }
+
+    function shapeFor(locale: Locale): IntlShape {
+        const key = localeKey(locale);
+        const cached = shapes.get(key);
+        if(cached != null) return cached;
+        const catalog = catalogs.get(key);
+        if(catalog != null) {
+            const shape = createShape(catalog.locale, catalog.messages);
+            shapes.set(key, shape);
+            return shape;
+        }
+
+        if(!fallback_tags.has(key)) {
+            if(fallback_tags.size >= MAX_FALLBACK_TAGS) fallback_tags.clear();
+            fallback_tags.add(key);
+            if(!isWellFormedLocale(locale)) {
+                (logger ?? console).error(
+                    `Malformed locale "${locale}"; using source text formatted in "${options.default_locale}".`,
+                );
+            }
+        }
+        // FormatJS formats a missing translation's source in the default locale, so one shape
+        // without messages serves every tag without a catalog.
+        return source_shape ??= createShape(options.default_locale, {});
     }
 
     function translate(locale: Locale, message: MessageDescriptor, values?: Record<string, PrimitiveValue>): string {
@@ -235,11 +278,12 @@ export function createI18n(options: I18nOptions): I18n {
             const next = new Map(seed);
             for(const locale of options.locales ?? [options.default_locale]) {
                 const catalog = await read(`${catalog_dir}/${locale}.json`) as Catalog | null | undefined;
-                if(catalog != null) next.set(locale, {...seed.get(locale), ...catalog});
+                if(catalog != null) addCatalog(next, locale, catalog);
             }
-            messages_by_locale = next;
+            catalogs = next;
             logger = log ?? null;
             shapes.clear();
+            fallback_tags.clear();
         },
         t(locale, message, ...[values]) {
             return translate(locale, message, values as Record<string, PrimitiveValue> | undefined);
