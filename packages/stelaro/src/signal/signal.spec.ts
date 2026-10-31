@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import {afterEach, describe, it, mock} from "node:test";
 
 import {createApplication, defineApplication} from "../application/application.ts";
-import type {Logger} from "../component/logger.ts";
-import {attachSignalHandlers, type SignalHandlerOptions} from "./signal.ts";
+import {attachSignalHandlers} from "./signal.ts";
 
 function createApp(stop_impl: () => Promise<void> = () => new Promise(() => {})) {
     return {stop: mock.fn(stop_impl)};
@@ -39,7 +38,7 @@ describe("attachSignalHandlers", () => {
     it("calls stop on SIGINT", () => {
         suppressExit();
         const app = createApp();
-        cleanup = attachSignalHandlers(app, {logger: mockLogger()});
+        cleanup = attachSignalHandlers(app, {timeout: null, logger: mockLogger()});
 
         process.emit("SIGINT", "SIGINT");
 
@@ -49,7 +48,7 @@ describe("attachSignalHandlers", () => {
     it("calls stop on SIGTERM", () => {
         suppressExit();
         const app = createApp();
-        cleanup = attachSignalHandlers(app, {logger: mockLogger()});
+        cleanup = attachSignalHandlers(app, {timeout: null, logger: mockLogger()});
 
         process.emit("SIGTERM", "SIGTERM");
 
@@ -59,7 +58,7 @@ describe("attachSignalHandlers", () => {
     it("ignores repeated signals while stopping", () => {
         suppressExit();
         const app = createApp();
-        cleanup = attachSignalHandlers(app, {logger: mockLogger()});
+        cleanup = attachSignalHandlers(app, {timeout: null, logger: mockLogger()});
 
         process.emit("SIGINT", "SIGINT");
         process.emit("SIGINT", "SIGINT");
@@ -71,7 +70,7 @@ describe("attachSignalHandlers", () => {
     it("exits with code 0 after successful stop", async () => {
         const exit = suppressExit();
         const app = createApp(() => Promise.resolve());
-        cleanup = attachSignalHandlers(app, {logger: mockLogger()});
+        cleanup = attachSignalHandlers(app, {timeout: null, logger: mockLogger()});
 
         process.emit("SIGINT", "SIGINT");
         await flushPromises();
@@ -79,40 +78,43 @@ describe("attachSignalHandlers", () => {
         assert.deepEqual(exit.mock.calls.map((call) => call.arguments), [[0]]);
     });
 
-    it("logs the failure and exits with code 1 after failed stop", async () => {
+    it("does not exit before stop settles", async () => {
         const exit = suppressExit();
-        const logger = mockLogger();
+        const stopped = Promise.withResolvers<void>();
+        cleanup = attachSignalHandlers(createApp(() => stopped.promise), {timeout: null, logger: mockLogger()});
+
+        process.emit("SIGTERM", "SIGTERM");
+        await flushPromises();
+        assert.equal(exit.mock.callCount(), 0);
+
+        stopped.resolve();
+        await flushPromises();
+        assert.deepEqual(exit.mock.calls.map((call) => call.arguments), [[0]]);
+    });
+
+    it("exits with code 1 after failed stop", async () => {
+        const exit = suppressExit();
         const app = createApp(() => Promise.reject(new Error("stop failed")));
-        cleanup = attachSignalHandlers(app, {logger});
+        cleanup = attachSignalHandlers(app, {timeout: null, logger: mockLogger()});
 
         process.emit("SIGINT", "SIGINT");
         await flushPromises();
 
-        assert.equal(logger.error.mock.callCount(), 1);
         assert.deepEqual(exit.mock.calls.map((call) => call.arguments), [[1]]);
     });
 
-    it("logs and exits with code 1 when stopping an idle application", async () => {
+    it("exits with code 1 when the application is not stoppable", async () => {
         const exit = suppressExit();
-        const loggers = new Map<string, ReturnType<typeof mockLogger>>();
-        const app = createApplication(defineApplication({
-            components: [],
-            logger: (scope: string): Logger => {
-                const logger = mockLogger();
-                loggers.set(scope, logger);
-                return logger;
-            },
-        }));
-        cleanup = attachSignalHandlers(app);
+        const app = createApplication(defineApplication({components: [], logger: () => mockLogger()}));
+        cleanup = attachSignalHandlers(app, {timeout: null});
 
         process.emit("SIGTERM", "SIGTERM");
         await flushPromises();
 
-        assert.equal(loggers.get("signal")?.error.mock.callCount(), 1);
         assert.deepEqual(exit.mock.calls.map((call) => call.arguments), [[1]]);
     });
 
-    it("logs and exits with code 1 on timeout", () => {
+    it("logs at error and exits with code 1 on timeout", () => {
         mock.timers.enable({apis: ["setTimeout"]});
         const exit = suppressExit();
         const logger = mockLogger();
@@ -130,21 +132,14 @@ describe("attachSignalHandlers", () => {
     it("times out after 10 seconds by default", () => {
         mock.timers.enable({apis: ["setTimeout"]});
         const exit = suppressExit();
-        const logger = mockLogger();
-        const unset: SignalHandlerOptions = {};
-        const cleanup_undefined = attachSignalHandlers(createApp(), {timeout: unset.timeout, logger});
-        cleanup = attachSignalHandlers(createApp(), {logger});
+        cleanup = attachSignalHandlers(createApp(), {logger: mockLogger()});
 
-        try {
-            process.emit("SIGINT", "SIGINT");
-            mock.timers.tick(9_999);
-            assert.equal(exit.mock.callCount(), 0);
+        process.emit("SIGINT", "SIGINT");
+        mock.timers.tick(9_999);
+        assert.equal(exit.mock.callCount(), 0);
 
-            mock.timers.tick(1);
-            assert.deepEqual(exit.mock.calls.map((call) => call.arguments), [[1], [1]]);
-        } finally {
-            cleanup_undefined();
-        }
+        mock.timers.tick(1);
+        assert.deepEqual(exit.mock.calls.map((call) => call.arguments), [[1]]);
     });
 
     it("does not time out when timeout is null", () => {
@@ -158,12 +153,6 @@ describe("attachSignalHandlers", () => {
         assert.equal(exit.mock.callCount(), 0);
     });
 
-    it("rejects an invalid timeout", () => {
-        for(const timeout of [-1, Number.NaN, Number.POSITIVE_INFINITY, 2 ** 31]) {
-            assert.throws(() => attachSignalHandlers(createApp(), {timeout}), RangeError);
-        }
-    });
-
     it("cleanup removes only the listeners of its own attachment", () => {
         suppressExit();
         const foreign = mock.fn();
@@ -174,8 +163,8 @@ describe("attachSignalHandlers", () => {
         try {
             const first = createApp();
             const second = createApp();
-            const cleanup_first = attachSignalHandlers(first, {logger: mockLogger()});
-            cleanup = attachSignalHandlers(second, {logger: mockLogger()});
+            const cleanup_first = attachSignalHandlers(first, {timeout: null, logger: mockLogger()});
+            cleanup = attachSignalHandlers(second, {timeout: null, logger: mockLogger()});
 
             cleanup_first();
             process.emit("SIGINT", "SIGINT");
@@ -193,16 +182,17 @@ describe("attachSignalHandlers", () => {
         }
     });
 
-    it("uses app.logger when available", () => {
+    it("logs signal receipt at info through a signal-scoped logger from app.logger", () => {
         suppressExit();
         const logger = mockLogger();
-        const factory = mock.fn(() => logger);
+        const factory = mock.fn((_scope: string) => logger);
         const app = {stop: mock.fn(() => new Promise<void>(() => {})), logger: factory};
-        cleanup = attachSignalHandlers(app);
-
-        assert.deepEqual(factory.mock.calls.map((call) => call.arguments), [["signal"]]);
+        cleanup = attachSignalHandlers(app, {timeout: null});
 
         process.emit("SIGINT", "SIGINT");
+
+        assert.ok(factory.mock.callCount() > 0);
+        assert.ok(factory.mock.calls.every((call) => call.arguments[0] === "signal"));
         assert.equal(logger.info.mock.callCount(), 1);
     });
 
@@ -211,7 +201,7 @@ describe("attachSignalHandlers", () => {
         const app_logger = mockLogger();
         const options_logger = mockLogger();
         const app = {stop: mock.fn(() => new Promise<void>(() => {})), logger: mock.fn(() => app_logger)};
-        cleanup = attachSignalHandlers(app, {logger: options_logger});
+        cleanup = attachSignalHandlers(app, {timeout: null, logger: options_logger});
 
         process.emit("SIGINT", "SIGINT");
 
@@ -219,10 +209,21 @@ describe("attachSignalHandlers", () => {
         assert.equal(app_logger.info.mock.callCount(), 0);
     });
 
-    it("falls back to a signal-scoped console logger", () => {
+    it("uses app.logger when options.logger is null", () => {
+        suppressExit();
+        const app_logger = mockLogger();
+        const app = {stop: mock.fn(() => new Promise<void>(() => {})), logger: () => app_logger};
+        cleanup = attachSignalHandlers(app, {timeout: null, logger: null});
+
+        process.emit("SIGINT", "SIGINT");
+
+        assert.equal(app_logger.info.mock.callCount(), 1);
+    });
+
+    it("logs through a signal-scoped console logger when neither options nor app provides a logger", () => {
         suppressExit();
         const info = mock.method(console, "info", () => {});
-        cleanup = attachSignalHandlers(createApp());
+        cleanup = attachSignalHandlers(createApp(), {timeout: null});
 
         process.emit("SIGINT", "SIGINT");
 

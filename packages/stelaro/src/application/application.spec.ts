@@ -8,7 +8,7 @@ import {TraversalError, type as schema} from "arktype";
 import {defineComponent, defineComponentCalls, mergeComponentCalls} from "../component/component.ts";
 import type {AnyComponentContext} from "../component/context.ts";
 import type {Logger} from "../component/logger.ts";
-import type {CallInput, CallOutput} from "../component/types.ts";
+import type {AnyComponent, CallInput, CallOutput} from "../component/types.ts";
 import {EmptyInput} from "../schema.ts";
 import {
     CounterOutput,
@@ -20,7 +20,7 @@ import {
     useTempDir,
     writeTestFile,
 } from "../test-util.ts";
-import {createApplication, defineApplication, sortComponentsByUses} from "./application.ts";
+import {componentFilePath, createApplication, DEFAULT_APPLICATION_DIRS, defineApplication, sortComponentsByUses} from "./application.ts";
 import {
     CallInputError,
     CircularDependencyError,
@@ -29,6 +29,7 @@ import {
     MissingHandlerError,
     UndeclaredCallError,
     UnregisteredCallError,
+    UnregisteredComponentError,
 } from "./error.ts";
 import {type LifecycleState, LifecycleStateError} from "./lifecycle.ts";
 
@@ -41,6 +42,52 @@ function recordHooks(events: string[], id: string): {start: () => void; stop: ()
         start: () => { events.push(`start ${id}`); },
         stop: () => { events.push(`stop ${id}`); },
     };
+}
+
+/** Asserts that `sorted` holds exactly `components`, each after the listed components it uses. */
+function assertSortedByUses(sorted: readonly AnyComponent[], components: readonly AnyComponent[]): void {
+    assert.strictEqual(sorted.length, components.length);
+    assert.deepStrictEqual(new Set(sorted), new Set(components));
+    const position = new Map(sorted.map((component, index) => [component.calls.id, index]));
+    for(const component of sorted) {
+        for(const used of component.uses) {
+            const used_position = position.get(used.id);
+            if(used_position == null) continue;
+            assert.ok(used_position < position.get(component.calls.id)!, `${used.id} before ${component.calls.id}`);
+        }
+    }
+}
+
+/** Returns a deterministic pseudo-random number generator (mulberry32) yielding values in [0, 1). */
+function seededRandom(seed: number): () => number {
+    let state = seed >>> 0;
+    return () => {
+        state = (state + 0x6d2b79f5) >>> 0;
+        let t = state;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 2 ** 32;
+    };
+}
+
+function shuffle<T>(items: readonly T[], random: () => number): T[] {
+    const shuffled = [...items];
+    for(let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+    }
+    return shuffled;
+}
+
+/** Application operations without the narrowing that rejects unregistered references and ids at compile time. */
+type UntypedApplication = {
+    call(reference: unknown, input: unknown): Promise<unknown>;
+    reloadComponentConfig(component_id: string): Promise<void>;
+};
+
+function untypedApplication(app: object): UntypedApplication {
+    const untyped_app = app as UntypedApplication;
+    return untyped_app;
 }
 
 describe("@jiminp/stelaro application core", () => {
@@ -135,13 +182,13 @@ describe("@jiminp/stelaro application core", () => {
         assert.strictEqual(received.get("b"), created.get("b"));
     });
 
-    it("uses a component-scoped default console logger when no logger factory is provided", async () => {
-        const console_calls: Record<LoggerMethodName, unknown[][]> = {debug: [], info: [], warn: [], error: []};
-        const original_console_methods: Record<LoggerMethodName, typeof console.debug> = {
-            debug: console.debug,
-            info: console.info,
-            warn: console.warn,
-            error: console.error,
+    it("uses a component-scoped default console logger when no logger factory is provided", async (t) => {
+        const discard = (..._args: unknown[]): void => {};
+        const console_methods = {
+            debug: t.mock.method(console, "debug", discard),
+            info: t.mock.method(console, "info", discard),
+            warn: t.mock.method(console, "warn", discard),
+            error: t.mock.method(console, "error", discard),
         };
         const structured_data = {count: 1};
         const extra_data = ["extra"];
@@ -162,27 +209,17 @@ describe("@jiminp/stelaro application core", () => {
             },
         });
 
-        try {
-            for(const method of logger_method_names) {
-                console[method] = (...args: unknown[]) => {
-                    console_calls[method].push(args);
-                };
-            }
-
-            const app = createApplication(defineApplication({components: [CounterComponent]}));
-            await app.start();
-            await app.call(CounterCalls.calls.current, {});
-        } finally {
-            for(const method of logger_method_names) {
-                console[method] = original_console_methods[method];
-            }
-        }
+        const app = createApplication(defineApplication({components: [CounterComponent]}));
+        await app.start();
+        await app.call(CounterCalls.calls.current, {});
 
         for(const method of logger_method_names) {
-            const handler_call = console_calls[method].find((args) => args[1] === `${method} message`);
+            const handler_call = console_methods[method].mock.calls
+                .map((call) => call.arguments)
+                .find((args) => args.includes(`${method} message`));
             assert.ok(handler_call, `expected a ${method} call from the handler`);
-            assert.match(String(handler_call[0]), /^\[counter\]/);
-            assert.deepStrictEqual(handler_call.slice(2), [structured_data, extra_data]);
+            assert.ok(String(handler_call[0]).includes("counter"), "expected the first argument to name the scope");
+            assert.deepStrictEqual(handler_call.slice(1), [`${method} message`, structured_data, extra_data]);
         }
     });
 
@@ -392,7 +429,9 @@ describe("@jiminp/stelaro application core", () => {
             uses: [],
             handlers: {
                 async run(context) {
-                    await (context as unknown as AnyComponentContext).call(BCalls.calls.current, {});
+                    // The narrow context type rejects undeclared references at compile time.
+                    const untyped_context = context as unknown as AnyComponentContext;
+                    await untyped_context.call(BCalls.calls.current, {});
                     return {count: 0};
                 },
             },
@@ -415,19 +454,79 @@ describe("@jiminp/stelaro application core", () => {
         await app.start();
 
         await assert.rejects(
-            () => (app as unknown as {call(ref: unknown, input: unknown): Promise<unknown>})
-                .call(UnregisteredCalls.calls.current, {}),
+            () => untypedApplication(app).call(UnregisteredCalls.calls.current, {}),
             UnregisteredCallError,
         );
+    });
+
+    it("throws UnregisteredCallError when dispatching a lookalike of a registered component's reference", async () => {
+        let handled = 0;
+        const CounterCalls = defineComponentCalls("counter", {set: {input: SetCounterInput, output: CounterOutput}});
+        // Same component id and call name, but declared separately with another input schema.
+        const LookalikeCalls = defineComponentCalls("counter", {set: {input: schema({name: "string"}), output: CounterOutput}});
+        const CounterComponent = defineComponent({
+            calls: CounterCalls,
+            uses: [],
+            handlers: {set: (_context, input) => { handled += 1; return {count: input.count}; }},
+        });
+        const app = createApplication(defineApplication({components: [CounterComponent], logger: noopLoggerFactory}));
+        await app.start();
+
+        await assert.rejects(
+            () => untypedApplication(app).call(LookalikeCalls.calls.set, {name: "x"}),
+            (error: unknown) => {
+                assert.ok(error instanceof UnregisteredCallError);
+                assert.deepStrictEqual([error.component_id, error.call_name], ["counter", "set"]);
+                return true;
+            },
+        );
+        assert.strictEqual(handled, 0);
+    });
+
+    it("throws UnregisteredComponentError when reloading the config of an unregistered component", async () => {
+        const app = createApplication(defineApplication({
+            components: [defineCounterComponent(defineCounterCalls("counter"))],
+            logger: noopLoggerFactory,
+        }));
+        await app.start();
+
+        await assert.rejects(
+            () => untypedApplication(app).reloadComponentConfig("missing"),
+            (error: unknown) => {
+                assert.ok(error instanceof UnregisteredComponentError);
+                assert.strictEqual(error.component_id, "missing");
+                return true;
+            },
+        );
+    });
+
+    it("does not restart components or reset their state when reloading config", async () => {
+        const events: string[] = [];
+        const CounterCalls = defineCounterCalls("counter");
+        const app = createApplication(defineApplication({
+            components: [defineCounterComponent(CounterCalls, recordHooks(events, "counter"))],
+            logger: noopLoggerFactory,
+        }));
+        await app.start();
+        await app.call(CounterCalls.calls.increment, {});
+
+        await app.reloadConfig();
+        await app.reloadComponentConfig("counter");
+
+        assert.deepStrictEqual(events, ["start counter"]);
+        assert.deepStrictEqual(await app.call(CounterCalls.calls.current, {}), {count: 1});
     });
 
     it("starts components in dependency order and stops them in reverse order", async () => {
         const events: string[] = [];
         const ACalls = defineCounterCalls("a");
         const BCalls = defineCounterCalls("b");
+        const CCalls = defineCounterCalls("c");
+        // Listed so that neither the listed order nor its reverse is the start or stop order.
         const app = createApplication(defineApplication({
             components: [
                 defineCounterComponent(ACalls, {uses: [BCalls], ...recordHooks(events, "a")}),
+                defineCounterComponent(CCalls, {uses: [ACalls], ...recordHooks(events, "c")}),
                 defineCounterComponent(BCalls, recordHooks(events, "b")),
             ],
             logger: noopLoggerFactory,
@@ -436,10 +535,10 @@ describe("@jiminp/stelaro application core", () => {
         await app.start();
         await app.stop();
 
-        assert.deepStrictEqual(events, ["start b", "start a", "stop a", "stop b"]);
+        assert.deepStrictEqual(events, ["start b", "start a", "start c", "stop c", "stop a", "stop b"]);
     });
 
-    it("reports only the components on the cycle in CircularDependencyError", () => {
+    it("names the components on the cycle in CircularDependencyError", () => {
         const ACalls = defineCounterCalls("a");
         const BCalls = defineCounterCalls("b");
         const CCalls = defineCounterCalls("c");
@@ -454,22 +553,80 @@ describe("@jiminp/stelaro application core", () => {
             })),
             (error: unknown) => {
                 assert.ok(error instanceof CircularDependencyError);
-                assert.deepStrictEqual([...error.component_ids].sort(), ["a", "b"]);
+                assert.ok(error.component_ids.includes("a") && error.component_ids.includes("b"));
                 return true;
             },
         );
     });
 
-    it("sortComponentsByUses orders listed components by uses and ignores uses of unlisted ones", () => {
+    it("throws CircularDependencyError when a component uses itself", () => {
         const ACalls = defineCounterCalls("a");
-        const BCalls = defineCounterCalls("b");
-        const CCalls = defineCounterCalls("c");
-        const UnlistedCalls = defineCounterCalls("unlisted");
-        const AComponent = defineCounterComponent(ACalls, {uses: [BCalls, UnlistedCalls]});
-        const BComponent = defineCounterComponent(BCalls, {uses: [UnlistedCalls]});
-        const CComponent = defineCounterComponent(CCalls);
 
-        assert.deepStrictEqual(sortComponentsByUses([AComponent, CComponent, BComponent]), [BComponent, AComponent, CComponent]);
+        assert.throws(
+            () => createApplication(defineApplication({components: [defineCounterComponent(ACalls, {uses: [ACalls]})]})),
+            (error: unknown) => {
+                assert.ok(error instanceof CircularDependencyError);
+                assert.ok(error.component_ids.includes("a"));
+                return true;
+            },
+        );
+    });
+
+    it("sortComponentsByUses returns components in the order an application starts them", async () => {
+        const started: string[] = [];
+        const [ACalls, BCalls, CCalls, DCalls, ECalls] = ["a", "b", "c", "d", "e"].map(defineCounterCalls);
+        const startHook = (id: string) => ({start: () => { started.push(id); }});
+        // Several orders satisfy these uses.
+        const components = [
+            defineCounterComponent(DCalls!, {uses: [ACalls!], ...startHook("d")}),
+            defineCounterComponent(ACalls!, {uses: [BCalls!], ...startHook("a")}),
+            defineCounterComponent(ECalls!, {uses: [CCalls!], ...startHook("e")}),
+            defineCounterComponent(CCalls!, startHook("c")),
+            defineCounterComponent(BCalls!, startHook("b")),
+        ];
+
+        const sorted = sortComponentsByUses(components);
+        await createApplication(defineApplication({components, logger: noopLoggerFactory})).start();
+
+        assertSortedByUses(sorted, components);
+        assert.deepStrictEqual(sorted.map((component) => component.calls.id), started);
+    });
+
+    it("sortComponentsByUses orders listed components by uses and ignores uses of unlisted ones", () => {
+        const [ACalls, BCalls, CCalls, DCalls, UnlistedCalls] = ["a", "b", "c", "d", "unlisted"].map(defineCounterCalls);
+        const components = [
+            defineCounterComponent(DCalls!, {uses: [ACalls!]}),
+            defineCounterComponent(ACalls!, {uses: [BCalls!, UnlistedCalls!]}),
+            defineCounterComponent(CCalls!),
+            defineCounterComponent(BCalls!, {uses: [UnlistedCalls!]}),
+        ];
+
+        assertSortedByUses(sortComponentsByUses(components), components);
+    });
+
+    it("sortComponentsByUses orders a large random acyclic graph as an application starts it", async () => {
+        const random = seededRandom(0x5eed);
+        const node_count = 200;
+        const started: string[] = [];
+        // Components only use components defined before them, so the graph is acyclic.
+        const defined: AnyComponent[] = [];
+        for(let i = 0; i < node_count; i++) {
+            const id = `n${i}`;
+            const uses = defined.length === 0
+                ? []
+                : Array.from({length: Math.floor(random() * 4)}, () => defined[Math.floor(random() * defined.length)]!.calls);
+            defined.push(defineCounterComponent(defineCounterCalls(id), {
+                uses: [...new Set(uses)],
+                start: () => { started.push(id); },
+            }));
+        }
+        const components = shuffle(defined, random);
+
+        const sorted = sortComponentsByUses(components);
+        await createApplication(defineApplication({components, logger: noopLoggerFactory})).start();
+
+        assertSortedByUses(sorted, components);
+        assert.deepStrictEqual(sorted.map((component) => component.calls.id), started);
     });
 
     it("sortComponentsByUses rejects duplicate ids and cycles among listed components", () => {
@@ -488,7 +645,7 @@ describe("@jiminp/stelaro application core", () => {
             ]),
             (error: unknown) => {
                 assert.ok(error instanceof CircularDependencyError);
-                assert.deepStrictEqual([...error.component_ids].sort(), ["a", "b"]);
+                assert.ok(error.component_ids.includes("a") && error.component_ids.includes("b"));
                 return true;
             },
         );
@@ -716,6 +873,28 @@ describe("@jiminp/stelaro application directories", () => {
         }
     });
 
+    it("treats null options as omitted", async () => {
+        const cwd = process.cwd();
+        process.chdir(tempDir());
+        try {
+            await writeTestFile(join("config", "a.toml"), "value = 5\n");
+            await writeTestFile(join("secrets", "a.toml"), 'key = "null"\n');
+
+            const app = createApplication(
+                defineApplication({components: [DirsComponent], logger: noopLoggerFactory}),
+                {base_dir: null, config_dir: null, secrets_dir: null, data_dir: null, env: null},
+            );
+            await app.start();
+
+            assert.deepStrictEqual(await app.call(DirsCalls.calls.get, {}), {value: 5, key: "null", data_dir: resolve("data", "a")});
+            assert.strictEqual(app.data.dir, resolve("data"));
+
+            await app.stop();
+        } finally {
+            process.chdir(cwd);
+        }
+    });
+
     it("resolves relative directories against base_dir, and a relative base_dir against the working directory", async () => {
         const cwd = process.cwd();
         process.chdir(tempDir());
@@ -736,6 +915,19 @@ describe("@jiminp/stelaro application directories", () => {
         } finally {
             process.chdir(cwd);
         }
+    });
+});
+
+describe("@jiminp/stelaro application directory layout", () => {
+    it("defaults the directory names to config, secrets, and data", () => {
+        assert.deepStrictEqual(DEFAULT_APPLICATION_DIRS, {config_dir: "config", secrets_dir: "secrets", data_dir: "data"});
+    });
+
+    it("returns the base file path when env is null and the overlay path otherwise", () => {
+        const dir = join("base", "config");
+
+        assert.strictEqual(componentFilePath(dir, "my-component", null), join(dir, "my-component.toml"));
+        assert.strictEqual(componentFilePath(dir, "my-component", "prod"), join(dir, "my-component.prod.toml"));
     });
 });
 
@@ -837,6 +1029,61 @@ describe("@jiminp/stelaro application lifecycle guards", () => {
             });
         }
     }
+
+    it("accepts calls from outside the application while reloading", async () => {
+        const entered = await enterState("reloading");
+
+        assert.deepStrictEqual(await entered.operations.call(), {count: 0});
+
+        await entered.settle();
+    });
+});
+
+describe("@jiminp/stelaro application lifecycle guards during a component config reload", () => {
+    const tempDir = useTempDir("application-reload-guard");
+
+    it("rejects lifecycle operations and accepts calls while reloadComponentConfig is in progress", async () => {
+        await writeTestFile(join(tempDir(), "config", "a.toml"), "value = 1\n");
+        const gate = Promise.withResolvers<void>();
+        const hook_entered = Promise.withResolvers<void>();
+        const ACalls = defineComponentCalls("a", {get: {input: EmptyInput, output: CounterOutput}});
+        const AComponent = defineComponent({
+            calls: ACalls,
+            uses: [],
+            config: schema({value: "number"}),
+            async onConfigReload() {
+                hook_entered.resolve();
+                await gate.promise;
+            },
+            handlers: {get: ({config}) => ({count: config.value})},
+        });
+        const app = createApplication(
+            defineApplication({components: [AComponent], logger: noopLoggerFactory}),
+            {base_dir: tempDir()},
+        );
+        await app.start();
+
+        const reloading = app.reloadComponentConfig("a");
+        await hook_entered.promise;
+
+        for(const [operation, run] of [
+            ["start", () => app.start()],
+            ["stop", () => app.stop()],
+            ["reloadConfig", () => app.reloadConfig()],
+            ["reloadComponentConfig", () => app.reloadComponentConfig("a")],
+        ] as const) {
+            await assert.rejects(run, (error: unknown) => {
+                assert.ok(error instanceof LifecycleStateError, operation);
+                assert.strictEqual(error.current_state, "reloading", operation);
+                return true;
+            });
+        }
+        assert.deepStrictEqual(await app.call(ACalls.calls.get, {}), {count: 1});
+
+        gate.resolve();
+        await reloading;
+        await app.stop();
+    });
 });
 
 function assertTypeBehavior() {

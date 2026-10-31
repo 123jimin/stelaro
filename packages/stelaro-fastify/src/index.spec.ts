@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {describe, it, type TestContext} from "node:test";
 
 import {CallInputError, createApplication, defineComponent, defineComponentCalls, defineLocalInput, defineLocalOutput, type Logger} from "@jiminp/stelaro";
-import {type as schema} from "arktype";
+import {TraversalError, type as schema} from "arktype";
 import Fastify, {type FastifyInstance, type FastifyListenOptions, type InjectOptions} from "fastify";
 
 import {type CallEndpointReference, CallFailedError, createComponentClientFactory, type ErrorBody, type OutputBody} from "./client.ts";
@@ -17,12 +17,13 @@ import {
     mountFastifyRoutes,
     NotFoundError,
     RouteValidationError,
+    sendHtml,
     UnboundCallError,
     UnboundConfigError,
 } from "./index.ts";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
-type CapturedRecord = {readonly level: LogLevel; readonly fields: Record<string, unknown>};
+type CapturedRecord = {readonly level: LogLevel; readonly args: readonly unknown[]};
 type RecordedCall = readonly [reference: unknown, input: unknown];
 
 const CounterCalls = defineComponentCalls("counter", {
@@ -55,11 +56,7 @@ function recordingContext(config: {port: number; host?: string; [key: string]: u
     const captured: CapturedRecord[] = [];
     const calls: RecordedCall[] = [];
     const make = (level: LogLevel) => (...args: unknown[]): void => {
-        const first = args[0];
-        const fields = first !== null && typeof first === "object" && !Array.isArray(first)
-            ? first as Record<string, unknown>
-            : {};
-        captured.push({level, fields});
+        captured.push({level, args});
     };
     const context = {
         log: {debug: make("debug"), info: make("info"), warn: make("warn"), error: make("error")},
@@ -87,8 +84,7 @@ describe("defineFastifyGateway", () => {
         await gateway.start(lifecycleContext(context));
 
         assert.deepStrictEqual(recorded.listen_options, [{port: 8080, host: "127.0.0.1"}]);
-        assert.ok(captured.some((record) =>
-            record.level === "info" && Object.values(record.fields).includes(listen_address)));
+        assert.ok(captured.some((record) => record.level === "info" && JSON.stringify(record.args).includes(listen_address)));
     });
 
     it("omits host from the listen options when config has none", async () => {
@@ -113,7 +109,7 @@ describe("defineFastifyGateway", () => {
         assert.ok(captured.some((record) => record.level === "info"));
     });
 
-    it("mounts its routes and every mount with the component's call, over deduplicated uses", async (t) => {
+    it("mounts its own and every mount's routes before listening, and deduplicates their uses", async (t) => {
         const counter_routes = defineFastifyRoutes({
             uses: [CounterCalls],
             routes: [{method: "GET", path: "/count", handle: ({call}) => call(CounterCalls.calls.current, {})}],
@@ -130,6 +126,15 @@ describe("defineFastifyGateway", () => {
         // eslint-disable-next-line new-cap -- Fastify's public API
         const server = Fastify();
         t.after(() => server.close());
+        const routes_at_listen: boolean[] = [];
+        t.mock.method(server, "listen", () => {
+            routes_at_listen.push(
+                server.hasRoute({method: "GET", url: "/"}),
+                server.hasRoute({method: "GET", url: "/count"}),
+                server.hasRoute({method: "POST", url: "/greet"}),
+            );
+            return Promise.resolve(listen_address);
+        });
         const gateway = defineFastifyGateway({
             id: "web",
             server,
@@ -146,6 +151,7 @@ describe("defineFastifyGateway", () => {
         );
         assert.ok(gateway.start);
         await gateway.start(lifecycleContext(context));
+        assert.deepStrictEqual(routes_at_listen, [true, true, true]);
 
         assert.deepStrictEqual((await server.inject({method: "GET", url: "/"})).json(), {count: 3});
         assert.deepStrictEqual((await server.inject({method: "GET", url: "/count"})).json(), {count: 3});
@@ -170,6 +176,8 @@ describe("defineFastifyGateway", () => {
         assert.ok(BareConfig);
         assert.deepStrictEqual(BareConfig.assert({port: 8080, host: "127.0.0.1"}), {port: 8080, host: "127.0.0.1"});
         assert.throws(() => BareConfig.assert({host: "127.0.0.1"}));
+        assert.throws(() => BareConfig.assert({port: "8080"}));
+        assert.throws(() => BareConfig.assert({port: 8080, host: 1}));
         const CountingConfig = defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: CountConfig}).config;
         assert.ok(CountingConfig);
         assert.deepStrictEqual(CountingConfig.assert({port: 8080, count: "3"}), {port: 8080, count: 3});
@@ -181,23 +189,29 @@ describe("defineFastifyGateway", () => {
         assert.throws(() => StrictConfig.assert({port: 8080, count: 3, other: ""}));
     });
 
-    it("serves handlers getConfig with the configuration as of the last reload, without listening again", async (t) => {
+    it("serves handlers' getConfig the configuration from the last reload without listening again", async (t) => {
         // eslint-disable-next-line new-cap -- Fastify's public API
         const server = Fastify();
         t.after(() => server.close());
-        const listen = t.mock.method(server, "listen", () => Promise.resolve(listen_address));
-        const gateway = defineFastifyGateway({id: "web", server, uses: [], config: CountConfig, mounts: [count_routes]});
-        assert.ok(gateway.start && gateway.onConfigReload);
+        const listen = t.mock.method(server, "listen", (_options: FastifyListenOptions) => Promise.resolve(listen_address));
+        const config_routes = defineFastifyRoutes({
+            uses: [],
+            routes: [{method: "GET", path: "/config", handle: (context: CountContext) => context.getConfig()}],
+        });
+        const gateway = defineFastifyGateway({id: "web", server, uses: [], config: CountConfig, mounts: [count_routes, config_routes]});
+        assert.ok(gateway.start && gateway.onConfigReload && gateway.config);
+        const GatewayConfig = gateway.config;
 
-        await gateway.start(lifecycleContext(recordingContext({port: 0, count: 3}).context));
+        await gateway.start(lifecycleContext(recordingContext(GatewayConfig.assert({port: 1, count: "3"})).context));
         assert.deepStrictEqual((await server.inject({method: "GET", url: "/count"})).json(), {count: 3});
+        assert.deepStrictEqual((await server.inject({method: "GET", url: "/config"})).json(), {port: 1, count: 3});
 
-        await gateway.onConfigReload(lifecycleContext(recordingContext({port: 0, count: 4}).context));
+        await gateway.onConfigReload(lifecycleContext(recordingContext(GatewayConfig.assert({port: 2, host: "::1", count: "4"})).context));
         assert.deepStrictEqual((await server.inject({method: "GET", url: "/count"})).json(), {count: 4});
-        assert.strictEqual(listen.mock.callCount(), 1);
+        assert.deepStrictEqual(listen.mock.calls.map((call) => call.arguments[0]), [{port: 1}]);
     });
 
-    it("accepts a mount reading part of its `config` and rejects one reading configuration it lacks at the type level", () => {
+    it("type-checks that the gateway's `config` covers the configuration each mount and route reads", () => {
         // @ts-expect-error -- the gateway declares no `config`
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], mounts: [count_routes]});
         const OtherConfig = schema({other: "string"});
@@ -210,9 +224,9 @@ describe("defineFastifyGateway", () => {
         });
         // @ts-expect-error -- the gateway's `config` has no `other`
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: CountConfig, mounts: [both_routes]});
-        // @ts-expect-error -- same, for the gateway's own route
+        // @ts-expect-error -- the gateway's `config` has no `other`, which its own route reads
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: CountConfig, routes: both_routes.routes});
-        // @ts-expect-error -- the gateway declares no `config`, for its own route
+        // @ts-expect-error -- the gateway declares no `config`, which its own route reads
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], routes: count_routes.routes});
         defineFastifyGateway({id: "web", server: fakeServer().server, uses: [], config: BothConfig, mounts: [count_routes, both_routes], routes: count_routes.routes});
         const mixed_routes = defineFastifyRoutes({uses: [], routes: [...count_routes.routes, ...both_routes.routes]});
@@ -255,11 +269,23 @@ describe("handler call typing", () => {
                     call(GreeterCalls.calls.greet, {name: "a"}),
             }],
         });
+        defineFastifyGateway({
+            id: "web",
+            server: fakeServer().server,
+            uses: [CounterCalls],
+            mounts: [defineFastifyRoutes({uses: [GreeterCalls], routes: []})],
+            routes: [{
+                method: "GET",
+                path: "/",
+                handle: ({call}) =>
+                    // @ts-expect-error -- GreeterCalls is in a mount's `uses`, not the gateway's
+                    call(GreeterCalls.calls.greet, {name: "a"}),
+            }],
+        });
     });
 });
 
-/** A ready server with `mount` applied, closed after the test; `errors` records thrown errors
- *  unless `default_errors` keeps Fastify's own error handler. */
+/** Returns a ready server with `mount` applied, closed after the test. Unless `default_errors` is set, `errors` records thrown errors. */
 async function serve(t: TestContext, mount: (server: FastifyInstance) => void, default_errors = false) {
     const errors: unknown[] = [];
     // eslint-disable-next-line new-cap -- Fastify's public API
@@ -277,9 +303,21 @@ async function serve(t: TestContext, mount: (server: FastifyInstance) => void, d
 }
 
 describe("mountFastifyRoutes", () => {
+    let checked_count = 0;
     const echo_routes = defineFastifyRoutes({
         uses: [],
         routes: [
+            defineFastifyRoute({
+                method: "POST",
+                path: "/checked/:id",
+                params: schema({id: "string.numeric.parse"}),
+                body: schema({name: "string"}),
+                querystring: schema({n: "string.numeric.parse"}),
+                handle: () => {
+                    checked_count++;
+                    return {};
+                },
+            }),
             defineFastifyRoute({
                 method: "POST",
                 path: "/echo/:id",
@@ -299,8 +337,9 @@ describe("mountFastifyRoutes", () => {
                 handle: ({params, body, querystring}) => ({params, body, querystring}),
             },
             {method: "GET", path: "/page", handle({html}) { html("<p>hi</p>"); }},
-            ...(["GET", "POST"] as const).flatMap((method) => [
+            ...(["GET", "POST", "DELETE"] as const).flatMap((method) => [
                 {method, path: "/go", handle({redirect}: GatewayHandlerContext) { redirect("/page"); }},
+                {method, path: "/temporary", handle({redirect}: GatewayHandlerContext) { redirect("/page", false); }},
                 {method, path: "/moved", handle({redirect}: GatewayHandlerContext) { redirect("/page", true); }},
                 {method, path: "/found", handle({redirect}: GatewayHandlerContext) { redirect("/page", 302); }},
             ]),
@@ -328,24 +367,47 @@ describe("mountFastifyRoutes", () => {
         assert.deepStrictEqual(raw.json(), {params: null, body: null, querystring: null});
     });
 
-    it("throws a 400 RouteValidationError naming the part that failed its schema", async (t) => {
+    it("infers the handler's request parts from the route's schemas", () => {
+        defineFastifyRoute({
+            method: "POST",
+            path: "/:id",
+            params: schema({id: "string.numeric.parse"}),
+            body: schema({name: "string"}),
+            handle: ({params, body, querystring}) => {
+                const id: number = params.id;
+                const name: string = body.name;
+                const no_querystring: null = querystring;
+                // @ts-expect-error -- the body schema has no `other`
+                return [id, name, no_querystring, body.other];
+            },
+        });
+    });
+
+    it("throws a 400 RouteValidationError naming the part that failed its schema, before the handler runs", async (t) => {
         const {server, errors} = await serve(t, (s) => mountFastifyRoutes(s, echo_routes));
         const cases: readonly (readonly [InjectOptions, string])[] = [
-            [{method: "POST", url: "/echo/x", payload: {name: "a"}}, "params"],
-            [{method: "POST", url: "/echo/7", payload: {name: 1}}, "body"],
-            [{method: "GET", url: "/search?n=x"}, "querystring"],
+            [{method: "POST", url: "/checked/x?n=1", payload: {name: "a"}}, "params"],
+            [{method: "POST", url: "/checked/7?n=1", payload: {name: 1}}, "body"],
+            [{method: "POST", url: "/checked/7?n=1"}, "body"],
+            [{method: "POST", url: "/checked/7?n=x", payload: {name: "a"}}, "querystring"],
+            [{method: "POST", url: "/checked/7", payload: {name: "a"}}, "querystring"],
         ];
+        checked_count = 0;
         for(const [request, part] of cases) {
-            const url = String(request.url);
+            const label = `${String(request.url)} ${JSON.stringify(request.payload)}`;
             const error_count = errors.length;
             const response = await server.inject(request);
-            assert.strictEqual(response.statusCode, 400, url);
-            assert.strictEqual(errors.length, error_count + 1, url);
+            assert.strictEqual(response.statusCode, 400, label);
+            assert.strictEqual(errors.length, error_count + 1, label);
             const error = errors.at(-1);
-            assert.ok(error instanceof RouteValidationError, url);
-            assert.strictEqual(error.validationContext, part, url);
-            assert.ok(error.cause instanceof Error, url);
+            assert.ok(error instanceof RouteValidationError, label);
+            assert.strictEqual(error.statusCode, 400, label);
+            assert.strictEqual(error.validationContext, part, label);
+            assert.ok(error.cause instanceof TraversalError, label);
         }
+        assert.strictEqual(checked_count, 0);
+        assert.strictEqual((await server.inject({method: "POST", url: "/checked/7?n=1", payload: {name: "a"}})).statusCode, 200);
+        assert.strictEqual(checked_count, 1);
     });
 
     it("answers a failed validation with Fastify's default 400 body without a custom error handler", async (t) => {
@@ -375,19 +437,52 @@ describe("mountFastifyRoutes", () => {
         assert.deepStrictEqual(response.json(), {kept: "yes"});
     });
 
-    it("sends html() as HTML_MEDIA_TYPE", async (t) => {
+    it("hands the handler the raw Fastify request and reply", async (t) => {
+        const hooked: unknown[] = [];
+        const handled: unknown[] = [];
+        const {server} = await serve(t, (s) => {
+            s.addHook("preHandler", async (request, reply) => { hooked.push(request, reply); });
+            mountFastifyRoutes(s, defineFastifyRoutes({
+                uses: [],
+                routes: [{method: "GET", path: "/objects", handle: ({request, reply}) => {
+                    handled.push(request, reply);
+                    return {};
+                }}],
+            }));
+        });
+        assert.strictEqual((await server.inject({method: "GET", url: "/objects"})).statusCode, 200);
+        assert.strictEqual(handled.length, 2);
+        assert.strictEqual(handled[0], hooked[0]);
+        assert.strictEqual(handled[1], hooked[1]);
+    });
+
+    it("sends html() content as HTML_MEDIA_TYPE", async (t) => {
         const {server} = await serve(t, (s) => mountFastifyRoutes(s, echo_routes));
         const page = await server.inject({method: "GET", url: "/page"});
         assert.strictEqual(page.headers["content-type"], HTML_MEDIA_TYPE);
         assert.strictEqual(page.body, "<p>hi</p>");
     });
 
+    it("sends sendHtml() content as HTML_MEDIA_TYPE and returns the reply", async (t) => {
+        const returned: boolean[] = [];
+        const {server} = await serve(t, (s) => s.get("/", async (_request, reply) => {
+            returned.push(sendHtml(reply, "<b>hi</b>") === reply);
+            return reply;
+        }));
+        const sent = await server.inject({method: "GET", url: "/"});
+        assert.strictEqual(sent.statusCode, 200);
+        assert.strictEqual(sent.headers["content-type"], HTML_MEDIA_TYPE);
+        assert.strictEqual(sent.body, "<b>hi</b>");
+        assert.deepStrictEqual(returned, [true]);
+    });
+
     it("sends redirect()'s status by method and permanence, or the explicit status", async (t) => {
         const {server} = await serve(t, (s) => mountFastifyRoutes(s, echo_routes));
         const cases = [
-            ["GET", "/go", 307], ["HEAD", "/go", 307], ["POST", "/go", 303],
-            ["GET", "/moved", 308], ["HEAD", "/moved", 308], ["POST", "/moved", 308],
-            ["GET", "/found", 302], ["POST", "/found", 302],
+            ["GET", "/go", 307], ["HEAD", "/go", 307], ["POST", "/go", 303], ["DELETE", "/go", 303],
+            ["GET", "/temporary", 307], ["HEAD", "/temporary", 307], ["POST", "/temporary", 303], ["DELETE", "/temporary", 303],
+            ["GET", "/moved", 308], ["HEAD", "/moved", 308], ["POST", "/moved", 308], ["DELETE", "/moved", 308],
+            ["GET", "/found", 302], ["POST", "/found", 302], ["DELETE", "/found", 302],
         ] as const;
         for(const [method, url, status] of cases) {
             const response = await server.inject({method, url});
@@ -438,6 +533,14 @@ describe("mountFastifyRoutes", () => {
         const unserved = await serve(t, (s) => mountFastifyRoutes(s, reading));
         assert.strictEqual((await unserved.server.inject({method: "GET", url: "/count"})).statusCode, 500);
         assert.ok(unserved.errors[0] instanceof UnboundConfigError);
+
+        const calling = defineFastifyRoutes({
+            uses: [CounterCalls],
+            routes: [{method: "GET", path: "/config", handle: (context) => context.getConfig()}],
+        });
+        const call_only = await serve(t, (s) => mountFastifyRoutes(s, calling, {call: () => Promise.resolve({count: 3})}));
+        assert.strictEqual((await call_only.server.inject({method: "GET", url: "/config"})).statusCode, 500);
+        assert.ok(call_only.errors[0] instanceof UnboundConfigError);
     });
 });
 
@@ -452,7 +555,7 @@ describe("createExposeCallsFactory", () => {
     const post = (server: FastifyInstance, url: string, payload: string) =>
         server.inject({method: "POST", url, payload, headers: {"content-type": "application/json"}});
 
-    it("serves each call as a POST at its call path, passing the body, even null, to `call` unchanged", async (t) => {
+    it("serves each call as a POST at its call path and passes the raw body, including null, to `call`", async (t) => {
         const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
         const calls: RecordedCall[] = [];
         const {server} = await serve(t, (s) => mountFastifyRoutes(s, exposeCalls(ProbeCalls), {call: (reference, input: unknown) => {
@@ -462,26 +565,28 @@ describe("createExposeCallsFactory", () => {
         const response = await post(server, "/api/v1/probe/take", "null");
         assert.strictEqual(response.statusCode, 200);
         assert.deepStrictEqual(response.json(), {output: {received: null}} satisfies OutputBody);
-        assert.deepStrictEqual(calls, [[ProbeCalls.calls.take, null]]);
+        const dated = await post(server, "/api/v1/probe/at", JSON.stringify({when: "2026-02-03", extra: [1]}));
+        assert.strictEqual(dated.statusCode, 200);
+        assert.deepStrictEqual(dated.json(), {output: {received: {when: "2026-02-03", extra: [1]}}} satisfies OutputBody);
+        assert.deepStrictEqual(calls, [[ProbeCalls.calls.take, null], [ProbeCalls.calls.at, {when: "2026-02-03", extra: [1]}]]);
     });
 
-    it("round-trips with a client of the same callPath: outputs, even strings and error-like ones, and ErrorBody messages", async (t) => {
+    it("round-trips calls and ErrorBody messages with a client of the same callPath", async (t) => {
         const ShopCalls = defineComponentCalls("shop", {
             name: {input: schema({}), output: schema("string")},
-            status: {input: schema({}), output: schema({error: "string"})},
             buy: {input: schema({n: "number"}), output: schema({n: "number"})},
         });
         const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
         // eslint-disable-next-line new-cap -- Fastify's public API
         const server = Fastify();
         t.after(() => server.close());
-        server.setErrorHandler((error: {statusCode?: number; message: string}, _request, reply) => {
-            reply.status(error.statusCode ?? 500).send({error: error.message} satisfies ErrorBody);
+        server.setErrorHandler((error: {statusCode?: number}, _request, reply) => {
+            const message = error instanceof RouteValidationError ? `Rejected ${error.validationContext}.` : "Failed.";
+            reply.status(error.statusCode ?? 500).send({error: message} satisfies ErrorBody);
         });
-        mountFastifyRoutes(server, exposeCalls(ShopCalls), {call: (reference, input: unknown) => {
-            if(reference === ShopCalls.calls.name) return Promise.resolve("a \"shop\"");
-            if(reference === ShopCalls.calls.status) return Promise.resolve({error: "closed"});
-            return Promise.reject(new CallInputError("shop", "buy", new Error(`bad ${JSON.stringify(input)}`)));
+        mountFastifyRoutes(server, exposeCalls(ShopCalls), {call: (reference) => {
+            if(reference === ShopCalls.calls.name) return Promise.resolve("shop");
+            return Promise.reject(new CallInputError("shop", "buy", new Error("bad")));
         }});
         await server.ready();
         t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
@@ -490,17 +595,16 @@ describe("createExposeCallsFactory", () => {
         });
 
         const shop = createComponentClientFactory({callPath})<typeof ShopCalls>(ShopCalls.id);
-        assert.strictEqual(await shop("name")(), "a \"shop\"");
-        assert.deepStrictEqual(await shop("status")(), {error: "closed"});
+        assert.strictEqual(await shop("name")(), "shop");
         await assert.rejects(shop("buy")({n: 1}), (err: unknown) => {
             assert.ok(err instanceof CallFailedError);
             assert.strictEqual(err.status, 400);
-            assert.strictEqual(err.server_message, "Invalid body: bad {\"n\":1}");
+            assert.strictEqual(err.server_message, "Rejected body.");
             return true;
         });
     });
 
-    it("validates a type-changing input once: the handler gets the converted value, and an invalid body throws RouteValidationError", async (t) => {
+    it("validates a type-changing input only once, and rejects an invalid body with RouteValidationError", async (t) => {
         const component = defineComponent({
             calls: ProbeCalls,
             uses: [],
@@ -521,21 +625,27 @@ describe("createExposeCallsFactory", () => {
         const [error] = errors;
         assert.ok(error instanceof RouteValidationError);
         assert.strictEqual(error.validationContext, "body");
+        assert.ok(error.cause instanceof TraversalError);
     });
 
-    it("propagates a nested call's input failure unchanged, as a server fault", async (t) => {
+    it("propagates every failure other than the call's own input failure unchanged", async (t) => {
         const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
-        for(const [component_id, call_name] of [["other", "take"], ["probe", "other"]] as const) {
-            const failure = new CallInputError(component_id, call_name, new Error("bad"));
+        const failures = [
+            ["nested call input", new CallInputError("other", "take", new Error("bad")), 500],
+            ["sibling call input", new CallInputError("probe", "other", new Error("bad")), 500],
+            ["plain error", new Error("boom"), 500],
+            ["error with a status", Object.assign(new Error("conflict"), {statusCode: 409}), 409],
+        ] as const;
+        for(const [label, failure, status] of failures) {
             const {server, errors} = await serve(t, (s) => mountFastifyRoutes(s, exposeCalls(ProbeCalls), {call: (): Promise<never> => Promise.reject(failure)}));
-            assert.strictEqual((await post(server, "/api/v1/probe/take", "null")).statusCode, 500, `${component_id}.${call_name}`);
-            assert.strictEqual(errors[0], failure, `${component_id}.${call_name}`);
+            assert.strictEqual((await post(server, "/api/v1/probe/take", "null")).statusCode, status, label);
+            assert.strictEqual(errors[0], failure, label);
         }
     });
 
     it("throws InvalidCallEndpointError for a call name that is not ASCII letters, digits, `_`, and `-`", () => {
         const {exposeCalls} = createExposeCallsFactory({callPath, base: "/api"});
-        for(const name of [":id", "*", "a/b", "a?b", "a#b", "a%2F", "..", "a.b", "a b", ""]) {
+        for(const name of [":id", "*", "a/b", "a?b", "a#b", "a%2F", "..", "a.b", "a b", "", "é", "ａ", "a\u0000", "a\n"]) {
             const calls = defineComponentCalls("probe", {[name]: {input: schema("null"), output: schema("null")}});
             assert.throws(() => exposeCalls(calls), (err: unknown) => err instanceof InvalidCallEndpointError && err.component_id === "probe" && err.call_name === name, JSON.stringify(name));
         }
@@ -574,6 +684,11 @@ describe("createExposeCallsFactory", () => {
             errors.length = 0;
             assert.strictEqual((await server.inject({method: "GET", url})).statusCode, 404, url);
             assert.ok(errors[0] instanceof NotFoundError, url);
+        }
+        for(const url of ["/apix", "/ap"]) {
+            errors.length = 0;
+            assert.strictEqual((await server.inject({method: "GET", url})).statusCode, 404, url);
+            assert.deepStrictEqual(errors, [], url);
         }
         assert.strictEqual((await post(server, "/api/v1/probe/take", "null")).statusCode, 200);
     });

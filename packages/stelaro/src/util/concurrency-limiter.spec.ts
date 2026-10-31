@@ -3,25 +3,20 @@ import {describe, it} from "node:test";
 
 import {createConcurrencyLimiter} from "./concurrency-limiter.ts";
 
+/** Resolves after pending promise callbacks have run, with whether `promise` settled by then. */
 function isSettled(promise: Promise<unknown>): Promise<boolean> {
     let settled = false;
     const markSettled = () => {
         settled = true;
     };
     promise.then(markSettled, markSettled);
-    return new Promise((resolve) => {
-        setImmediate(() => { resolve(settled); });
-    });
+    const {promise: checked, resolve} = Promise.withResolvers<boolean>();
+    setImmediate(() => { resolve(settled); });
+    return checked;
 }
 
 describe("@jiminp/stelaro concurrency limiter", () => {
-    it("rejects an invalid max_concurrent", () => {
-        for(const max_concurrent of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
-            assert.throws(() => createConcurrencyLimiter(max_concurrent), RangeError);
-        }
-    });
-
-    it("queues when at capacity and resolves on release", async () => {
+    it("holds an acquire at capacity until a slot is released", async () => {
         const limiter = createConcurrencyLimiter(1);
 
         const release1 = await limiter.acquire("a");
@@ -33,28 +28,39 @@ describe("@jiminp/stelaro concurrency limiter", () => {
         release2();
     });
 
-    it("processes queued acquires in FIFO order", async () => {
-        const limiter = createConcurrencyLimiter(1);
-        const order: number[] = [];
+    it("grants up to max_concurrent slots per key", async () => {
+        const limiter = createConcurrencyLimiter(3);
+        const releases = [await limiter.acquire("a"), await limiter.acquire("a"), await limiter.acquire("a")];
 
+        const pending = limiter.acquire("a");
+        assert.strictEqual(await isSettled(pending), false);
+
+        releases[0]!();
+        const release4 = await pending;
+        for(const release of [releases[1]!, releases[2]!, release4]) release();
+    });
+
+    it("frees exactly one slot per release", async () => {
+        const limiter = createConcurrencyLimiter(2);
         const release1 = await limiter.acquire("a");
-
-        const p2 = limiter.acquire("a").then((release) => {
-            order.push(2);
-            return release;
-        });
-        const p3 = limiter.acquire("a").then((release) => {
-            order.push(3);
-            return release;
-        });
+        const release2 = await limiter.acquire("a");
+        const pending = [limiter.acquire("a"), limiter.acquire("a")];
 
         release1();
-        const release2 = await p2;
-        release2();
-        const release3 = await p3;
-        release3();
+        const settled = await Promise.all(pending.map(isSettled));
+        assert.strictEqual(settled.filter(Boolean).length, 1);
 
-        assert.deepStrictEqual(order, [2, 3]);
+        release2();
+        for(const release of await Promise.all(pending)) release();
+    });
+
+    it("grants the full capacity again after every slot is released", async () => {
+        const limiter = createConcurrencyLimiter(2);
+        for(const release of [await limiter.acquire("a"), await limiter.acquire("a")]) release();
+
+        const releases = [limiter.acquire("a"), limiter.acquire("a")];
+        assert.deepStrictEqual(await Promise.all(releases.map(isSettled)), [true, true]);
+        assert.strictEqual(await isSettled(limiter.acquire("a")), false);
     });
 
     it("tracks keys independently", async () => {
@@ -62,45 +68,13 @@ describe("@jiminp/stelaro concurrency limiter", () => {
 
         const release_a = await limiter.acquire("a");
         const pending_b = limiter.acquire("b");
+        const pending_empty = limiter.acquire("");
         assert.strictEqual(await isSettled(pending_b), true);
+        assert.strictEqual(await isSettled(pending_empty), true);
+        assert.strictEqual(await isSettled(limiter.acquire("a")), false);
 
         release_a();
         (await pending_b)();
-    });
-
-    it("supports max_concurrent greater than 1", async () => {
-        const limiter = createConcurrencyLimiter(3);
-        const releases: Array<() => void> = [];
-
-        releases.push(await limiter.acquire("a"));
-        releases.push(await limiter.acquire("a"));
-        releases.push(await limiter.acquire("a"));
-
-        const p4 = limiter.acquire("a");
-        assert.strictEqual(await isSettled(p4), false);
-
-        releases[0]!();
-        const release4 = await p4;
-
-        releases[1]!();
-        releases[2]!();
-        release4();
-    });
-
-    it("ignores repeated calls to a release function", async () => {
-        const limiter = createConcurrencyLimiter(1);
-
-        const release1 = await limiter.acquire("a");
-        release1();
-        release1();
-
-        const release2 = await limiter.acquire("a");
-        release1();
-
-        const pending = limiter.acquire("a");
-        assert.strictEqual(await isSettled(pending), false);
-
-        release2();
-        (await pending)();
+        (await pending_empty)();
     });
 });

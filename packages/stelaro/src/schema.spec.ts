@@ -12,6 +12,11 @@ describe("EmptyInput", () => {
             assert.throws(() => EmptyInput.assert(input), TraversalError, String(input));
         }
     });
+
+    it("rejects objects whose only key is __proto__ or a symbol", () => {
+        assert.throws(() => EmptyInput.assert(JSON.parse('{"__proto__": {}}')), TraversalError);
+        assert.throws(() => EmptyInput.assert({[Symbol("key")]: 1}), TraversalError);
+    });
 });
 
 describe("isLocalSchema", () => {
@@ -20,5 +25,6 @@ describe("isLocalSchema", () => {
         assert.strictEqual(isLocalSchema(defineLocalOutput<unknown>()), true);
         assert.strictEqual(isLocalSchema(EmptyInput), false);
         assert.strictEqual(isLocalSchema(schema("unknown")), false);
+        assert.strictEqual(isLocalSchema({inferIn: null, infer: null, assert: (input: unknown) => input}), false);
     });
 });

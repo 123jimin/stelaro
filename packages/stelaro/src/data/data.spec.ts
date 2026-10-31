@@ -1,55 +1,43 @@
 import assert from "node:assert/strict";
-import {access, mkdir} from "node:fs/promises";
-import {join, resolve, sep} from "node:path";
+import {readdir, readFile} from "node:fs/promises";
+import {join, resolve} from "node:path";
 import {describe, it} from "node:test";
 
-import {useTempDir, writeTestFile} from "../test-util.ts";
+import {fluentPath} from "../fs/path.ts";
+import {useTempDir} from "../test-util.ts";
 import {createDataAccess} from "./data.ts";
 
-function exists(file_path: string): Promise<boolean> {
-    return access(file_path).then(() => true, () => false);
-}
+const hostile_subpath = "a/../../..\\../etc/passwd";
 
 describe("@jiminp/stelaro data access", () => {
     const testDir = useTempDir("data");
 
-    it("resolves subpaths relative to dir", () => {
-        const base = resolve("/base/data");
-        const data = createDataAccess(base);
-        assert.strictEqual(
-            data.resolve("templates/greeting.txt"),
-            join(base, "templates/greeting.txt"),
-        );
+    it("exposes dir as an absolute path", () => {
+        assert.strictEqual(createDataAccess("relative/data").dir, resolve("relative/data"));
+        const absolute = resolve("/base/data");
+        assert.strictEqual(createDataAccess(absolute).dir, absolute);
     });
 
-    it("confines resolve so .. cannot escape the data dir", () => {
+    it("resolves subpaths with confine on dir", () => {
         const dir = resolve("/base/data");
-        const data = createDataAccess(dir);
-        assert.strictEqual(data.resolve("../../etc/passwd"), join(dir, "etc", "passwd"));
-        assert.strictEqual(data.resolve("a/../../b"), join(dir, "b"));
-        assert.strictEqual(data.resolve("/abs/secret"), join(dir, "abs", "secret"));
-        for(const subpath of ["../../x", "a\\..\\..\\y", "../../../../z"]) {
-            const out = data.resolve(subpath);
-            assert.ok(out === dir || out.startsWith(dir + sep), `${subpath} -> ${out} escaped ${dir}`);
-        }
+        assert.strictEqual(createDataAccess(dir).resolve(hostile_subpath), fluentPath(dir).confine(hostile_subpath).path);
     });
 
-    it("confines writes to the data dir", async () => {
-        const root = testDir();
-        const dir = join(root, "box", "data");
-        const data = createDataAccess(dir);
-        await data.write("../../escape.txt").text("x");
-        assert.strictEqual(await exists(join(root, "escape.txt")), false);
-        assert.strictEqual(await exists(join(root, "box", "escape.txt")), false);
-        assert.strictEqual(await exists(join(dir, "escape.txt")), true);
+    it("neither checks nor creates directories when resolving or creating readers and writers", async () => {
+        const data = createDataAccess(join(testDir(), "missing", "data"));
+        data.resolve("a/b.txt");
+        data.read("a/b.txt");
+        data.write("a/b.txt");
+        assert.deepStrictEqual(await readdir(testDir()), []);
     });
 
-    it("confines reads so traversal cannot read outside the data dir", async () => {
-        const root = testDir();
-        const dir = join(root, "box", "data");
-        await mkdir(dir, {recursive: true});
-        await writeTestFile(join(root, "trap.txt"), "SECRET");
+    it("reads and writes the file at the confined path", async () => {
+        const dir = join(testDir(), "box", "data");
         const data = createDataAccess(dir);
-        assert.strictEqual(await data.read("../../trap.txt").optional().text(), null);
+        await data.write(hostile_subpath).text("x");
+        assert.strictEqual(await readFile(fluentPath(dir).confine(hostile_subpath).path, "utf-8"), "x");
+        assert.strictEqual(await data.read(hostile_subpath).text(), "x");
+        assert.deepStrictEqual(await readdir(testDir()), ["box"]);
+        assert.deepStrictEqual(await readdir(join(testDir(), "box")), ["data"]);
     });
 });

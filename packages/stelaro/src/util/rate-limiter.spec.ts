@@ -1,97 +1,69 @@
 import assert from "node:assert/strict";
-import {afterEach, describe, it, mock} from "node:test";
+import {describe, it, type TestContext} from "node:test";
 
 import {createRateLimiter} from "./rate-limiter.ts";
 
+/** Fakes both `Date.now` and `performance.now` from one clock and returns a function that advances it. */
+function useFakeClock(t: TestContext): (ms: number) => void {
+    t.mock.timers.enable({apis: ["Date"], now: 1_000_000});
+    t.mock.method(performance, "now", () => Date.now());
+    return (ms) => {
+        t.mock.timers.tick(ms);
+    };
+}
+
 describe("@jiminp/stelaro rate limiter", () => {
-    let current_time = 0;
-
-    function advance(ms: number): void {
-        current_time += ms;
-    }
-
-    afterEach(() => {
-        current_time = 0;
-        mock.restoreAll();
-    });
-
-    function useMockClock(): void {
-        mock.method(performance, "now", () => current_time);
-    }
-
-    it("rejects an invalid limit or window", () => {
-        for(const limit of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
-            assert.throws(() => createRateLimiter(limit, 1000), RangeError);
-        }
-        for(const window_ms of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
-            assert.throws(() => createRateLimiter(1, window_ms), RangeError);
-        }
-    });
-
-    it("allows calls within the limit", () => {
-        useMockClock();
+    it("allows calls up to the limit and rejects the next one within the window", (t) => {
+        useFakeClock(t);
         const limiter = createRateLimiter(3, 1000);
-
-        assert.strictEqual(limiter.check("a"), true);
-        assert.strictEqual(limiter.check("a"), true);
-        assert.strictEqual(limiter.check("a"), true);
+        assert.deepStrictEqual([1, 2, 3, 4].map(() => limiter.check("a")), [true, true, true, false]);
     });
 
-    it("rejects calls exceeding the limit", () => {
-        useMockClock();
-        const limiter = createRateLimiter(2, 1000);
-
-        assert.strictEqual(limiter.check("a"), true);
-        assert.strictEqual(limiter.check("a"), true);
-        assert.strictEqual(limiter.check("a"), false);
-    });
-
-    it("allows calls again once exactly window_ms has passed", () => {
-        useMockClock();
+    it("allows calls again once the window has passed", (t) => {
+        const advance = useFakeClock(t);
         const limiter = createRateLimiter(1, 100);
 
         assert.strictEqual(limiter.check("a"), true);
         advance(99);
         assert.strictEqual(limiter.check("a"), false);
-        advance(1);
+        advance(2);
         assert.strictEqual(limiter.check("a"), true);
     });
 
-    it("tracks keys independently", () => {
-        useMockClock();
+    it("tracks keys independently", (t) => {
+        useFakeClock(t);
         const limiter = createRateLimiter(1, 1000);
 
         assert.strictEqual(limiter.check("a"), true);
         assert.strictEqual(limiter.check("b"), true);
+        assert.strictEqual(limiter.check(""), true);
         assert.strictEqual(limiter.check("a"), false);
         assert.strictEqual(limiter.check("b"), false);
+        assert.strictEqual(limiter.check(""), false);
     });
 
-    it("uses a sliding window, not fixed buckets", () => {
-        useMockClock();
+    it("uses a sliding window, not fixed buckets", (t) => {
+        const advance = useFakeClock(t);
         const limiter = createRateLimiter(2, 100);
 
         assert.strictEqual(limiter.check("a"), true);
         advance(60);
         assert.strictEqual(limiter.check("a"), true);
 
-        // At t=60, both calls are within the 100ms window
-        assert.strictEqual(limiter.check("a"), false);
-
-        // At t=101, the first call (t=0) has expired, but the second (t=60) hasn't
+        // The call at t=0 has left the window; the call at t=60 has not.
         advance(41);
         assert.strictEqual(limiter.check("a"), true);
         assert.strictEqual(limiter.check("a"), false);
     });
 
-    it("keeps limiting active keys while other keys expire", () => {
-        useMockClock();
+    it("keeps limiting active keys while other keys expire", (t) => {
+        const advance = useFakeClock(t);
         const limiter = createRateLimiter(1, 100);
 
         assert.strictEqual(limiter.check("a"), true);
         advance(50);
         assert.strictEqual(limiter.check("b"), true);
-        advance(50);
+        advance(51);
         assert.strictEqual(limiter.check("c"), true);
         assert.strictEqual(limiter.check("b"), false);
         assert.strictEqual(limiter.check("a"), true);

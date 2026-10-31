@@ -22,7 +22,7 @@ const ParsedInput = schema({value: "string.numeric.parse"});
 const DefaultedOutput = schema({count: "number = 0"});
 
 describe("@jiminp/stelaro component core", () => {
-    it("defines component call references with stable public component ids and names", () => {
+    it("defines call references that carry their component id, call name, and schemas", () => {
         const CounterCalls = defineComponentCalls("counter", {
             current: {
                 input: EmptyInput,
@@ -46,7 +46,7 @@ describe("@jiminp/stelaro component core", () => {
     });
 
     it("throws InvalidComponentIdError for non-kebab-case component ids", () => {
-        for(const id of ["", "A", "Users", "my_component", "123", "foo-", "-foo", "foo--bar", "FOO"]) {
+        for(const id of ["", "A", "Users", "my_component", "foo-", "-foo", "foo--bar", "FOO", "a b", " a", "a\n", "a.b", "a/b", "a\\b", "../a", "a/../b"]) {
             assert.throws(
                 () => defineComponentCalls(id, {
                     run: {input: EmptyInput, output: CounterOutput},
@@ -70,7 +70,7 @@ describe("@jiminp/stelaro component core", () => {
         assert.strictEqual(CounterCalls.calls.current, PublicCalls.calls.current);
         assert.strictEqual(CounterCalls.calls.set, InternalCalls.calls.set);
         assert.strictEqual(CounterCalls.calls.reset, AdminCalls.calls.reset);
-        assert.deepStrictEqual(Object.keys(CounterCalls.calls), ["current", "set", "reset"]);
+        assert.deepStrictEqual(new Set(Object.keys(CounterCalls.calls)), new Set(["current", "set", "reset"]));
         assertEqualType<CallInput<typeof CounterCalls.calls.set>, {count: number}>();
         assert.deepStrictEqual(mergeComponentCalls(PublicCalls), {id: "counter", calls: PublicCalls.calls});
     });
@@ -98,7 +98,30 @@ describe("@jiminp/stelaro component core", () => {
             () => mergeComponentCalls(ACalls, BCalls, CCalls),
             (error: unknown) => {
                 assert.ok(error instanceof DuplicateCallError);
-                assert.deepStrictEqual(error.duplicate_keys, ["counter.current", "counter.set"]);
+                assert.deepStrictEqual(new Set(error.duplicate_keys), new Set(["counter.current", "counter.set"]));
+                return true;
+            },
+        );
+    });
+
+    it("merges call surfaces whose call names match Object.prototype members", () => {
+        const ACalls = defineComponentCalls("counter", {current: {input: EmptyInput, output: CounterOutput}});
+        const BCalls = defineComponentCalls("counter", {
+            toString: {input: EmptyInput, output: CounterOutput},
+            constructor: {input: EmptyInput, output: CounterOutput},
+            hasOwnProperty: {input: EmptyInput, output: CounterOutput},
+        });
+        const CounterCalls = mergeComponentCalls(ACalls, BCalls);
+
+        assert.deepStrictEqual(new Set(Object.keys(CounterCalls.calls)), new Set(["current", "toString", "constructor", "hasOwnProperty"]));
+        assert.strictEqual(CounterCalls.calls.toString, BCalls.calls.toString);
+
+        const CCalls = defineComponentCalls("counter", {toString: {input: EmptyInput, output: CounterOutput}});
+        assert.throws(
+            () => mergeComponentCalls(ACalls, BCalls, CCalls),
+            (error: unknown) => {
+                assert.ok(error instanceof DuplicateCallError);
+                assert.deepStrictEqual(new Set(error.duplicate_keys), new Set(["counter.toString"]));
                 return true;
             },
         );
