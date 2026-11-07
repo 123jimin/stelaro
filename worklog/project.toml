@@ -1,0 +1,15 @@
+# worklog project configuration.
+# Agents MUST treat this file as read-only and SHOULD NOT prepare changes unless asked.
+# Omitted policies default to propose for specs and draft for tasks and notes.
+
+[spec]
+# Before applying a change, agents MUST obtain human approval of its content or permission scoped to the edit.
+agent_mode = "propose"
+
+[task]
+# Unapproved agent-authored content MUST be marked NEEDS APPROVAL.
+agent_mode = "draft"
+
+[note]
+# Unapproved agent-authored content MUST be marked NEEDS APPROVAL.
+agent_mode = "draft"
