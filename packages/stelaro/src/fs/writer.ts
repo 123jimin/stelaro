@@ -4,6 +4,8 @@ import {dirname} from "node:path";
 
 import {stringify} from "smol-toml";
 
+const pending_writes = new Map<string, Promise<void>>();
+
 /**
  * A writer that creates parent directories and overwrites the destination file.
  *
@@ -40,12 +42,25 @@ export interface FileWriter {
     toml(value: unknown): Promise<void>;
 }
 
-export function createFileWriter(file_path: string): FileWriter {
-    async function write(data: string | Buffer): Promise<void> {
+/** Queue writes to the same path across writer instances. */
+async function writeInOrder(file_path: string, data: string | Buffer): Promise<void> {
+    const previous_write = pending_writes.get(file_path) ?? Promise.resolve();
+    const current_write = previous_write.catch(() => null).then(async () => {
         await mkdir(dirname(file_path), {recursive: true});
         await writeFile(file_path, data);
+    });
+    pending_writes.set(file_path, current_write);
+    try {
+        await current_write;
+    } finally {
+        if(pending_writes.get(file_path) === current_write) {
+            pending_writes.delete(file_path);
+        }
     }
+}
 
+export function createFileWriter(file_path: string): FileWriter {
+    const write = writeInOrder.bind(null, file_path);
     return {
         text: write,
         buffer: write,

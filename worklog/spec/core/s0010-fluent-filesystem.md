@@ -27,7 +27,8 @@ type FluentPath = {
     join(...segments: string[]): FluentPath;
     confine(...segments: string[]): FluentPath;
     read(options: ReadOptions & {readonly optional: true}): OptionalFileReader;
-    read(options?: ReadOptions): FileReader;
+    read(options?: ReadOptions & {readonly optional?: false}): FileReader;
+    read(options?: ReadOptions): FileReader | OptionalFileReader;
     write(): FileWriter;
 };
 
@@ -91,6 +92,9 @@ function createFluentPath(base: string): FluentPath;
   - Permission, parsing, and validation errors propagate.
 - Writers support UTF-8 text, `Buffer`, JSON, and TOML.
   - They create parent directories and overwrite existing files.
+  - Writes to the same absolute path string are serialized across writers within a module instance.
+  - Known TOML limitations: unsupported values in arrays or inline tables can produce invalid TOML and overwrite an existing file.
+    The writer also accepts some `bigint` values that the reader rejects because they cannot be represented exactly as JavaScript numbers.
 
 ## Constraints
 

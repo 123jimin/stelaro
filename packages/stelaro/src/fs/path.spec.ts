@@ -1,8 +1,9 @@
-import {equal, notEqual, ok} from "node:assert/strict";
+import {equal, notEqual, ok, rejects} from "node:assert/strict";
 import {isAbsolute, join, resolve} from "node:path";
 import {test} from "node:test";
 
 import {createTemporaryDirectory} from "../test-util.ts";
+import type {ReadOptions} from "./path.ts";
 import {createFluentPath} from "./path.ts";
 
 test("paths are absolute and immutable, and join permits traversal", () => {
@@ -20,11 +21,25 @@ test("confine resolves mixed separators and stops traversal at its base", () => 
     const base = createFluentPath("data");
     equal(base.confine("a\\b/c", "..\\..", ".", "d").path, join(base.path, "a", "d"));
     equal(base.confine("a", "../../../", "..\\").path, base.path);
+    equal(base.confine("", "../../a//", "", "./b").path, join(base.path, "a", "b"));
     equal(base.confine("a", "/rooted/name").path, join(base.path, "rooted", "name"));
     equal(base.confine("a", "\\rooted\\name").path, join(base.path, "rooted", "name"));
     equal(base.confine("a", "Z:\\rooted/name").path, join(base.path, "rooted", "name"));
-    equal(base.confine("a", "Z:rooted", "name").path, join(base.path, "rooted", "name"));
     equal(base.confine("a", "Z:\\..\\..", "name").path, join(base.path, "name"));
+    equal(base.confine("a", "/b", "Z:/c", "d").path, join(base.path, "c", "d"));
+});
+
+test("confine preserves the prefix and spelling of a drive-relative segment", () => {
+    const base = createFluentPath("data");
+    equal(base.confine("tenant", "x:config").path, join(base.path, "tenant", "x:config"));
+});
+
+test("read with dynamic options can return null", async (t) => {
+    const missing = (await createTemporaryDirectory(t)).join("missing");
+    const readText = (options: ReadOptions) => missing.read(options).text();
+    const expected = null satisfies Awaited<ReturnType<typeof readText>>;
+    equal(await readText({optional: true}), expected);
+    await rejects(readText({optional: false}), {code: "ENOENT"});
 });
 
 test("confined reads resolve from the base directory on disk", async (t) => {

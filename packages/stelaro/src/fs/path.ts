@@ -61,12 +61,20 @@ export interface FluentPath {
     read(options: ReadOptions & {readonly optional: true}): OptionalFileReader;
 
     /**
-     * Create a reader for this path.
+     * Create a reader that throws for missing paths.
      *
      * @param options - Reader options
      * @returns A file reader
      */
-    read(options?: ReadOptions): FileReader;
+    read(options?: ReadOptions & {readonly optional?: false}): FileReader;
+
+    /**
+     * Create a reader whose missing-path behavior depends on the options.
+     *
+     * @param options - Reader options
+     * @returns A required or optional file reader
+     */
+    read(options?: ReadOptions): FileReader | OptionalFileReader;
 
     /**
      * Create a writer for this path.
@@ -90,7 +98,8 @@ export function createFluentPath(base: string): FluentPath {
 
 function bindPathRead(path: string): FluentPath["read"] {
     function read(options: ReadOptions & {readonly optional: true}): OptionalFileReader;
-    function read(options?: ReadOptions): FileReader;
+    function read(options?: ReadOptions & {readonly optional?: false}): FileReader;
+    function read(options?: ReadOptions): FileReader | OptionalFileReader;
     function read(options?: ReadOptions): FileReader | OptionalFileReader {
         return options?.optional ? createOptionalFileReader(path) : createRequiredFileReader(path);
     }
@@ -104,12 +113,12 @@ function joinFluentPath(path: string, ...segments: string[]): FluentPath {
 function confineFluentPath(path: string, ...segments: string[]): FluentPath {
     const names: string[] = [];
     for(const segment of segments) {
-        // Restart at the base on a leading separator or drive prefix.
-        if(/^(?:[a-z]:|[\\/])/i.test(segment)) {
+        // A drive prefix is rooted only when followed by a separator.
+        const relative_segment = segment.replace(/^(?:[a-z]:)?[\\/]+/i, "");
+        if(relative_segment !== segment) {
             names.length = 0;
         }
-        // Strip the drive prefix and recognize both separator styles on every platform.
-        for(const name of segment.replace(/^[a-z]:/i, "").split(/[\\/]/)) {
+        for(const name of relative_segment.split(/[\\/]/)) {
             if(name === "..") {
                 names.pop();
             } else if(name !== "" && name !== ".") {

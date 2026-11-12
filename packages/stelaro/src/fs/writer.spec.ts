@@ -1,4 +1,4 @@
-import {deepEqual, equal, rejects} from "node:assert/strict";
+import {deepEqual, equal, ok, rejects} from "node:assert/strict";
 import {Buffer} from "node:buffer";
 import {test} from "node:test";
 
@@ -30,4 +30,18 @@ test("writers create parents and overwrite files in all four formats", async (t)
     await writer.toml(toml);
     await rejects(writer.json(Symbol("unserializable")), TypeError);
     deepEqual(await reader.toml(), toml);
+});
+
+test("overlapping writes leave one complete document", async (t) => {
+    const file = (await createTemporaryDirectory(t)).join("document.json");
+    // Different lengths expose mixed writes and stale suffixes.
+    const first = {payload: "a".repeat(2 * 1024 * 1024)};
+    const second = {payload: "b".repeat(768 * 1024)};
+
+    await file.write().json({payload: "previous"});
+    await Promise.all([file.write().json(first), file.write().json(second)]);
+
+    const content = await file.read().text();
+    ok(content === JSON.stringify(first) || content === JSON.stringify(second),
+        "Expected one complete JSON document after both writes finished");
 });
