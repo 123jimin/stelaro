@@ -2,6 +2,8 @@ export type {ApplicationOptions} from "./application/application.ts";
 export {componentFilePath, DEFAULT_APPLICATION_DIRS, InvalidComponentFileNameError} from "./application/directories.ts";
 export type {ParsedArgs} from "./cli/args.ts";
 export {parseArgs} from "./cli/args.ts";
+export type {Logger, LoggerFactory} from "./component/logger.ts";
+export {consoleLoggerFactory} from "./component/logger.ts";
 export type {DataAccess} from "./data/access.ts";
 export {createDataAccess} from "./data/access.ts";
 export {StelaroError} from "./error.ts";

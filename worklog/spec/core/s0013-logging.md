@@ -5,7 +5,7 @@ tags = ["application", "component", "context", "logging"]
 paths = ["packages/stelaro/src/component/logger.ts"]
 +++
 
-# Logging (UNIMPLEMENTED)
+# Logging
 
 ## Types
 
@@ -18,14 +18,22 @@ type Logger = {
 };
 
 type LoggerFactory = (scope: string) => Logger;
+
+function consoleLoggerFactory(scope: string): Logger;
 ```
 
 ## Behavior
 
+- `consoleLoggerFactory` maps `debug`, `info`, `warn`, and `error` to the corresponding Node.js console methods while preserving arbitrary arguments.
+- The output starts with `[scope]`, with the scope used as literal text. When arguments are present, a space separates the prefix from the message.
+  - Compose the message using the console's usual formatting, including format specifiers and inspection of values.
+  - Adapters can use `node:util`'s `format` with the arguments that contribute to the message.
+
+## Application and component integration (UNIMPLEMENTED)
+
 - Every component receives `context.log` from the logger factory, scoped to its stable component ID.
 - An application may supply a logger factory.
   - Core uses `consoleLoggerFactory` by default.
-- The default logger prefixes output with its scope and maps `debug`, `info`, `warn`, and `error` to the corresponding console methods while preserving arbitrary arguments.
 - Application lifecycle and signal handling log through this contract.
   - See s0006 for those events and s0014 for the Pino adapter.
 
