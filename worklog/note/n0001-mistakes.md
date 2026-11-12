@@ -22,3 +22,5 @@ Exclude:
 | t0001 | `packages/stelaro/src/fs/` | Organize the fluent filesystem | I combined the filesystem tests in a spec with no matching source module and put the shared schema type in the filesystem module. |
 | t0001 | `packages/stelaro/src/test-util.ts` | Share filesystem test setup | I named the helper `makeFixture`, which hid that it creates a temporary directory. |
 | t0001 | `packages/stelaro/src/fs/path.ts`, `packages/stelaro/src/fs/reader.ts` | Implement fluent paths and readers | I used ambiguous helper names and embedded confinement and decoding logic in factory closures. |
+| t0009 | `packages/stelaro/src/application/lifecycle.ts` | Implement a lifecycle state machine | I put startup, shutdown, and component tracking inside the state machine. The application runtime owns those operations and drives the machine's transitions. |
+| t0009 | `packages/stelaro/src/application/lifecycle.ts` | Expose a guarded state transition | I hardcoded the allowed transitions inside the machine and gave the method a name that did not clearly read as a verb. Callers supply the allowed source states. |

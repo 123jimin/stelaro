@@ -20,6 +20,8 @@ Clarify how the lifecycle call guard applies to `context.call` inside start and 
 ## Completion criteria
 
 - Verify that startup loads and validates config and secrets before any component start hook, and that startup failure moves the application to `failed`.
+- Verify that startup invokes hooks in dependency order and records components whose start hook completed or was absent.
+  Verify that shutdown attempts every recorded component's cleanup in reverse order and reaches `idle` before reporting any aggregate errors.
 - Verify application and component data roots, scoped loggers, and context access to only the declared config and secrets.
 - Verify state isolation across components and application runtimes, and persistence across stop/start within one runtime.
 - Verify that registered application calls and declared context calls infer their types and dispatch both handler forms.

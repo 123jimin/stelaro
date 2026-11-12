@@ -5,17 +5,27 @@ tags = ["application", "architecture", "lifecycle", "config", "logging", "util"]
 paths = ["packages/stelaro/src/application/**", "packages/stelaro/src/signal/**"]
 +++
 
-# Application Lifecycle (UNIMPLEMENTED)
+# Application Lifecycle
 
-## Types
+## Lifecycle types
+
+```typescript
+type LifecycleState = "idle" | "starting" | "active" | "reloading" | "failed" | "stopping";
+
+class LifecycleStateError extends StelaroError {
+    readonly current_state: LifecycleState;
+    readonly operation: string;
+    constructor(current_state: LifecycleState, operation: string);
+}
+```
+
+## Application API (UNIMPLEMENTED)
 
 Types are shown at their widest for readability.
 `call` MUST accept only references exposed by registered components and infer input and output from each reference.
 See s0007 for `ApplicationOptions` and s0011 and s0013 for data access and logging.
 
 ```typescript
-type LifecycleState = "idle" | "starting" | "active" | "reloading" | "failed" | "stopping";
-
 type ApplicationDefinition = {
     readonly components: readonly AnyComponent[];
     readonly logger?: LoggerFactory;
@@ -36,7 +46,7 @@ function defineApplication(definition: ApplicationDefinition): ApplicationDefini
 function createApplication(definition: ApplicationDefinition, options?: ApplicationOptions): Application;
 ```
 
-## Registration and dispatch
+## Registration and dispatch (UNIMPLEMENTED)
 
 - `createApplication` initializes runtime state and computes a topological component order from the `uses` graph.
   - It rejects duplicate IDs with `DuplicateComponentIdError`,
@@ -56,23 +66,39 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
   - Call output failures propagate the ArkType error unchanged.
 - `UnregisteredComponentError` reports an operation targeting an unregistered component.
 
-## State transitions
+## Lifecycle machine
 
+- The internal `createLifecycleMachine()` creates an independent machine in `idle`.
+- The caller supplies the allowed source states to `applyTransition(operation, allowed_from, next_state)`.
+  - The machine enters `next_state` when its current state is in `allowed_from`.
+  - Invalid transitions throw `LifecycleStateError` carrying the current state and attempted operation. The state is preserved.
+
+## Application start and stop (UNIMPLEMENTED)
+
+- The application drives lifecycle transitions, invokes component hooks, and tracks which components have started.
 - `start()` moves `idle → starting → active`.
+  - Startup preparation, including configuration validation, runs in `starting` before any component hook (s0009).
   - Components start in topological dependency order and become active when their start hook is absent or completes.
   - Start failure moves the application to `failed`. Components already started stay active.
 - `stop()` moves `active | failed → stopping → idle`.
   - It stops only active components, in reverse dependency order, and attempts all cleanup.
   - Any stop errors cause `stop()` to reject with an `AggregateError` after the application reaches `idle`.
+- Start and stop operations from invalid lifecycle states reject with `LifecycleStateError` carrying the current state and attempted operation.
+
+## Configuration reload (UNIMPLEMENTED)
+
 - `reloadConfig()` and `reloadComponentConfig()` are valid only while `active`.
   - Reload moves the application to `reloading` and returns to `active` on success without restarting component state.
   - A component or application hook failure during `reloadConfig()` moves the application to `failed`.
   - See s0009 for validation, configuration swaps, and reload hooks.
-- Start, stop, and reload operations from invalid lifecycle states reject with `LifecycleStateError`.
+- Reload operations from invalid lifecycle states reject with `LifecycleStateError`.
+
+## Lifecycle logging (UNIMPLEMENTED)
+
 - Configuration and component lifecycle transitions are logged through the configured logger.
   - The default is the core console logger and verbosity follows the logger level (s0013).
 
-## Signals
+## Signals (UNIMPLEMENTED)
 
 - Signal handling is opt-in.
 - `attachSignalHandlers(application, options?)` listens for `SIGINT` and `SIGTERM` and returns a cleanup function.

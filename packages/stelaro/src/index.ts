@@ -1,5 +1,7 @@
 export type {ApplicationOptions} from "./application/application.ts";
 export {componentFilePath, DEFAULT_APPLICATION_DIRS, InvalidComponentFileNameError} from "./application/directories.ts";
+export type {LifecycleState} from "./application/lifecycle.ts";
+export {LifecycleStateError} from "./application/lifecycle.ts";
 export type {ParsedArgs} from "./cli/args.ts";
 export {parseArgs} from "./cli/args.ts";
 export type {Logger, LoggerFactory} from "./component/logger.ts";
