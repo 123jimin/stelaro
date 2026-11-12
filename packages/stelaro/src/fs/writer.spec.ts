@@ -2,11 +2,12 @@ import {deepEqual, equal, rejects} from "node:assert/strict";
 import {Buffer} from "node:buffer";
 import {test} from "node:test";
 
-import {createTemporaryDirectory} from "../test-util.js";
+import {createTemporaryDirectory} from "../test-util.ts";
+import {createFileWriter} from "./writer.ts";
 
 test("writers create parents and overwrite files in all four formats", async (t) => {
     const file = (await createTemporaryDirectory(t)).confine("nested", "file");
-    const writer = file.write();
+    const writer = createFileWriter(file.path);
     const reader = file.read();
 
     await writer.text("héllo");

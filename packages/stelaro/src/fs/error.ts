@@ -1,4 +1,4 @@
-import {StelaroError} from "../error.js";
+import {StelaroError} from "../error.ts";
 
 /**
  * An error raised when a reader encounters a non-regular file.

@@ -2,8 +2,8 @@ import {equal, notEqual, ok} from "node:assert/strict";
 import {isAbsolute, join, resolve} from "node:path";
 import {test} from "node:test";
 
-import {createFluentPath} from "../index.js";
-import {createTemporaryDirectory} from "../test-util.js";
+import {createTemporaryDirectory} from "../test-util.ts";
+import {createFluentPath} from "./path.ts";
 
 test("paths are absolute and immutable, and join permits traversal", () => {
     const base = createFluentPath("data");

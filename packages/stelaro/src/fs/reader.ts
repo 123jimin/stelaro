@@ -4,8 +4,8 @@ import {open, stat} from "node:fs/promises";
 
 import {parse} from "smol-toml";
 
-import type {Schema} from "../schema.js";
-import {NotRegularFileError} from "./error.js";
+import type {Schema} from "../schema.ts";
+import {NotRegularFileError} from "./error.ts";
 
 interface Reader<Missing extends null> {
     /**

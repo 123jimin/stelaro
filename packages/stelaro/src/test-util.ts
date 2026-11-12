@@ -3,7 +3,7 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import type {TestContext} from "node:test";
 
-import {createFluentPath} from "./fs/path.js";
+import {createFluentPath} from "./fs/path.ts";
 
 /** Create a temporary directory and remove it during test teardown. */
 export async function createTemporaryDirectory(t: TestContext) {

@@ -1,9 +1,9 @@
 import {join, resolve} from "node:path";
 
-import type {FileReader, OptionalFileReader} from "./reader.js";
-import {createOptionalFileReader, createRequiredFileReader} from "./reader.js";
-import type {FileWriter} from "./writer.js";
-import {createFileWriter} from "./writer.js";
+import type {FileReader, OptionalFileReader} from "./reader.ts";
+import {createOptionalFileReader, createRequiredFileReader} from "./reader.ts";
+import type {FileWriter} from "./writer.ts";
+import {createFileWriter} from "./writer.ts";
 
 /**
  * Options for opening a file reader.

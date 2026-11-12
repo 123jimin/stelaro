@@ -1,8 +1,9 @@
 import {equal, ok, rejects} from "node:assert/strict";
 import {test} from "node:test";
 
-import {NotRegularFileError, StelaroError} from "../index.js";
-import {createTemporaryDirectory} from "../test-util.js";
+import {StelaroError} from "../error.ts";
+import {createTemporaryDirectory} from "../test-util.ts";
+import {NotRegularFileError} from "./error.ts";
 
 test("required and optional readers reject directories with a structured error", async (t) => {
     const base = await createTemporaryDirectory(t);

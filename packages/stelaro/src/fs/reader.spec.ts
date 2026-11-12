@@ -3,20 +3,25 @@ import {execFile} from "node:child_process";
 import {once} from "node:events";
 import {rm, symlink} from "node:fs/promises";
 import {createServer} from "node:net";
+import {extname} from "node:path";
 import {test} from "node:test";
 import {fileURLToPath} from "node:url";
 import {promisify} from "node:util";
 
 import {TomlError} from "smol-toml";
 
-import type {Schema} from "../index.js";
-import {createFluentPath, NotRegularFileError} from "../index.js";
-import {createTemporaryDirectory} from "../test-util.js";
+import type {Schema} from "../schema.ts";
+import {createTemporaryDirectory} from "../test-util.ts";
+import {NotRegularFileError} from "./error.ts";
+import {createOptionalFileReader, createRequiredFileReader} from "./reader.ts";
 
 const execFileAsync = promisify(execFile);
+const reader_module_url = new URL(`./reader${extname(import.meta.filename)}`, import.meta.url).href;
 
 test("document readers apply schemas and propagate parsing and validation errors", async (t) => {
     const file = (await createTemporaryDirectory(t)).join("document");
+    const reader = createRequiredFileReader(file.path);
+    const optional_reader = createOptionalFileReader(file.path);
     const validation_error = new Error("Expected a name");
     const Name = {
         infer: {name: ""},
@@ -29,21 +34,21 @@ test("document readers apply schemas and propagate parsing and validation errors
     } satisfies Schema;
 
     await file.write().json({name: "json"});
-    const json: {name: string} = await file.read().json(Name);
+    const json: {name: string} = await reader.json(Name);
     deepEqual(json, {name: "JSON"});
     await file.write().toml({name: "toml"});
-    const toml: {name: string} | null = await file.read({optional: true}).toml(Name);
+    const toml: {name: string} | null = await optional_reader.toml(Name);
     deepEqual(toml, {name: "TOML"});
 
     await file.write().text("!");
-    await rejects(file.read().optional().json(Name), SyntaxError);
-    await rejects(file.read({optional: true}).toml(Name), TomlError);
+    await rejects(optional_reader.json(Name), SyntaxError);
+    await rejects(optional_reader.toml(Name), TomlError);
 
     await file.write().json(null);
-    await rejects(file.read().optional().json(Name), validation_error);
+    await rejects(optional_reader.json(Name), validation_error);
     await file.write().toml({unrelated: true});
-    await rejects(file.read({optional: true}).toml(Name), validation_error);
-    deepEqual(await file.read().toml(), {unrelated: true});
+    await rejects(optional_reader.toml(Name), validation_error);
+    deepEqual(await reader.toml(), {unrelated: true});
 });
 
 test("optional readers return null for missing paths through both entry points", async (t) => {
@@ -83,9 +88,9 @@ test("readers follow symlinks to their target", async (t) => {
         }
         throw error;
     }
-    equal(await link.read().text(), "target contents");
+    equal(await createRequiredFileReader(link.path).text(), "target contents");
     await rm(file.path);
-    equal(await link.read({optional: true}).text(), null);
+    equal(await createOptionalFileReader(link.path).text(), null);
 });
 
 test("optional reads propagate denied access", async (t) => {
@@ -96,9 +101,9 @@ test("optional reads propagate denied access", async (t) => {
         "--permission", `--allow-fs-read=${workspace}`,
         "--input-type=module", "--eval",
         `import {rejects} from "node:assert/strict";
-         const {createFluentPath} = await import(process.argv[1]);
-         await rejects(createFluentPath(process.argv[2]).read().optional().text(), {code: "ERR_ACCESS_DENIED"});`,
-        new URL("../index.js", import.meta.url).href,
+         const {createOptionalFileReader} = await import(process.argv[1]);
+         await rejects(createOptionalFileReader(process.argv[2]).text(), {code: "ERR_ACCESS_DENIED"});`,
+        reader_module_url,
         file.path,
     ]);
 });
@@ -109,9 +114,10 @@ test("a FIFO without a writer is rejected promptly", {skip: process.platform ===
     await execFileAsync(process.execPath, [
         "--input-type=module", "--eval",
         `import {rejects} from "node:assert/strict";
-         const {createFluentPath, NotRegularFileError} = await import(process.argv[1]);
-         await rejects(createFluentPath(process.argv[2]).read().optional().buffer(), NotRegularFileError);`,
-        new URL("../index.js", import.meta.url).href,
+         const {createOptionalFileReader} = await import(process.argv[1]);
+         const file_path = process.argv[2];
+         await rejects(createOptionalFileReader(file_path).buffer(), {name: "NotRegularFileError", file_path});`,
+        reader_module_url,
         fifo.path,
     ], {timeout: 5_000});
 });
@@ -123,6 +129,6 @@ test("readers reject Unix sockets and character devices", {skip: process.platfor
         server.close((error) => error == null ? resolve() : reject(error));
     }));
     await once(server, "listening");
-    await rejects(socket.read().optional().buffer(), NotRegularFileError);
-    await rejects(createFluentPath("/dev/null").read().buffer(), NotRegularFileError);
+    await rejects(createOptionalFileReader(socket.path).buffer(), NotRegularFileError);
+    await rejects(createRequiredFileReader("/dev/null").buffer(), NotRegularFileError);
 });

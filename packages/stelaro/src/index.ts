@@ -1,7 +1,7 @@
-export {StelaroError} from "./error.js";
-export {NotRegularFileError} from "./fs/error.js";
-export type {FluentPath, ReadOptions} from "./fs/path.js";
-export {createFluentPath} from "./fs/path.js";
-export type {FileReader, OptionalFileReader} from "./fs/reader.js";
-export type {FileWriter} from "./fs/writer.js";
-export type {Schema} from "./schema.js";
+export {StelaroError} from "./error.ts";
+export {NotRegularFileError} from "./fs/error.ts";
+export type {FluentPath, ReadOptions} from "./fs/path.ts";
+export {createFluentPath} from "./fs/path.ts";
+export type {FileReader, OptionalFileReader} from "./fs/reader.ts";
+export type {FileWriter} from "./fs/writer.ts";
+export type {Schema} from "./schema.ts";
