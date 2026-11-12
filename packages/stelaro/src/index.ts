@@ -4,8 +4,17 @@ export type {LifecycleState} from "./application/lifecycle.ts";
 export {LifecycleStateError} from "./application/lifecycle.ts";
 export type {ParsedArgs} from "./cli/args.ts";
 export {parseArgs} from "./cli/args.ts";
+export type {
+    AnyComponentCallReference, AnyComponentCalls, CallFrom, CallInput, CallOutput, ComponentCallDeclarations,
+    ComponentCallFn, ComponentCallName, ComponentCallReference, ComponentCalls, ComponentId, MergedCallReferences, MergedComponentCalls,
+} from "./component/calls.ts";
+export {defineComponentCalls, mergeComponentCalls} from "./component/calls.ts";
+export type {ComponentCallHandler, StateFactory} from "./component/definition.ts";
+export {DuplicateCallError, InvalidComponentIdError, MismatchedComponentIdError} from "./component/error.ts";
 export type {Logger, LoggerFactory} from "./component/logger.ts";
 export {consoleLoggerFactory} from "./component/logger.ts";
+export type {ComponentCallSchema, LocalSchema} from "./component/schema.ts";
+export {defineLocalInput, defineLocalOutput, EmptyInput, isLocalSchema} from "./component/schema.ts";
 export type {DataAccess} from "./data/access.ts";
 export {createDataAccess} from "./data/access.ts";
 export {StelaroError} from "./error.ts";

@@ -5,67 +5,55 @@ tags = ["architecture", "component", "context", "lifecycle", "config", "logging"
 paths = ["packages/stelaro/src/component/**"]
 +++
 
-# Components (UNIMPLEMENTED)
+# Components
 
-## Types
+## Declaration types
 
-These excerpts use wide types for readability.
-Handler input and output SHOULD be inferred from their call declarations.
-Context calls SHOULD accept only references declared in `uses` and infer input and output from each reference.
-See s0009 for configuration and secrets declarations.
+Call surfaces preserve each component ID, call name, and concrete input and output schema type.
+The `AnyComponentCallReference` and `AnyComponentCalls` aliases express the widest forms.
 
 ```typescript
-interface ComponentCallSchema {
+type ComponentId = string;
+type ComponentCallName = string;
+
+interface ComponentCallSchema extends Schema {
     readonly inferIn: unknown;
-    readonly infer: unknown;
-    assert(input: unknown): this["infer"];
 }
 
-type ComponentCallReference = {
-    readonly component_id: ComponentId;
-    readonly name: ComponentCallName;
+type ComponentCallReference<
+    TId extends ComponentId,
+    TName extends ComponentCallName,
+    TInput extends ComponentCallSchema,
+    TOutput extends ComponentCallSchema,
+> = {
+    readonly component_id: TId;
+    readonly name: TName;
+    readonly input: TInput;
+    readonly output: TOutput;
+};
+
+type AnyComponentCallReference = ComponentCallReference<
+    ComponentId, ComponentCallName, ComponentCallSchema, ComponentCallSchema
+>;
+
+type ComponentCallDeclarations = Readonly<Record<ComponentCallName, {
     readonly input: ComponentCallSchema;
     readonly output: ComponentCallSchema;
+}>>;
+
+type ComponentCalls<
+    TId extends ComponentId,
+    TReferences extends Readonly<Record<ComponentCallName, AnyComponentCallReference>>,
+> = {
+    readonly id: TId;
+    readonly calls: TReferences;
 };
 
-type ComponentCallDeclarations = Record<ComponentCallName, {
-    readonly input: ComponentCallSchema;
-    readonly output: ComponentCallSchema;
-}>;
+type AnyComponentCalls = ComponentCalls<ComponentId, Readonly<Record<ComponentCallName, AnyComponentCallReference>>>;
 
-type ComponentCalls = {
-    readonly id: ComponentId;
-    readonly calls: Record<ComponentCallName, ComponentCallReference>;
-};
-
-type StateFactory<TState> = () => TState;
-
-type Component = {
-    readonly calls: ComponentCalls;
-    readonly uses: readonly ComponentCalls[];
-    readonly config?: ConfigSchema;
-    readonly state?: StateFactory<unknown>;
-    readonly start?: (context: ComponentContext) => Promisable<void>;
-    readonly stop?: (context: ComponentContext) => Promisable<void>;
-    readonly onConfigReload?: (context: ComponentContext) => Promisable<void>;
-    readonly handlers: Record<ComponentCallName,
-        | ((context: ComponentContext, input: unknown) => Promisable<unknown>)
-        | { handle(context: ComponentContext, input: unknown): Promisable<unknown> }
-    >;
-};
-
-type ComponentContext = {
-    readonly log: Logger;
-    readonly data: DataAccess;
-    call(reference: ComponentCallReference, input: unknown): Promise<unknown>;
-    readonly state?: unknown;
-    readonly config?: unknown;
-    readonly secrets?: unknown;
-};
-
-function defineComponentCalls(id: ComponentId, declarations: ComponentCallDeclarations): ComponentCalls;
-function mergeComponentCalls(first: ComponentCalls, ...rest: ComponentCalls[]): ComponentCalls;
-function defineComponent(definition: Component): Component;
+// Factory return types are shown at their widest.
+function defineComponentCalls(id: ComponentId, declarations: ComponentCallDeclarations): AnyComponentCalls;
+function mergeComponentCalls(first: AnyComponentCalls, ...rest: AnyComponentCalls[]): AnyComponentCalls;
 const EmptyInput: ComponentCallSchema;
 interface LocalSchema<T> extends ComponentCallSchema {
     readonly infer: T;
@@ -74,28 +62,78 @@ interface LocalSchema<T> extends ComponentCallSchema {
 function defineLocalInput<T>(): LocalSchema<T>;
 function defineLocalOutput<T>(): LocalSchema<T>;
 function isLocalSchema(call_schema: ComponentCallSchema): boolean;
+
+type StateFactory<TState> = () => TState;
+type ComponentCallHandler<TContext, TInput, TOutput> =
+    | ((context: TContext, input: TInput) => Promisable<TOutput>)
+    | { handle(context: TContext, input: TInput): Promisable<TOutput> };
 ```
 
-## Call surfaces and handlers
+- `MergedCallReferences<TSurfaces>` combines the call maps from the known entries in a tuple of surfaces.
+  `MergedComponentCalls<TSurfaces>` pairs that map with the component ID.
+- `CallFrom<TCalls>` selects the union of references in a call surface.
+- `CallInput<TCall>` selects the caller's input before validation. `CallOutput<TCall>` selects the output after validation.
+- `ComponentCallFn<TUses>` describes a call function that accepts a reference from the listed surfaces and infers its caller input and result.
+- `StateFactory<TState>` describes a per-instance state initializer.
+  `ComponentCallHandler<TContext, TInput, TOutput>` describes either handler form, with validated input and output before validation.
+
+## Component types (UNIMPLEMENTED)
+
+Handler input and output SHOULD be inferred from their call declarations.
+Context calls SHOULD accept only references declared in `uses` and infer input and output from each reference.
+See s0009 for configuration and secrets declarations.
+
+```typescript
+type Component = {
+    readonly calls: AnyComponentCalls;
+    readonly uses: readonly AnyComponentCalls[];
+    readonly config?: ConfigSchema;
+    readonly state?: StateFactory<unknown>;
+    readonly start?: (context: ComponentContext) => Promisable<void>;
+    readonly stop?: (context: ComponentContext) => Promisable<void>;
+    readonly onConfigReload?: (context: ComponentContext) => Promisable<void>;
+    readonly handlers: Record<ComponentCallName, ComponentCallHandler<ComponentContext, unknown, unknown>>;
+};
+
+type ComponentContext = {
+    readonly log: Logger;
+    readonly data: DataAccess;
+    call: ComponentCallFn<readonly AnyComponentCalls[]>;
+    readonly state?: unknown;
+    readonly config?: unknown;
+    readonly secrets?: unknown;
+};
+
+function defineComponent(definition: Component): Component;
+```
+
+## Call declarations
 
 - Component calls provide typed IPC-like boundaries without requiring cross-process transport.
 - Component IDs MUST be stable, lowercase kebab-case public identities.
-  - An invalid ID throws `InvalidComponentIdError`.
+  - IDs contain nonempty segments of lowercase ASCII letters and digits separated by single hyphens.
+  - An invalid ID throws `InvalidComponentIdError` with `component_id`.
 - Call names SHOULD be camelCase.
 - `mergeComponentCalls` combines surfaces for the same component ID, such as a public surface and an internal surface.
-  - `MismatchedComponentIdError` is thrown if IDs differ.
-  - `DuplicateCallError` is thrown if two inputs declare the same call name.
-- A handler may be a function `(context, input) => ...` or an object with `handle(context, input)`. Both forms dispatch identically.
-- Inputs and outputs MUST use ArkType schemas or local schemas and remain typed through declaration, handler dispatch, and `context.call`.
-- `EmptyInput` accepts only `{}` and rejects arrays and objects with any keys.
+  - It preserves each input reference and its type.
+  - `MismatchedComponentIdError` reports the first surface's `expected_component_id` and the conflicting `actual_component_id`.
+  - `DuplicateCallError` reports the `component_id` and duplicated `call_name`.
+- Call declarations MUST use ArkType schemas or local schemas for inputs and outputs.
+- `EmptyInput` accepts only plain objects with no own keys.
 - `defineLocalInput<T>()` and `defineLocalOutput<T>()` create schemas for values that stay in the process.
-  - Dispatch passes such values through without checking them.
+  - The schemas' `assert` methods return the supplied value unchanged.
   - `isLocalSchema` detects schemas from either factory.
+
+## Call handling (UNIMPLEMENTED)
+
+- A handler may be a function `(context, input) => ...` or an object with `handle(context, input)`. Both forms dispatch identically.
+- Inputs and outputs remain typed through handler dispatch and `context.call`.
+- Dispatch passes local values through without checking them.
 - The component that creates a local value disposes of it.
   - A handler may keep a local input after the call returns.
   - The caller's component stops first, so it withdraws the input in its stop hook when the input must not be used after that.
 
-## Context and state
+## Context and state (UNIMPLEMENTED)
 
 - `context.call` accepts the references declared in `uses`.
   - A handler that calls a reference absent from `uses` receives `UndeclaredCallError`.
