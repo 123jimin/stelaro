@@ -2,12 +2,12 @@
 id = "s0008"
 title = "Application Directories"
 tags = ["application", "config", "data", "fs"]
-paths = ["packages/stelaro/src/application/application.ts"]
+paths = ["packages/stelaro/src/application/application.ts", "packages/stelaro/src/application/directories.ts"]
 +++
 
 # Application Directories
 
-## Directory contract (UNIMPLEMENTED)
+## Directory contract
 
 ### Types
 
@@ -23,7 +23,7 @@ function componentFilePath(dir: string, component_id: string, env: string | null
 
 ### Resolution
 
-Each application instance resolves its configuration, secrets, and data directories using the options in s0007.
+The startup directory resolver uses the options in s0007.
 
 | Directory | Option | Default | Contents |
 | --- | --- | --- | --- |
@@ -41,6 +41,12 @@ Each application instance resolves its configuration, secrets, and data director
 - The config and secrets directories each store a component's base file as `{component_id}.toml` and its environment overlay as `{component_id}.{env}.toml`.
   - See s0009 for overlay behavior.
 - `componentFilePath(dir, component_id, env)` returns the component's overlay path in `dir`, or its base file path if `env` is `null`.
+  - The interpolated name must refer to a single file directly in `dir`.
+  - The function throws `InvalidComponentFileNameError` with the generated `file_name` if it contains a `/` or a NUL character, or if it contains a `\` or `:` on Windows.
+
+### Application integration (UNIMPLEMENTED)
+
+- Each application instance resolves its configuration, secrets, and data directories using the startup directory resolver.
 - Application data lives directly in the data directory.
 - Component data lives in its `{component_id}/` subdirectory.
 - An application data file named after a component ID collides with that component's directory.

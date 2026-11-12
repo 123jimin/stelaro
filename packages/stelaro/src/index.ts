@@ -1,3 +1,7 @@
+export type {ApplicationOptions} from "./application/application.ts";
+export {componentFilePath, DEFAULT_APPLICATION_DIRS, InvalidComponentFileNameError} from "./application/directories.ts";
+export type {ParsedArgs} from "./cli/args.ts";
+export {parseArgs} from "./cli/args.ts";
 export {StelaroError} from "./error.ts";
 export {NotRegularFileError} from "./fs/error.ts";
 export type {FluentPath, ReadOptions} from "./fs/path.ts";

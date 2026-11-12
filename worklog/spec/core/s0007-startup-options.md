@@ -5,28 +5,28 @@ tags = ["application", "cli", "config"]
 paths = ["packages/stelaro/src/application/application.ts", "packages/stelaro/src/cli/**"]
 +++
 
-# Startup Options (UNIMPLEMENTED)
+# Startup Options
 
 ## Types
 
 ```typescript
-type ApplicationOptions = {
+type ApplicationOptions<TEnv extends string = string> = {
     readonly base_dir?: string | null;
     readonly config_dir?: string | null;
     readonly secrets_dir?: string | null;
     readonly data_dir?: string | null;
-    readonly env?: string | null;
+    readonly env?: TEnv | null;
 };
 
-type ParsedArgs = {
+type ParsedArgs<TEnv extends string = string> = {
     readonly base_dir: string | null;
     readonly config_dir: string | null;
     readonly secrets_dir: string | null;
     readonly data_dir: string | null;
-    readonly env: string | null;
+    readonly env: TEnv | null;
 };
 
-function parseArgs(argv?: string[]): ParsedArgs;
+function parseArgs(argv?: string[]): ParsedArgs<string>;
 ```
 
 ## Behavior
@@ -35,12 +35,10 @@ function parseArgs(argv?: string[]): ParsedArgs;
   - Its default input is `process.argv.slice(2)`.
   - It rejects unknown flags and positional arguments.
 - Each parsed value is the supplied string or `null`.
+  - Callers can narrow `env` to a union of environment names by validating the parsed value.
   - The parser preserves supplied directory strings.
   - The application resolves them as specified in s0008.
 - The parser is independent of application creation.
-  - An entry point can pass its result as options with `createApplication(definition, parseArgs())`.
-  -  `createApplication` neither parses nor exposes CLI arguments.
-- The selected environment controls configuration and secrets overlays (s0009).
 
 | Option | CLI flag | CLI default | Purpose |
 | --- | --- | --- | --- |
@@ -49,6 +47,12 @@ function parseArgs(argv?: string[]): ParsedArgs;
 | `secrets_dir` | `--secrets-dir` | `null` | Override the secrets directory. |
 | `data_dir` | `--data-dir` | `null` | Override the data directory. |
 | `env` | `--env` | `null` | Select the active environment. |
+
+### Application integration (UNIMPLEMENTED)
+
+- An entry point can pass the parser result as options with `createApplication(definition, parseArgs())`.
+- `createApplication` neither parses nor exposes CLI arguments.
+- The selected environment controls configuration and secrets overlays (s0009).
 
 ## Constraints
 
