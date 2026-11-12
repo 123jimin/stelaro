@@ -1,7 +1,7 @@
 +++
 id = "t0003"
 title = "Implement scoped data access"
-status = "pending"
+status = "done"
 tags = ["data", "fs", "context"]
 modifies = ["s0011"]
 +++
@@ -22,3 +22,9 @@ Wire application and component roots in t0010.
 - Verify that calling `createDataAccess`, accessing `dir`, and resolving a path require no filesystem access or directory creation.
 - Verify that reads and writes target the confined path and retain the Fluent FS behavior.
 - Document `createDataAccess`, `DataAccess`, and the inherited symlink limitation under s0004.
+
+## Verification
+
+- TypeScript and ESLint passed using the installed tools. Corepack could not resolve the registry hostname to download the pinned pnpm version.
+- The compiled Node.js suite passed on Windows with 22 passing tests and three existing filesystem skips. All 25 tests passed on Linux.
+- The tests cover confinement, construction and resolution with access to the data directory denied, and reads and writes that leave a sibling file untouched.

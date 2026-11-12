@@ -5,7 +5,7 @@ tags = ["application", "component", "context", "data"]
 paths = ["packages/stelaro/src/data/**"]
 +++
 
-# Data Access (UNIMPLEMENTED)
+# Data Access
 
 ## Types
 
@@ -16,16 +16,23 @@ type DataAccess = {
     read(subpath: string): FileReader;
     write(subpath: string): FileWriter;
 };
+
+function createDataAccess(dir: string): DataAccess;
 ```
 
 ## Behavior
 
-- The application receives `app.data` with the absolute data directory (s0008).
-- Every component receives `context.data` without a declaration.
-  - Its absolute directory is `{data_dir}/{component_id}` (s0008).
+- `createDataAccess(dir)` creates an accessor rooted at the supplied directory without accessing the filesystem.
+  - A relative `dir` resolves against the working directory, and the accessor exposes the absolute path as `dir`.
 - `resolve(subpath)` confines the result to `dir` using s0010 `confine`.
   - Accessing `dir` and calling `resolve` require no existence check or directory creation.
 - `read` and `write` target the confined path and delegate to the s0010 `FileReader` and `FileWriter`.
+
+## Application and component integration (UNIMPLEMENTED)
+
+- The application receives `app.data` with the absolute data directory (s0008).
+- Every component receives `context.data` without a declaration.
+  - Its absolute directory is `{data_dir}/{component_id}` (s0008).
 
 ## Constraints
 
