@@ -21,3 +21,4 @@ Exclude:
 | t0001 | `package.json` | Refresh workspace dependencies | I kept the Node 20 typings despite using Node 24 for the workspace toolchain. |
 | t0001 | `packages/stelaro/src/fs/` | Organize the fluent filesystem | I combined the filesystem tests in a spec with no matching source module and put the shared schema type in the filesystem module. |
 | t0001 | `packages/stelaro/src/test-util.ts` | Share filesystem test setup | I named the helper `makeFixture`, which hid that it creates a temporary directory. |
+| t0001 | `packages/stelaro/src/fs/path.ts`, `packages/stelaro/src/fs/reader.ts` | Implement fluent paths and readers | I used ambiguous helper names and embedded confinement and decoding logic in factory closures. |

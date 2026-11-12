@@ -10,7 +10,7 @@ import {promisify} from "node:util";
 import {TomlError} from "smol-toml";
 
 import type {Schema} from "../index.js";
-import {fluentPath, NotRegularFileError} from "../index.js";
+import {createFluentPath, NotRegularFileError} from "../index.js";
 import {createTemporaryDirectory} from "../test-util.js";
 
 const execFileAsync = promisify(execFile);
@@ -96,8 +96,8 @@ test("optional reads propagate denied access", async (t) => {
         "--permission", `--allow-fs-read=${workspace}`,
         "--input-type=module", "--eval",
         `import {rejects} from "node:assert/strict";
-         const {fluentPath} = await import(process.argv[1]);
-         await rejects(fluentPath(process.argv[2]).read().optional().text(), {code: "ERR_ACCESS_DENIED"});`,
+         const {createFluentPath} = await import(process.argv[1]);
+         await rejects(createFluentPath(process.argv[2]).read().optional().text(), {code: "ERR_ACCESS_DENIED"});`,
         new URL("../index.js", import.meta.url).href,
         file.path,
     ]);
@@ -109,8 +109,8 @@ test("a FIFO without a writer is rejected promptly", {skip: process.platform ===
     await execFileAsync(process.execPath, [
         "--input-type=module", "--eval",
         `import {rejects} from "node:assert/strict";
-         const {fluentPath, NotRegularFileError} = await import(process.argv[1]);
-         await rejects(fluentPath(process.argv[2]).read().optional().buffer(), NotRegularFileError);`,
+         const {createFluentPath, NotRegularFileError} = await import(process.argv[1]);
+         await rejects(createFluentPath(process.argv[2]).read().optional().buffer(), NotRegularFileError);`,
         new URL("../index.js", import.meta.url).href,
         fifo.path,
     ], {timeout: 5_000});
@@ -124,5 +124,5 @@ test("readers reject Unix sockets and character devices", {skip: process.platfor
     }));
     await once(server, "listening");
     await rejects(socket.read().optional().buffer(), NotRegularFileError);
-    await rejects(fluentPath("/dev/null").read().buffer(), NotRegularFileError);
+    await rejects(createFluentPath("/dev/null").read().buffer(), NotRegularFileError);
 });

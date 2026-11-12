@@ -61,12 +61,12 @@ class NotRegularFileError extends StelaroError {
     readonly file_path: string;
 }
 
-function fluentPath(base: string): FluentPath;
+function createFluentPath(base: string): FluentPath;
 ```
 
 ## Paths
 
-- `fluentPath(base)` resolves an absolute, immutable `FluentPath`.
+- `createFluentPath(base)` resolves an absolute, immutable `FluentPath`.
 - Path operations perform no I/O.
 - `read` and `write` create terminal operations.
 - `join` returns an absolute path and permits traversal above the base.

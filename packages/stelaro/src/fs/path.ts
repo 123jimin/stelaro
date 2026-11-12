@@ -1,7 +1,7 @@
 import {join, resolve} from "node:path";
 
 import type {FileReader, OptionalFileReader} from "./reader.js";
-import {createFileReader, createOptionalFileReader} from "./reader.js";
+import {createOptionalFileReader, createRequiredFileReader} from "./reader.js";
 import type {FileWriter} from "./writer.js";
 import {createFileWriter} from "./writer.js";
 
@@ -45,9 +45,9 @@ export interface FluentPath {
      *
      * @example
      * ```typescript
-     * import {fluentPath} from "@jiminp/stelaro";
+     * import {createFluentPath} from "@jiminp/stelaro";
      *
-     * const settings = fluentPath("config").confine("../../settings.toml");
+     * const settings = createFluentPath("config").confine("../../settings.toml");
      * ```
      */
     confine(...segments: string[]): FluentPath;
@@ -84,38 +84,49 @@ export interface FluentPath {
  *
  * @category Fluent FS
  */
-export function fluentPath(base: string): FluentPath {
-    return createPath(resolve(base));
+export function createFluentPath(base: string): FluentPath {
+    return wrapAbsolutePath(resolve(base));
 }
 
-function createPath(path: string): FluentPath {
+function bindPathRead(path: string): FluentPath["read"] {
     function read(options: ReadOptions & {readonly optional: true}): OptionalFileReader;
     function read(options?: ReadOptions): FileReader;
     function read(options?: ReadOptions): FileReader | OptionalFileReader {
-        return options?.optional ? createOptionalFileReader(path) : createFileReader(path);
+        return options?.optional ? createOptionalFileReader(path) : createRequiredFileReader(path);
+    }
+    return read;
+}
+
+function joinFluentPath(path: string, ...segments: string[]): FluentPath {
+    return wrapAbsolutePath(resolve(join(path, ...segments)));
+}
+
+function confineFluentPath(path: string, ...segments: string[]): FluentPath {
+    const names: string[] = [];
+    for(const segment of segments) {
+        // Restart at the base on a leading separator or drive prefix.
+        if(/^(?:[a-z]:|[\\/])/i.test(segment)) {
+            names.length = 0;
+        }
+        // Strip the drive prefix and recognize both separator styles on every platform.
+        for(const name of segment.replace(/^[a-z]:/i, "").split(/[\\/]/)) {
+            if(name === "..") {
+                names.pop();
+            } else if(name !== "" && name !== ".") {
+                names.push(name);
+            }
+        }
     }
 
+    return wrapAbsolutePath(names.length === 0 ? path : join(path, names.join("/")));
+}
+
+function wrapAbsolutePath(path: string): FluentPath {
     return Object.freeze({
         path,
-        join: (...segments: string[]) => createPath(resolve(join(path, ...segments))),
-        confine: (...segments: string[]) => {
-            const names: string[] = [];
-            for(const segment of segments) {
-                if(/^(?:[a-z]:|[\\/])/i.test(segment)) {
-                    names.length = 0;
-                }
-                for(const name of segment.replace(/^[a-z]:/i, "").split(/[\\/]/)) {
-                    if(name === "..") {
-                        names.pop();
-                    } else if(name !== "" && name !== ".") {
-                        names.push(name);
-                    }
-                }
-            }
-
-            return createPath(names.length === 0 ? path : join(path, names.join("/")));
-        },
-        read,
-        write: () => createFileWriter(path),
+        join: joinFluentPath.bind(null, path),
+        confine: confineFluentPath.bind(null, path),
+        read: bindPathRead(path),
+        write: createFileWriter.bind(null, path),
     });
 }

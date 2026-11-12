@@ -2,11 +2,11 @@ import {equal, notEqual, ok} from "node:assert/strict";
 import {isAbsolute, join, resolve} from "node:path";
 import {test} from "node:test";
 
-import {fluentPath} from "../index.js";
+import {createFluentPath} from "../index.js";
 import {createTemporaryDirectory} from "../test-util.js";
 
 test("paths are absolute and immutable, and join permits traversal", () => {
-    const base = fluentPath("data");
+    const base = createFluentPath("data");
     equal(base.path, resolve("data"));
     ok(isAbsolute(base.path));
     ok(Object.isFrozen(base));
@@ -17,7 +17,7 @@ test("paths are absolute and immutable, and join permits traversal", () => {
 });
 
 test("confine resolves mixed separators and stops traversal at its base", () => {
-    const base = fluentPath("data");
+    const base = createFluentPath("data");
     equal(base.confine("a\\b/c", "..\\..", ".", "d").path, join(base.path, "a", "d"));
     equal(base.confine("a", "../../../", "..\\").path, base.path);
     equal(base.confine("a", "/rooted/name").path, join(base.path, "rooted", "name"));
