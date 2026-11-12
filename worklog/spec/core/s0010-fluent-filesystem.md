@@ -5,7 +5,7 @@ tags = ["util", "fs", "data"]
 paths = ["packages/stelaro/src/fs/**"]
 +++
 
-# Fluent Filesystem (UNIMPLEMENTED)
+# Fluent Filesystem
 
 ## Types
 

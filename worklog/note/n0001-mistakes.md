@@ -15,4 +15,9 @@ Exclude:
 
 | Relevant worklog | Relevant files | Intended task | Mistake |
 | --- | --- | --- | --- |
-| n0001 | `AGENTS.md` | Mistake creation | Placeholder. Remove this line upon first mistake creation. |
+| t0001 | `tsconfig.json`, `tsconfig.base.json`, `packages/stelaro/tsconfig.json` | Set up TypeScript for the workspace | I put the shared compiler settings in the core package and omitted the root project references. |
+| t0001 | `eslint.config.mjs` | Set up linting for the workspace | I composed a local ESLint config instead of using the recommended shared config. |
+| t0001 | `package.json`, `pnpm-lock.yaml` | Set up workspace dependencies | I pinned tooling versions without checking for newer compatible releases. |
+| t0001 | `package.json` | Refresh workspace dependencies | I kept the Node 20 typings despite using Node 24 for the workspace toolchain. |
+| t0001 | `packages/stelaro/src/fs/` | Organize the fluent filesystem | I combined the filesystem tests in a spec with no matching source module and put the shared schema type in the filesystem module. |
+| t0001 | `packages/stelaro/src/test-util.ts` | Share filesystem test setup | I named the helper `makeFixture`, which hid that it creates a temporary directory. |

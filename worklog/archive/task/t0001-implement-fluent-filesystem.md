@@ -1,7 +1,7 @@
 +++
 id = "t0001"
 title = "Implement Fluent Filesystem"
-status = "pending"
+status = "done"
 tags = ["fs"]
 modifies = ["s0010", "s0012"]
 +++
@@ -33,3 +33,9 @@ Follow s0002 for package boundaries, s0003 for dependency selection, and s0004 f
   Verify required and optional missing-path behavior, permission errors, symlinks to regular files, rejection of directories, and prompt rejection of FIFOs on a platform that supports them.
 - Run `pnpm build`, `pnpm lint`, and `pnpm test`.
   Record verified implementation status in s0010 and for the shared error contract in s0012.
+
+## Verification
+
+- `pnpm build`, `pnpm lint`, and `pnpm test` passed on Windows.
+  Eight tests passed and three skipped because POSIX special files or file symlink privileges were unavailable.
+- All eleven tests passed on Linux, including symlinks, FIFOs, Unix sockets, and character devices.

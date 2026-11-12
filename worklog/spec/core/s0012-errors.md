@@ -5,7 +5,7 @@ tags = ["application", "component", "errors"]
 paths = ["packages/stelaro/src/error.ts"]
 +++
 
-# Errors (UNIMPLEMENTED)
+# Errors
 
 ## Shared contract
 
@@ -15,7 +15,7 @@ paths = ["packages/stelaro/src/error.ts"]
   - Core MUST export them and MUST NOT depend on gateway packages for them.
 - The operation specs define subclasses of `StelaroError` when errors occur.
 
-## Errors for component authors
+## Errors for component authors (UNIMPLEMENTED)
 
 - `ComponentNotReadyError` reports that a component cannot serve a call because its state is not ready.
   - Lifecycle state check during call transport is expected to prevent those cases, so core never throws it.
