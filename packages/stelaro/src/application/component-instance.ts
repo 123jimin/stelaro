@@ -22,7 +22,7 @@ type ValidatedConfigValue = {readonly value: unknown} | null;
 
 type ComponentConfiguration = {
     readonly config: ValidatedConfigValue;
-    readonly secrets: ValidatedConfigValue;
+    readonly secrets?: ValidatedConfigValue;
 };
 
 export function createComponentInstance(
@@ -34,7 +34,8 @@ export function createComponentInstance(
 ) {
     const {id} = definition.calls;
     const state = definition.state == null ? {} : {state: definition.state()};
-    let configuration: ComponentConfiguration = {config: null, secrets: null};
+    let config: ValidatedConfigValue = null;
+    let secrets: ValidatedConfigValue = null;
 
     function createContext(scope: HookScope | null): AnyComponentContext {
         const context: AnyComponentContext = {
@@ -52,36 +53,55 @@ export function createComponentInstance(
             },
         };
         if(definition.config != null) {
-            Object.defineProperty(context, "config", {enumerable: true, get: () => configuration.config?.value});
+            Object.defineProperty(context, "config", {enumerable: true, get: () => config?.value});
         }
         if(definition.secrets != null) {
-            Object.defineProperty(context, "secrets", {enumerable: true, get: () => configuration.secrets?.value});
+            Object.defineProperty(context, "secrets", {enumerable: true, get: () => secrets?.value});
         }
         return context;
     }
 
+    // Each context is built from the same definition as the hooks.
+    const hooks = definition as AnyComponent & ComponentHooks<AnyComponentContext>;
     const context = createContext(null);
     return {
         log,
-        async loadConfiguration(config_dir: string, secrets_dir: string, env: string | null): Promise<ComponentConfiguration> {
-            const [config, secrets] = await Promise.all([
-                loadComponentConfig(definition, config_dir, env),
+        async loadConfiguration(config_dir: string, env: string | null, secrets_dir: string | null): Promise<ComponentConfiguration> {
+            const config_load = loadComponentConfig(definition, config_dir, env);
+            if(secrets_dir === null) {
+                return {config: await config_load};
+            }
+            const [config, secrets] = await Promise.allSettled([
+                config_load,
                 loadComponentSecrets(definition, secrets_dir, env, log),
             ]);
-            return {config, secrets};
+            if(config.status === "rejected") {
+                throw config.reason;
+            }
+            if(secrets.status === "rejected") {
+                throw secrets.reason;
+            }
+            return {config: config.value, secrets: secrets.value};
         },
         installConfiguration(values: ComponentConfiguration): void {
-            configuration = values;
-            if(values.config !== null) {
-                log.debug("Loaded configuration.");
+            config = values.config;
+            if("secrets" in values) {
+                secrets = values.secrets;
+                if(config !== null) {
+                    log.debug("Loaded configuration.");
+                }
+                if(secrets !== null) {
+                    log.debug("Loaded secrets.");
+                }
             }
-            if(values.secrets !== null) {
-                log.debug("Loaded secrets.");
+        },
+        async runConfigReloadHook(): Promise<void> {
+            await hooks.onConfigReload?.(context);
+            if(config !== null) {
+                log.debug("Reloaded configuration.");
             }
         },
         async runHook(operation: "start" | "stop"): Promise<void> {
-            // This context is built from the same definition as the hook.
-            const hooks = definition as AnyComponent & ComponentHooks<AnyComponentContext>;
             const scope = {active: true};
             try {
                 const result = hooks[operation]?.(createContext(scope));

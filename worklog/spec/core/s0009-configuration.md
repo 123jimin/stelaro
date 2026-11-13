@@ -30,10 +30,10 @@ paths = ["packages/stelaro/src/config/**"]
 - The application exposes each validated value only through the declaring component's context (s0005).
   - Their types come from the corresponding schemas, and undeclared values are absent.
 
-## Reload (UNIMPLEMENTED)
+## Reload
 
 - `reloadConfig()` reads and validates every configuration file before changing any reference.
-  - If validation fails, all previous values remain in place.
+  - If loading or validation fails, all previous values remain in place.
 - After successful validation, all configuration references are swapped.
   - Component `onConfigReload` hooks then run concurrently, and every hook runs to completion even when another fails.
 - If any component hooks fail, `reloadConfig()` rejects with an `AggregateError` containing their failures and skips the application hook.

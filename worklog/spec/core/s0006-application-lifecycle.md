@@ -24,7 +24,6 @@ class LifecycleStateError extends StelaroError {
 Types are shown at their widest for readability.
 `call` MUST accept only references exposed by registered components and infer input and output from each reference.
 See s0007 for `ApplicationOptions` and s0011 and s0013 for data access and logging.
-`reloadConfig` and `reloadComponentConfig` are specified below under Configuration reload (UNIMPLEMENTED).
 
 ```typescript
 type ApplicationDefinition = {
@@ -93,14 +92,15 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
   - Any stop errors cause `stop()` to reject with an `AggregateError` after the application reaches `idle`.
 - Start and stop operations from invalid lifecycle states reject with `LifecycleStateError` carrying the current state and attempted operation.
 
-## Configuration reload (UNIMPLEMENTED)
+## Configuration reload
 
 - `reloadConfig()` and `reloadComponentConfig()` are valid only while `active`.
   - Reload moves the application to `reloading` and returns to `active` on success without restarting component state.
-  - A component or application hook failure during `reloadConfig()` moves the application to `failed`.
+  - A read, parse, or validation failure returns the application to `active` with its previous configuration.
+  - A component or application hook failure moves the application to `failed` with the newly installed configuration.
   - See s0009 for validation, configuration swaps, and reload hooks.
 - Reload operations from invalid lifecycle states reject with `LifecycleStateError`.
-- `UnregisteredComponentError` reports an operation targeting an unregistered component.
+- `UnregisteredComponentError` reports the `component_id` when targeted reload names an unregistered component.
 
 ## Lifecycle logging
 

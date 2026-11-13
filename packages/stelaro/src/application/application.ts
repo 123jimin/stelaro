@@ -9,7 +9,7 @@ import {createDataAccess} from "../data/access.ts";
 import type {AnyComponentInstance, DispatchCall} from "./component-instance.ts";
 import {createComponentInstance} from "./component-instance.ts";
 import {resolveApplicationDirectories} from "./directories.ts";
-import {UnregisteredCallError} from "./error.ts";
+import {UnregisteredCallError, UnregisteredComponentError} from "./error.ts";
 import {createLifecycleMachine, LifecycleStateError} from "./lifecycle.ts";
 import {createComponentRegistry} from "./registry.ts";
 
@@ -82,6 +82,29 @@ export type Application<TComponents extends readonly AnyComponent[]> = {
      * @throws {AggregateError} One or more component stop hooks failed.
      */
     stop(): Promise<void>;
+
+    /**
+     * Reload all component configurations, then run the component and application reload hooks.
+     *
+     * @returns A promise that resolves when all reload hooks complete
+     * @throws {LifecycleStateError} The application is outside the active state.
+     * @throws {ConfigFileError} A required configuration file is missing or cannot be read or parsed.
+     * @throws {ConfigValidationError} A component's configuration fails its schema.
+     * @throws {AggregateError} One or more component reload hooks failed.
+     */
+    reloadConfig(): Promise<void>;
+
+    /**
+     * Reload one component's configuration and run its reload hook.
+     *
+     * @param component_id - ID of a registered component
+     * @returns A promise that resolves when the component's reload hook completes
+     * @throws {LifecycleStateError} The application is outside the active state.
+     * @throws {UnregisteredComponentError} The component ID is unregistered.
+     * @throws {ConfigFileError} A required configuration file is missing or cannot be read or parsed.
+     * @throws {ConfigValidationError} The configuration fails the component's schema.
+     */
+    reloadComponentConfig(component_id: TComponents[number]["calls"]["id"]): Promise<void>;
 
     /**
      * Call a registered component using its declared input and output schemas.
@@ -173,19 +196,54 @@ export function createApplication<const TComponents extends readonly AnyComponen
         instances.set(id, createComponentInstance(component, calls, logger(id), createDataAccess(data.resolve(id)), dispatchCall));
     }
 
+    async function loadAndInstallConfiguration(targets: Iterable<AnyComponentInstance>, secrets_dir: string | null): Promise<void> {
+        const prepared = await Promise.all(Array.from(targets, async (instance) => ({
+            instance, configuration: await instance.loadConfiguration(config_dir, env, secrets_dir),
+        })));
+        for(const {instance, configuration} of prepared) {
+            instance.installConfiguration(configuration);
+        }
+    }
+
+    async function runReloadHooks(): Promise<void> {
+        const results = await Promise.allSettled(Array.from(instances.values(), (instance) => instance.runConfigReloadHook()));
+        const errors = results.flatMap((result) => result.status === "rejected" ? [result.reason] : []);
+        if(errors.length > 0) {
+            throw new AggregateError(errors, "One or more component configuration reload hooks failed.");
+        }
+        await definition.onConfigReload?.();
+    }
+
+    async function reload(target: {component_id: ComponentId} | null): Promise<void> {
+        const operation = target === null ? "reloadConfig" : "reloadComponentConfig";
+        lifecycle.applyTransition(operation, ["active"], "reloading");
+        const instance = target === null ? null : instances.get(target.component_id) ?? null;
+        let failure_state: "active" | "failed" = "active";
+        try {
+            if(target !== null && instance === null) {
+                throw new UnregisteredComponentError(target.component_id);
+            }
+            await loadAndInstallConfiguration(instance === null ? instances.values() : [instance], null);
+            failure_state = "failed";
+            if(instance === null) {
+                await runReloadHooks();
+            } else {
+                await instance.runConfigReloadHook();
+            }
+        } catch (error) {
+            lifecycle.applyTransition(operation, ["reloading"], failure_state);
+            throw error;
+        }
+        lifecycle.applyTransition(operation, ["reloading"], "active");
+    }
+
     return {
         data,
         logger,
         async start() {
             lifecycle.applyTransition("start", ["idle"], "starting");
             try {
-                const prepared = await Promise.all(Array.from(instances.values(), async (instance) => {
-                    const configuration = await instance.loadConfiguration(config_dir, secrets_dir, env);
-                    return {instance, configuration};
-                }));
-                for(const {instance, configuration} of prepared) {
-                    instance.installConfiguration(configuration);
-                }
+                await loadAndInstallConfiguration(instances.values(), secrets_dir);
                 for(const instance of instances.values()) {
                     await instance.runHook("start");
                     started.add(instance);
@@ -213,6 +271,12 @@ export function createApplication<const TComponents extends readonly AnyComponen
             if(errors.length > 0) {
                 throw new AggregateError(errors, "One or more components failed to stop.");
             }
+        },
+        reloadConfig() {
+            return reload(null);
+        },
+        reloadComponentConfig(component_id) {
+            return reload({component_id});
         },
         call(reference, input) {
             return dispatchCall(reference, input, null);

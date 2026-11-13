@@ -91,6 +91,26 @@ export class UnregisteredCallError extends StelaroError {
 }
 
 /**
+ * An error raised when an operation targets an unregistered component.
+ *
+ * @category Errors
+ */
+export class UnregisteredComponentError extends StelaroError {
+    /** The ID of the unregistered component. */
+    readonly component_id: ComponentId;
+
+    /**
+     * Create an error for an unregistered component.
+     *
+     * @param component_id - ID of the targeted component
+     */
+    constructor(component_id: ComponentId) {
+        super(`Component ${quote(component_id)} is unregistered.`);
+        this.component_id = component_id;
+    }
+}
+
+/**
  * An error raised when a component calls a reference absent from its dependencies.
  *
  * @category Errors

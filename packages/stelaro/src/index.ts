@@ -3,7 +3,7 @@ export {createApplication, defineApplication} from "./application/application.ts
 export {componentFilePath, DEFAULT_APPLICATION_DIRS, InvalidComponentFileNameError} from "./application/directories.ts";
 export {
     CallInputError, CircularDependencyError, DuplicateComponentIdError, MissingDependencyError, MissingHandlerError, UndeclaredCallError,
-    UnregisteredCallError,
+    UnregisteredCallError, UnregisteredComponentError,
 } from "./application/error.ts";
 export type {LifecycleState} from "./application/lifecycle.ts";
 export {LifecycleStateError} from "./application/lifecycle.ts";

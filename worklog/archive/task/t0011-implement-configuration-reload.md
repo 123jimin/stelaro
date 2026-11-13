@@ -1,7 +1,7 @@
 +++
 id = "t0011"
 title = "Implement configuration reload"
-status = "pending"
+status = "done"
 tags = ["application", "config", "lifecycle"]
 modifies = ["s0006", "s0009"]
 blocked_by = ["t0010"]
@@ -12,9 +12,10 @@ blocked_by = ["t0010"]
 Implement `reloadConfig` and `reloadComponentConfig` under s0006 and s0009.
 Use the configuration loader and lifecycle controller through the application runtime.
 
-## Open spec decision
+## Reload failure states
 
-Specify the resulting lifecycle state after reload validation fails and after a targeted component reload hook throws.
+Return to `active` after a read, parse, or validation failure with the previous configuration.
+Enter `failed` after a reload hook fails with the newly installed configuration.
 
 ## Completion criteria
 
