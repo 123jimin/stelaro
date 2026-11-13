@@ -80,7 +80,7 @@ type ComponentDeclarations<
     readonly secrets?: TSecrets;
 };
 
-type ComponentHooks<TContext> = {
+export type ComponentHooks<TContext> = {
     /** The hook invoked when the component starts. */
     readonly start?: (context: TContext) => Promisable<void>;
     /** The hook invoked when the component stops. */

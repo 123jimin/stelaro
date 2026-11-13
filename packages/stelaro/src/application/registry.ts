@@ -82,29 +82,34 @@ export function sortComponentsByUses<TComponent extends AnyComponent>(components
     return sortIndexedComponents(indexComponents(components));
 }
 
-type RegisteredCall = {
+type AnyRegisteredHandler = AnyComponent["handlers"][ComponentCallName];
+
+type RegisteredCall<THandler extends AnyRegisteredHandler> = {
     readonly reference: AnyComponentCallReference;
-    readonly handler: AnyComponent["handlers"][ComponentCallName];
+    readonly handler: THandler;
 };
 
-type ComponentRegistry<TComponent extends AnyComponent> = {
+type ComponentRegistry<TComponent extends AnyComponent, THandler extends AnyRegisteredHandler> = {
     readonly components_by_id: ReadonlyMap<ComponentId, TComponent>;
-    readonly calls_by_component_id: ReadonlyMap<ComponentId, ReadonlyMap<ComponentCallName, RegisteredCall>>;
+    readonly calls_by_component_id: ReadonlyMap<ComponentId, ReadonlyMap<ComponentCallName, RegisteredCall<THandler>>>;
     readonly start_order: readonly TComponent[];
 };
 
-export function createComponentRegistry<TComponent extends AnyComponent>(components: readonly TComponent[]): ComponentRegistry<TComponent> {
+export function createComponentRegistry<TComponent extends AnyComponent, THandler extends AnyRegisteredHandler>(
+    components: readonly (TComponent & {readonly handlers: Readonly<Record<ComponentCallName, THandler>>})[],
+): ComponentRegistry<TComponent, THandler> {
     const components_by_id = indexComponents(components);
-    const calls_by_component_id = new Map<ComponentId, ReadonlyMap<ComponentCallName, RegisteredCall>>();
+    const calls_by_component_id = new Map<ComponentId, ReadonlyMap<ComponentCallName, RegisteredCall<THandler>>>();
     for(const [id, component] of components_by_id) {
-        const calls = new Map<ComponentCallName, RegisteredCall>();
+        const calls = new Map<ComponentCallName, RegisteredCall<THandler>>();
+        const handlers: Readonly<Record<ComponentCallName, THandler>> = component.handlers;
         for(const reference of Object.values(component.calls.calls)) {
             const {name} = reference;
             if(calls.has(name)) {
                 throw new DuplicateCallError(id, name);
             }
-            const handler = component.handlers[name];
-            if(!Object.hasOwn(component.handlers, name) || (typeof handler !== "function" && typeof handler?.handle !== "function")) {
+            const handler = handlers[name];
+            if(!Object.hasOwn(handlers, name) || (typeof handler !== "function" && typeof handler?.handle !== "function")) {
                 throw new MissingHandlerError(id, name);
             }
             calls.set(name, {reference, handler});

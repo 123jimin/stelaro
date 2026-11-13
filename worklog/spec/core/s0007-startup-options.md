@@ -48,7 +48,7 @@ function parseArgs(argv?: string[]): ParsedArgs<string>;
 | `data_dir` | `--data-dir` | `null` | Override the data directory. |
 | `env` | `--env` | `null` | Select the active environment. |
 
-### Application integration (UNIMPLEMENTED)
+### Application integration
 
 - An entry point can pass the parser result as options with `createApplication(definition, parseArgs())`.
 - `createApplication` neither parses nor exposes CLI arguments.

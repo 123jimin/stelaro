@@ -28,7 +28,7 @@ function createDataAccess(dir: string): DataAccess;
   - Accessing `dir` and calling `resolve` require no existence check or directory creation.
 - `read` and `write` target the confined path and delegate to the s0010 `FileReader` and `FileWriter`.
 
-## Application and component integration (UNIMPLEMENTED)
+## Application and component integration
 
 - The application receives `app.data` with the absolute data directory (s0008).
 - Every component receives `context.data` without a declaration.

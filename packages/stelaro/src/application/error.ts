@@ -91,6 +91,59 @@ export class UnregisteredCallError extends StelaroError {
 }
 
 /**
+ * An error raised when a component calls a reference absent from its dependencies.
+ *
+ * @category Errors
+ */
+export class UndeclaredCallError extends StelaroError {
+    /** The component that attempted the call. */
+    readonly caller_id: ComponentId;
+    /** The target component. */
+    readonly component_id: ComponentId;
+    /** The name of the undeclared call. */
+    readonly call_name: ComponentCallName;
+
+    /**
+     * Create an error for a call absent from the caller's dependency surfaces.
+     *
+     * @param caller_id - ID of the calling component
+     * @param component_id - ID of the target component
+     * @param call_name - Name of the undeclared call
+     */
+    constructor(caller_id: ComponentId, component_id: ComponentId, call_name: ComponentCallName) {
+        super(`Component ${quote(caller_id)} did not declare a dependency on call ${quote(call_name)} from ${quote(component_id)}.`);
+        this.caller_id = caller_id;
+        this.component_id = component_id;
+        this.call_name = call_name;
+    }
+}
+
+/**
+ * An error raised when a call input fails schema validation.
+ *
+ * @category Errors
+ */
+export class CallInputError extends StelaroError {
+    /** The target component. */
+    readonly component_id: ComponentId;
+    /** The name of the call whose input failed validation. */
+    readonly call_name: ComponentCallName;
+
+    /**
+     * Create an error for a call input schema failure.
+     *
+     * @param component_id - ID of the target component
+     * @param call_name - Name of the call
+     * @param cause - Original schema error
+     */
+    constructor(component_id: ComponentId, call_name: ComponentCallName, cause: unknown) {
+        super(`Input to call ${quote(call_name)} on component ${quote(component_id)} failed validation.`, {cause});
+        this.component_id = component_id;
+        this.call_name = call_name;
+    }
+}
+
+/**
  * An error raised when component dependencies form a cycle.
  *
  * @category Errors

@@ -19,11 +19,12 @@ class LifecycleStateError extends StelaroError {
 }
 ```
 
-## Application API (UNIMPLEMENTED)
+## Application API
 
 Types are shown at their widest for readability.
 `call` MUST accept only references exposed by registered components and infer input and output from each reference.
 See s0007 for `ApplicationOptions` and s0011 and s0013 for data access and logging.
+`reloadConfig` and `reloadComponentConfig` are specified below under Configuration reload (UNIMPLEMENTED).
 
 ```typescript
 type ApplicationDefinition = {
@@ -59,16 +60,19 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
 - `sortComponentsByUses(components)` returns components in start order for callers outside an application.
   - It sorts by dependency ID, ignores dependencies on components absent from the list, and rejects duplicate IDs and cycles.
 
-## Application registration and dispatch (UNIMPLEMENTED)
+## Application registration and dispatch
 
 - `createApplication` uses the component registry and initializes runtime state.
-- Calls are valid only while `active` or `reloading`.
+- `app.call` is valid only while `active` or `reloading`.
+- `context.call` follows the same guard during ordinary component work.
+  - A running start or stop hook may call a declared dependency whose start hook completed or was absent and whose shutdown has yet to begin.
+    This also applies to dependency calls made by handlers invoked through the hook.
+  - The hook's call permission expires when it settles.
 - The application definition determines the registered call surfaces.
 - Dispatch to an unregistered call throws `UnregisteredCallError`.
 - A call input schema failure throws `CallInputError` before the handler runs.
   - Its `cause` is the original schema failure.
   - Call output failures propagate the ArkType error unchanged.
-- `UnregisteredComponentError` reports an operation targeting an unregistered component.
 
 ## Lifecycle machine
 
@@ -77,7 +81,7 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
   - The machine enters `next_state` when its current state is in `allowed_from`.
   - Invalid transitions throw `LifecycleStateError` carrying the current state and attempted operation. The state is preserved.
 
-## Application start and stop (UNIMPLEMENTED)
+## Application start and stop
 
 - The application drives lifecycle transitions, invokes component hooks, and tracks which components have started.
 - `start()` moves `idle → starting → active`.
@@ -96,8 +100,9 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
   - A component or application hook failure during `reloadConfig()` moves the application to `failed`.
   - See s0009 for validation, configuration swaps, and reload hooks.
 - Reload operations from invalid lifecycle states reject with `LifecycleStateError`.
+- `UnregisteredComponentError` reports an operation targeting an unregistered component.
 
-## Lifecycle logging (UNIMPLEMENTED)
+## Lifecycle logging
 
 - Configuration and component lifecycle transitions are logged through the configured logger.
   - The default is the core console logger and verbosity follows the logger level (s0013).

@@ -1,7 +1,7 @@
 +++
 id = "t0010"
 title = "Implement the application runtime and call dispatch"
-status = "pending"
+status = "done"
 tags = ["application", "component", "context", "lifecycle"]
 modifies = ["s0005", "s0006", "s0007", "s0008", "s0009", "s0011", "s0013"]
 blocked_by = ["t0007", "t0008", "t0009"]
@@ -13,9 +13,9 @@ Implement `defineApplication` and `createApplication` under s0006.
 Integrate the registry, startup options, directory resolution, validated config and secrets, lifecycle controller, and component-scoped capabilities.
 Use one dispatch implementation for application and component calls, applying the applicable call-surface and lifecycle checks.
 
-## Open spec decision
+## Lifecycle hook calls
 
-Clarify how the lifecycle call guard applies to `context.call` inside start and stop hooks, including local-value cleanup in s0005.
+Allow `context.call` from start and stop hooks to declared dependencies that are still active, including calls that withdraw local values (s0005 and s0006).
 
 ## Completion criteria
 
@@ -27,3 +27,7 @@ Clarify how the lifecycle call guard applies to `context.call` inside start and 
 - Verify that registered application calls and declared context calls infer their types and dispatch both handler forms.
   Verify unregistered and undeclared call errors, input wrapping with the original cause, unchanged output errors, and local-value passthrough.
 - Document the public application API and errors under s0004. Complete reload and signals in t0011 and t0012.
+
+Block reason: The runtime follows the current active/reloading call guard. Confirm the rule for context.call in start and stop hooks to resolve the local-value cleanup contract in s0005 and s0006.
+
+Resume check: User approved context.call from start and stop hooks to started dependencies.

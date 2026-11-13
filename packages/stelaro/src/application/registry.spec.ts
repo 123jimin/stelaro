@@ -72,7 +72,8 @@ test("registration and sorting reject duplicate component IDs and report cycles"
     const consumer_component = defineComponent({calls: consumer, uses: [first], handlers: {}});
     const self_dependent = defineComponent({calls: first, uses: [first], handlers: {}});
 
-    for(const processComponents of [createComponentRegistry, sortComponentsByUses]) {
+    const processors: ((components: readonly AnyComponent[]) => unknown)[] = [createComponentRegistry, sortComponentsByUses];
+    for(const processComponents of processors) {
         throws(() => processComponents([first_component, first_component]), {
             name: DuplicateComponentIdError.name, component_id: "first",
         });

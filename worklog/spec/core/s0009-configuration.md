@@ -23,7 +23,7 @@ paths = ["packages/stelaro/src/config/**"]
 - `ConfigFileError` and `SecretsFileError` report read and TOML parse failures with `component_id`, `file_path`, and the original `cause`.
 - `ConfigValidationError` and `SecretsValidationError` report schema failures with `component_id` and the original `cause`.
 
-## Application startup and exposure (UNIMPLEMENTED)
+## Application startup and exposure
 
 - At startup, the application loads and validates each component's configuration and secrets from the directories in s0008 before any component start hook runs.
 - A startup validation failure fails startup and moves the application to `failed` (s0006).

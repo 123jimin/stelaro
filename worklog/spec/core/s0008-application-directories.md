@@ -44,7 +44,7 @@ The startup directory resolver uses the options in s0007.
   - The interpolated name must refer to a single file directly in `dir`.
   - The function throws `InvalidComponentFileNameError` with the generated `file_name` if it contains a `/` or a NUL character, or if it contains a `\` or `:` on Windows.
 
-### Application integration (UNIMPLEMENTED)
+### Application integration
 
 - Each application instance resolves its configuration, secrets, and data directories using the startup directory resolver.
 - Application data lives directly in the data directory.

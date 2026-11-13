@@ -29,13 +29,14 @@ function consoleLoggerFactory(scope: string): Logger;
   - Compose the message using the console's usual formatting, including format specifiers and inspection of values.
   - Adapters can use `node:util`'s `format` with the arguments that contribute to the message.
 
-## Application and component integration (UNIMPLEMENTED)
+## Application and component integration
 
 - Every component receives `context.log` from the logger factory, scoped to its stable component ID.
 - An application may supply a logger factory.
   - Core uses `consoleLoggerFactory` by default.
-- Application lifecycle and signal handling log through this contract.
-  - See s0006 for those events and s0014 for the Pino adapter.
+- Application lifecycle events log through this contract.
+- Signal handling (UNIMPLEMENTED) logs through this contract.
+- See s0006 for those events and s0014 for the Pino adapter.
 
 ## Constraints
 

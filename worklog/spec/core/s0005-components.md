@@ -133,20 +133,23 @@ function defineComponent(definition: Component): Component;
   - The schemas' `assert` methods return the supplied value unchanged.
   - `isLocalSchema` detects schemas from either factory.
 
-## Call handling (UNIMPLEMENTED)
+## Call handling
 
 - A handler may be a function `(context, input) => ...` or an object with `handle(context, input)`. Both forms dispatch identically.
 - Inputs and outputs remain typed through handler dispatch and `context.call`.
 - Dispatch passes local values through without checking them.
+
+### Local-value cleanup
+
 - The component that creates a local value disposes of it.
   - A handler may keep a local input after the call returns.
   - The caller's component stops first, so it withdraws the input in its stop hook when the input must not be used after that.
 
-## Context and state (UNIMPLEMENTED)
+## Context and state
 
 - `context.call` accepts the references declared in `uses`.
-  - A handler that calls a reference absent from `uses` receives `UndeclaredCallError`.
-  - See s0006 for registration and dispatch.
+  - A call to a reference absent from `uses` receives `UndeclaredCallError`.
+  - Start and stop hooks may call dependencies that are still active. See s0006 for lifecycle guards.
 - Every component receives `log` (s0013) and `data` (s0011) scoped to its current component ID.
 - `state`, `config`, and `secrets` are present and typed only when the component declares the corresponding capability.
 - A state factory creates state for one component in one application runtime.
