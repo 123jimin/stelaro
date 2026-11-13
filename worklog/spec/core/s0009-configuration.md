@@ -12,29 +12,25 @@ paths = ["packages/stelaro/src/config/**"]
 - Components declare ArkType schemas through the separate optional `config` and `secrets` fields in s0005.
   Each declaration adds the corresponding validated value to the component's context type.
 
-## Configuration runtime (UNIMPLEMENTED)
+## Loading
 
-### Startup
+- Loading skips configuration or secrets when the component has no corresponding schema.
+- A declared configuration schema requires a base file. If it is missing, loading raises `ConfigFileError` before reading the overlay or validating the schema.
+- A missing secrets base file produces a warning and uses an empty base table.
+- When an environment is selected (s0007), loading reads its overlay after the base file and ignores a missing overlay.
+  `recursiveMerge` merges nested TOML tables and uses the overlay value on conflicts between other values, including arrays and dates.
+- The schema validates the merged value once. Schema defaults supply missing fields.
+- `ConfigFileError` and `SecretsFileError` report read and TOML parse failures with `component_id`, `file_path`, and the original `cause`.
+- `ConfigValidationError` and `SecretsValidationError` report schema failures with `component_id` and the original `cause`.
 
-- Schema defaults supply missing fields.
-- At startup, the application loads each component's TOML configuration and secrets from the directories in s0008 and validates them before any component start hook runs.
-- The application skips a configuration or secrets file when the component has no corresponding schema.
-- A missing secrets file for a declared schema produces a warning and validates an empty object.
+## Application startup and exposure (UNIMPLEMENTED)
+
+- At startup, the application loads and validates each component's configuration and secrets from the directories in s0008 before any component start hook runs.
 - A startup validation failure fails startup and moves the application to `failed` (s0006).
-
-### Environment overlays
-
-- When `--env` or `ApplicationOptions.env` selects an environment (s0007), the application loads its configuration and secrets overlays after their base files.
-- `recursiveMerge` deep-merges overlays onto base values.
-  - Overlays contain environment-specific differences, and their fields win on conflict.
-  - The application ignores missing overlays and validates the merged result.
-
-### Exposure
-
-- The application exposes validated configuration and secrets only through the declaring component's context (s0005).
+- The application exposes each validated value only through the declaring component's context (s0005).
   - Their types come from the corresponding schemas, and undeclared values are absent.
 
-### Reload
+## Reload (UNIMPLEMENTED)
 
 - `reloadConfig()` reads and validates every configuration file before changing any reference.
   - If validation fails, all previous values remain in place.
@@ -48,11 +44,6 @@ paths = ["packages/stelaro/src/config/**"]
   - A validation failure preserves the old value.
 - Both methods resolve with no value and leave secrets as loaded at startup.
   - See s0006 for valid lifecycle states.
-
-### Errors
-
-- `ConfigFileError` and `SecretsFileError` report unreadable files.
-- `ConfigValidationError` and `SecretsValidationError` report schema failures.
 
 ## Constraints
 

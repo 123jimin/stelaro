@@ -22,6 +22,7 @@ export type {Logger, LoggerFactory} from "./component/logger.ts";
 export {consoleLoggerFactory} from "./component/logger.ts";
 export type {ComponentCallSchema, LocalSchema} from "./component/schema.ts";
 export {defineLocalInput, defineLocalOutput, EmptyInput, isLocalSchema} from "./component/schema.ts";
+export {ConfigFileError, ConfigValidationError, SecretsFileError, SecretsValidationError} from "./config/error.ts";
 export type {DataAccess} from "./data/access.ts";
 export {createDataAccess} from "./data/access.ts";
 export {StelaroError} from "./error.ts";
