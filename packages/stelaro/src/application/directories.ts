@@ -1,6 +1,7 @@
 import {join, resolve, sep} from "node:path";
 
 import {StelaroError} from "../error.ts";
+import {quote} from "../util/index.ts";
 import type {ApplicationOptions} from "./application.ts";
 
 /**
@@ -39,7 +40,7 @@ export class InvalidComponentFileNameError extends StelaroError {
      * @param file_name - Generated filename that failed validation
      */
     constructor(file_name: string) {
-        super(`Invalid component filename: ${JSON.stringify(file_name)}`);
+        super(`Invalid component filename: ${quote(file_name)}`);
         this.file_name = file_name;
     }
 }

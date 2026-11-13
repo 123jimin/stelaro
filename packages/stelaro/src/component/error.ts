@@ -1,4 +1,5 @@
 import {StelaroError} from "../error.ts";
+import {quote} from "../util/index.ts";
 
 /**
  * An error raised for a component ID outside lowercase kebab-case.
@@ -15,7 +16,7 @@ export class InvalidComponentIdError extends StelaroError {
      * @param component_id - Invalid component ID
      */
     constructor(component_id: string) {
-        super(`Invalid component ID ${JSON.stringify(component_id)}. Expected lowercase kebab-case.`);
+        super(`Invalid component ID ${quote(component_id)}. Expected lowercase kebab-case.`);
         this.component_id = component_id;
     }
 }
@@ -39,7 +40,7 @@ export class MismatchedComponentIdError extends StelaroError {
      * @param actual_component_id - Component ID of the conflicting surface
      */
     constructor(expected_component_id: string, actual_component_id: string) {
-        super(`Cannot merge calls for component ${JSON.stringify(actual_component_id)} into ${JSON.stringify(expected_component_id)}.`);
+        super(`Cannot merge calls for component ${quote(actual_component_id)} into ${quote(expected_component_id)}.`);
         this.expected_component_id = expected_component_id;
         this.actual_component_id = actual_component_id;
     }
@@ -64,7 +65,7 @@ export class DuplicateCallError extends StelaroError {
      * @param call_name - Duplicate call name
      */
     constructor(component_id: string, call_name: string) {
-        super(`Duplicate call ${JSON.stringify(call_name)} for component ${JSON.stringify(component_id)}.`);
+        super(`Duplicate call ${quote(call_name)} for component ${quote(component_id)}.`);
         this.component_id = component_id;
         this.call_name = call_name;
     }
@@ -85,7 +86,7 @@ export class ComponentNotReadyError extends StelaroError {
      * @param component_id - ID of the component handling the call
      */
     constructor(component_id: string) {
-        super(`Component ${JSON.stringify(component_id)} is not ready to serve calls.`);
+        super(`Component ${quote(component_id)} is not ready to serve calls.`);
         this.component_id = component_id;
     }
 }

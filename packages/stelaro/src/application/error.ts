@@ -1,5 +1,6 @@
 import type {ComponentCallName, ComponentId} from "../component/calls.ts";
 import {StelaroError} from "../error.ts";
+import {quote} from "../util/index.ts";
 
 /**
  * An error raised when more than one component has the same ID.
@@ -15,7 +16,7 @@ export class DuplicateComponentIdError extends StelaroError {
      * @param component_id - Duplicate component ID
      */
     constructor(component_id: ComponentId) {
-        super(`Component ${JSON.stringify(component_id)} is listed more than once.`);
+        super(`Component ${quote(component_id)} is listed more than once.`);
         this.component_id = component_id;
     }
 }
@@ -37,7 +38,7 @@ export class MissingDependencyError extends StelaroError {
      * @param dependency_id - ID of the missing dependency
      */
     constructor(component_id: ComponentId, dependency_id: ComponentId) {
-        super(`Component ${JSON.stringify(component_id)} requires unregistered component ${JSON.stringify(dependency_id)}.`);
+        super(`Component ${quote(component_id)} requires unregistered component ${quote(dependency_id)}.`);
         this.component_id = component_id;
         this.dependency_id = dependency_id;
     }
@@ -60,7 +61,7 @@ export class MissingHandlerError extends StelaroError {
      * @param call_name - Name of the call without a handler
      */
     constructor(component_id: ComponentId, call_name: ComponentCallName) {
-        super(`Component ${JSON.stringify(component_id)} has no handler for call ${JSON.stringify(call_name)}.`);
+        super(`Component ${quote(component_id)} has no handler for call ${quote(call_name)}.`);
         this.component_id = component_id;
         this.call_name = call_name;
     }
@@ -83,7 +84,7 @@ export class UnregisteredCallError extends StelaroError {
      * @param call_name - Name of the unregistered call
      */
     constructor(component_id: ComponentId, call_name: ComponentCallName) {
-        super(`Call ${JSON.stringify(call_name)} is not registered for component ${JSON.stringify(component_id)}.`);
+        super(`Call ${quote(call_name)} is not registered for component ${quote(component_id)}.`);
         this.component_id = component_id;
         this.call_name = call_name;
     }
