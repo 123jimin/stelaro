@@ -32,6 +32,7 @@ test("startup loads scoped config and secrets, and state persists within one run
     const calls = defineComponentCalls("worker", {read: {input: EmptyInput, output: defineLocalOutput<object>()}});
     const peer_calls = defineComponentCalls("peer", {read: {input: EmptyInput, output: defineLocalOutput<object>()}});
     const makeState = () => ({starts: 0});
+    const captured: {read?: () => {name: string; token: number}} = {};
     const logs: string[] = [];
     const logger: LoggerFactory = (scope) => ({
         ...quietLogger(scope),
@@ -44,8 +45,7 @@ test("startup loads scoped config and secrets, and state persists within one run
         secrets: type({token: "number"}),
         state: makeState,
         start(context) {
-            equal(context.config.name, "overlay");
-            equal(context.secrets.token, 2);
+            captured.read ??= () => ({name: context.config.name, token: context.secrets.token});
             context.state.starts++;
         },
         handlers: {read: (context) => ({
@@ -83,13 +83,21 @@ test("startup loads scoped config and secrets, and state persists within one run
         state: {starts: 1},
     });
     deepEqual(await app.call(peer_calls.calls.read, {}), {starts: 0});
-    await app.stop();
-    await app.start();
-    deepEqual(await app.call(calls.calls.read, {}), {...first, state: {starts: 2}});
+    const read_first_context = captured.read;
+    ok(read_first_context);
+    deepEqual(read_first_context(), {name: "overlay", token: 2});
     await other_app.start();
     deepEqual(await other_app.call(calls.calls.read, {}), {...first, state: {starts: 1}});
-    await app.stop();
     await other_app.stop();
+    await app.stop();
+    await root.join("settings", "worker.test.toml").write().text('name = "restarted"');
+    await root.join("credentials", "worker.test.toml").write().text("token = 3");
+    await app.start();
+    deepEqual(await app.call(calls.calls.read, {}), {
+        ...first, config: {name: "restarted"}, secrets: {token: 3}, state: {starts: 2},
+    });
+    deepEqual(read_first_context(), {name: "restarted", token: 3});
+    await app.stop();
     ok(logs.some((entry) => entry.startsWith("worker: Loaded configuration")));
     ok(logs.some((entry) => entry.startsWith("worker: Loaded secrets")));
     ok(logs.some((entry) => entry.startsWith("worker: Component started")));

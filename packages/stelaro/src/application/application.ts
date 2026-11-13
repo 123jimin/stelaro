@@ -1,14 +1,15 @@
 import type {Promisable} from "@jiminp/tooltool";
 
-import type {AnyComponentCallReference, AnyComponentCalls, CallOutput, ComponentCallFn, ComponentCallName, ComponentId} from "../component/calls.ts";
-import type {AnyComponent, ComponentCallHandler, ComponentContext, ComponentHooks} from "../component/definition.ts";
+import type {ComponentCallFn, ComponentId} from "../component/calls.ts";
+import type {AnyComponent} from "../component/definition.ts";
 import type {LoggerFactory} from "../component/logger.ts";
 import {consoleLoggerFactory} from "../component/logger.ts";
-import {loadComponentConfig, loadComponentSecrets} from "../config/load.ts";
 import type {DataAccess} from "../data/access.ts";
 import {createDataAccess} from "../data/access.ts";
+import type {AnyComponentInstance, DispatchCall} from "./component-instance.ts";
+import {createComponentInstance} from "./component-instance.ts";
 import {resolveApplicationDirectories} from "./directories.ts";
-import {CallInputError, UndeclaredCallError, UnregisteredCallError} from "./error.ts";
+import {UnregisteredCallError} from "./error.ts";
 import {createLifecycleMachine, LifecycleStateError} from "./lifecycle.ts";
 import {createComponentRegistry} from "./registry.ts";
 
@@ -110,43 +111,6 @@ export function defineApplication<const TComponents extends readonly AnyComponen
     return definition;
 }
 
-type AnyComponentContext = ComponentContext<readonly AnyComponentCalls[], never, never, never> & {
-    state?: unknown;
-    config?: unknown;
-    secrets?: unknown;
-};
-
-type RuntimeComponent = Omit<AnyComponent, keyof ComponentHooks<never> | "handlers">
-    & ComponentHooks<AnyComponentContext>
-    & {readonly handlers: Readonly<Record<ComponentCallName, ComponentCallHandler<AnyComponentContext, unknown, unknown>>>};
-
-type HookScope = {active: boolean};
-
-type AnyComponentInstance = {
-    readonly definition: RuntimeComponent;
-    readonly context: AnyComponentContext;
-    contextForHook(scope: HookScope): AnyComponentContext;
-};
-
-async function invokeCall<TCall extends AnyComponentCallReference>(
-    reference: TCall,
-    handler: ComponentCallHandler<AnyComponentContext, unknown, unknown>,
-    context: AnyComponentContext,
-    input: unknown,
-): Promise<CallOutput<TCall>> {
-    let validated_input: unknown;
-    try {
-        // Local schemas implement assert as identity.
-        validated_input = reference.input.assert(input);
-    } catch (cause) {
-        throw new CallInputError(reference.component_id, reference.name, cause);
-    }
-
-    const output = await (typeof handler === "function" ? handler(context, validated_input) : handler.handle(context, validated_input));
-    const output_schema: TCall["output"] = reference.output;
-    return output_schema.assert(output);
-}
-
 /**
  * Create an independent runtime from the application's component definitions.
  *
@@ -176,9 +140,7 @@ export function createApplication<const TComponents extends readonly AnyComponen
     definition: ApplicationDefinition<TComponents>,
     options: ApplicationOptions = {},
 ): Application<TComponents> {
-    const components: readonly AnyComponent[] = definition.components;
-    // Registration pairs each handler with its schema. The runtime builds the matching context from each definition.
-    const registry = createComponentRegistry(components as readonly RuntimeComponent[]);
+    const registry = createComponentRegistry(definition.components);
     const {config_dir, secrets_dir, data_dir} = resolveApplicationDirectories(options);
     const env = options.env ?? null;
     const logger = definition.logger ?? consoleLoggerFactory;
@@ -187,68 +149,28 @@ export function createApplication<const TComponents extends readonly AnyComponen
     const instances = new Map<ComponentId, AnyComponentInstance>();
     const started = new Set<AnyComponentInstance>();
 
-    async function runHook(instance: AnyComponentInstance, operation: "start" | "stop"): Promise<void> {
-        const scope = {active: true};
-        try {
-            const result = instance.definition[operation]?.(instance.contextForHook(scope));
-            if(result != null) {
-                await result;
-            }
-        } finally {
-            // Saved call functions share this permission and lose it when the hook settles.
-            scope.active = false;
-        }
-    }
-
-    async function dispatchCall<TCall extends AnyComponentCallReference>(
-        reference: TCall,
-        input: unknown,
-        scope: HookScope | null,
-    ): Promise<CallOutput<TCall>> {
+    const dispatchCall: DispatchCall = async (reference, input, scope) => {
         const state = lifecycle.state;
-        const during_transition = state === "starting" || state === "stopping";
-        const from_hook = during_transition && scope?.active === true;
+        const from_hook = (state === "starting" || state === "stopping") && scope?.active === true;
         if(state !== "active" && state !== "reloading" && !from_hook) {
             throw new LifecycleStateError(state, "call");
         }
         const {component_id, name} = reference;
-        const entry = registry.calls_by_component_id.get(component_id)?.get(name);
         const target = instances.get(component_id);
-        // The caller's types come from the supplied reference. The same ID and name can have different schemas.
-        if(entry?.reference !== reference || target == null) {
+        if(target == null) {
             throw new UnregisteredCallError(component_id, name);
         }
         if(from_hook && !started.has(target)) {
             throw new LifecycleStateError(state, "call");
         }
-        const context = from_hook ? target.contextForHook(scope) : target.context;
-        return invokeCall(reference, entry.handler, context, input);
-    }
+        return target.invoke(reference, input, from_hook ? scope : null);
+    };
 
     for(const component of registry.start_order) {
         const {id} = component.calls;
-        function createCall(scope: HookScope | null): AnyComponentContext["call"] {
-            return async (reference, input) => {
-                const declared = component.uses.some(
-                    ({id, calls}) => id === reference.component_id && Object.values(calls).includes(reference),
-                );
-                if(!declared) {
-                    throw new UndeclaredCallError(id, reference.component_id, reference.name);
-                }
-                return dispatchCall(reference, input, scope);
-            };
-        }
-        const context: AnyComponentContext = {
-            log: logger(id),
-            data: createDataAccess(data.resolve(id)),
-            call: createCall(null),
-            ...(component.state == null ? {} : {state: component.state()}),
-        };
-        instances.set(id, {
-            definition: component,
-            context,
-            contextForHook: (scope) => ({...context, call: createCall(scope)}),
-        });
+        // The registry indexes every component in start order, including those with no calls.
+        const calls = registry.calls_by_component_id.get(id)!;
+        instances.set(id, createComponentInstance(component, calls, logger(id), createDataAccess(data.resolve(id)), dispatchCall));
     }
 
     return {
@@ -258,25 +180,17 @@ export function createApplication<const TComponents extends readonly AnyComponen
             lifecycle.applyTransition("start", ["idle"], "starting");
             try {
                 const prepared = [];
-                for(const {definition, context} of instances.values()) {
-                    const config = await loadComponentConfig(definition, config_dir, env);
-                    const secrets = await loadComponentSecrets(definition, secrets_dir, env, context.log);
-                    prepared.push({context, config, secrets});
+                for(const instance of instances.values()) {
+                    const configuration = await instance.loadConfiguration(config_dir, secrets_dir, env);
+                    prepared.push({instance, configuration});
                 }
-                for(const {context, config, secrets} of prepared) {
-                    if(config !== null) {
-                        context.config = config.value;
-                        context.log.debug("Loaded configuration.");
-                    }
-                    if(secrets !== null) {
-                        context.secrets = secrets.value;
-                        context.log.debug("Loaded secrets.");
-                    }
+                for(const {instance, configuration} of prepared) {
+                    instance.installConfiguration(configuration);
                 }
                 for(const instance of instances.values()) {
-                    await runHook(instance, "start");
+                    await instance.runHook("start");
                     started.add(instance);
-                    instance.context.log.debug("Component started.");
+                    instance.log.debug("Component started.");
                 }
             } catch (error) {
                 lifecycle.applyTransition("start", ["starting"], "failed");
@@ -290,8 +204,8 @@ export function createApplication<const TComponents extends readonly AnyComponen
             for(const instance of Array.from(started).reverse()) {
                 started.delete(instance);
                 try {
-                    await runHook(instance, "stop");
-                    instance.context.log.debug("Component stopped.");
+                    await instance.runHook("stop");
+                    instance.log.debug("Component stopped.");
                 } catch (error) {
                     errors.push(error);
                 }

@@ -82,27 +82,25 @@ export function sortComponentsByUses<TComponent extends AnyComponent>(components
     return sortIndexedComponents(indexComponents(components));
 }
 
-type AnyRegisteredHandler = AnyComponent["handlers"][ComponentCallName];
-
-type RegisteredCall<THandler extends AnyRegisteredHandler> = {
+export type RegisteredCall = {
     readonly reference: AnyComponentCallReference;
-    readonly handler: THandler;
+    readonly handler: AnyComponent["handlers"][ComponentCallName];
 };
 
-type ComponentRegistry<TComponent extends AnyComponent, THandler extends AnyRegisteredHandler> = {
+type ComponentRegistry<TComponent extends AnyComponent> = {
     readonly components_by_id: ReadonlyMap<ComponentId, TComponent>;
-    readonly calls_by_component_id: ReadonlyMap<ComponentId, ReadonlyMap<ComponentCallName, RegisteredCall<THandler>>>;
+    readonly calls_by_component_id: ReadonlyMap<ComponentId, ReadonlyMap<ComponentCallName, RegisteredCall>>;
     readonly start_order: readonly TComponent[];
 };
 
-export function createComponentRegistry<TComponent extends AnyComponent, THandler extends AnyRegisteredHandler>(
-    components: readonly (TComponent & {readonly handlers: Readonly<Record<ComponentCallName, THandler>>})[],
-): ComponentRegistry<TComponent, THandler> {
+export function createComponentRegistry<TComponent extends AnyComponent>(
+    components: readonly TComponent[],
+): ComponentRegistry<TComponent> {
     const components_by_id = indexComponents(components);
-    const calls_by_component_id = new Map<ComponentId, ReadonlyMap<ComponentCallName, RegisteredCall<THandler>>>();
+    const calls_by_component_id = new Map<ComponentId, ReadonlyMap<ComponentCallName, RegisteredCall>>();
     for(const [id, component] of components_by_id) {
-        const calls = new Map<ComponentCallName, RegisteredCall<THandler>>();
-        const handlers: Readonly<Record<ComponentCallName, THandler>> = component.handlers;
+        const calls = new Map<ComponentCallName, RegisteredCall>();
+        const {handlers} = component;
         for(const reference of Object.values(component.calls.calls)) {
             const {name} = reference;
             if(calls.has(name)) {
