@@ -64,8 +64,10 @@ export function createComponentInstance(
     return {
         log,
         async loadConfiguration(config_dir: string, secrets_dir: string, env: string | null): Promise<ComponentConfiguration> {
-            const config = await loadComponentConfig(definition, config_dir, env);
-            const secrets = await loadComponentSecrets(definition, secrets_dir, env, log);
+            const [config, secrets] = await Promise.all([
+                loadComponentConfig(definition, config_dir, env),
+                loadComponentSecrets(definition, secrets_dir, env, log),
+            ]);
             return {config, secrets};
         },
         installConfiguration(values: ComponentConfiguration): void {

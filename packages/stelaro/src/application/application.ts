@@ -179,11 +179,10 @@ export function createApplication<const TComponents extends readonly AnyComponen
         async start() {
             lifecycle.applyTransition("start", ["idle"], "starting");
             try {
-                const prepared = [];
-                for(const instance of instances.values()) {
+                const prepared = await Promise.all(Array.from(instances.values(), async (instance) => {
                     const configuration = await instance.loadConfiguration(config_dir, secrets_dir, env);
-                    prepared.push({instance, configuration});
-                }
+                    return {instance, configuration};
+                }));
                 for(const {instance, configuration} of prepared) {
                     instance.installConfiguration(configuration);
                 }
