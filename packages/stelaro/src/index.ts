@@ -1,7 +1,11 @@
 export type {ApplicationOptions} from "./application/application.ts";
 export {componentFilePath, DEFAULT_APPLICATION_DIRS, InvalidComponentFileNameError} from "./application/directories.ts";
+export {
+    CircularDependencyError, DuplicateComponentIdError, MissingDependencyError, MissingHandlerError, UnregisteredCallError,
+} from "./application/error.ts";
 export type {LifecycleState} from "./application/lifecycle.ts";
 export {LifecycleStateError} from "./application/lifecycle.ts";
+export {sortComponentsByUses} from "./application/registry.ts";
 export type {ParsedArgs} from "./cli/args.ts";
 export {parseArgs} from "./cli/args.ts";
 export type {

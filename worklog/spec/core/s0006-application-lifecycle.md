@@ -46,18 +46,22 @@ function defineApplication(definition: ApplicationDefinition): ApplicationDefini
 function createApplication(definition: ApplicationDefinition, options?: ApplicationOptions): Application;
 ```
 
-## Registration and dispatch (UNIMPLEMENTED)
+## Component registration
 
-- `createApplication` initializes runtime state and computes a topological component order from the `uses` graph.
-  - It rejects duplicate IDs with `DuplicateComponentIdError`,
-    missing handlers with `MissingHandlerError`,
-    duplicate call IDs with `DuplicateCallError`,
-    and cycles with `CircularDependencyError`.
+- The component registry indexes components by ID, pairs call references with their handlers, and computes start order from the `uses` graph.
+  - `DuplicateComponentIdError` reports the conflicting `component_id`.
+  - `MissingHandlerError` and `DuplicateCallError` report the `component_id` and `call_name`.
+  - `CircularDependencyError.cycle` lists the component IDs along the cycle and repeats the starting ID at the end.
 - A `uses` entry names a registered component by its ID and may describe a subset of the registered call surface assembled with `mergeComponentCalls` (s0005).
-  - A missing component throws `MissingDependencyError`.
-  - A reference absent from that component's registered surface throws `UnregisteredCallError`.
+  - A missing component throws `MissingDependencyError` with the consumer's `component_id` and the missing `dependency_id`.
+  - Each call reference in the entry must be the same object as the corresponding registered reference.
+    `UnregisteredCallError` reports the target `component_id` and `call_name` when the reference is absent.
 - `sortComponentsByUses(components)` returns components in start order for callers outside an application.
-  - It ignores dependencies on components absent from the list and rejects duplicate IDs and cycles as `createApplication` does.
+  - It sorts by dependency ID, ignores dependencies on components absent from the list, and rejects duplicate IDs and cycles.
+
+## Application registration and dispatch (UNIMPLEMENTED)
+
+- `createApplication` uses the component registry and initializes runtime state.
 - Calls are valid only while `active` or `reloading`.
 - The application definition determines the registered call surfaces.
 - Dispatch to an unregistered call throws `UnregisteredCallError`.
