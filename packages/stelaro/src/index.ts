@@ -9,8 +9,11 @@ export type {
     ComponentCallFn, ComponentCallName, ComponentCallReference, ComponentCalls, ComponentId, MergedCallReferences, MergedComponentCalls,
 } from "./component/calls.ts";
 export {defineComponentCalls, mergeComponentCalls} from "./component/calls.ts";
-export type {ComponentCallHandler, StateFactory} from "./component/definition.ts";
-export {DuplicateCallError, InvalidComponentIdError, MismatchedComponentIdError} from "./component/error.ts";
+export type {AnyComponent, Component, ComponentCallHandler, ComponentContext, StateFactory} from "./component/definition.ts";
+export {defineComponent} from "./component/definition.ts";
+export {
+    ComponentNotReadyError, DuplicateCallError, InvalidComponentIdError, MismatchedComponentIdError, UserFacingError,
+} from "./component/error.ts";
 export type {Logger, LoggerFactory} from "./component/logger.ts";
 export {consoleLoggerFactory} from "./component/logger.ts";
 export type {ComponentCallSchema, LocalSchema} from "./component/schema.ts";

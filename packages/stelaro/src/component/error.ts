@@ -69,3 +69,47 @@ export class DuplicateCallError extends StelaroError {
         this.call_name = call_name;
     }
 }
+
+/**
+ * An error raised when a component's state prevents it from serving a call.
+ *
+ * @category Errors
+ */
+export class ComponentNotReadyError extends StelaroError {
+    /** The ID of the component that could not serve the call. */
+    readonly component_id: string;
+
+    /**
+     * Create an error for a component that is not ready.
+     *
+     * @param component_id - ID of the component handling the call
+     */
+    constructor(component_id: string) {
+        super(`Component ${JSON.stringify(component_id)} is not ready to serve calls.`);
+        this.component_id = component_id;
+    }
+}
+
+/**
+ * An error carrying a message suitable for an end user.
+ *
+ * @category Errors
+ */
+export class UserFacingError extends StelaroError {
+    /** The message that can be shown to the end user. */
+    readonly user_message: string;
+
+    /**
+     * Create an error with a message for the end user.
+     *
+     * @param user_message - Text to display to the end user
+     * @param options - Error options including an optional internal cause
+     *
+     * @remarks
+     * Present `user_message` to users and keep the cause private.
+     */
+    constructor(user_message: string, options?: ErrorOptions) {
+        super(user_message, options);
+        this.user_message = user_message;
+    }
+}

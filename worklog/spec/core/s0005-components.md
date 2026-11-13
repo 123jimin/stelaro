@@ -77,17 +77,26 @@ type ComponentCallHandler<TContext, TInput, TOutput> =
 - `StateFactory<TState>` describes a per-instance state initializer.
   `ComponentCallHandler<TContext, TInput, TOutput>` describes either handler form, with validated input and output before validation.
 
-## Component types (UNIMPLEMENTED)
+## Component definitions
 
-Handler input and output SHOULD be inferred from their call declarations.
-Context calls SHOULD accept only references declared in `uses` and infer input and output from each reference.
-See s0009 for configuration and secrets declarations.
+- `defineComponent` returns the supplied definition with types inferred from its declarations.
+- Components declare configuration and secrets independently through the optional `config` and `secrets` fields.
+  Each field holds an ArkType schema. See s0009 for loading and validation.
+- Each handler receives its input schema's validated type and returns a value accepted by its output schema.
+- Handlers and lifecycle hooks share the component's context type.
+  The type exposes `log`, `data`, and `call`, with `state`, `config`, and `secrets` included only for declared capabilities.
+  State is typed from its factory's return value, and configuration and secrets are typed from the outputs of their schemas.
+- The type of `context.call` accepts only references from `uses` and infers the supplied input and validated result for each reference.
+- `AnyComponent` describes a component whose concrete handler and hook parameter types are erased.
+
+The excerpts below show the widest forms.
 
 ```typescript
 type Component = {
     readonly calls: AnyComponentCalls;
     readonly uses: readonly AnyComponentCalls[];
-    readonly config?: ConfigSchema;
+    readonly config?: type.Any<unknown>;
+    readonly secrets?: type.Any<unknown>;
     readonly state?: StateFactory<unknown>;
     readonly start?: (context: ComponentContext) => Promisable<void>;
     readonly stop?: (context: ComponentContext) => Promisable<void>;
@@ -98,7 +107,7 @@ type Component = {
 type ComponentContext = {
     readonly log: Logger;
     readonly data: DataAccess;
-    call: ComponentCallFn<readonly AnyComponentCalls[]>;
+    readonly call: ComponentCallFn<readonly AnyComponentCalls[]>;
     readonly state?: unknown;
     readonly config?: unknown;
     readonly secrets?: unknown;

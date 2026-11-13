@@ -7,12 +7,16 @@ paths = ["packages/stelaro/src/config/**"]
 
 # Configuration
 
-## Configuration contract (UNIMPLEMENTED)
+## Schema declarations
 
-### Declaration and startup
+- Components declare ArkType schemas through the separate optional `config` and `secrets` fields in s0005.
+  Each declaration adds the corresponding validated value to the component's context type.
 
-- Components may declare ArkType schemas for configuration and secrets.
-  - Schema defaults supply missing fields.
+## Configuration runtime (UNIMPLEMENTED)
+
+### Startup
+
+- Schema defaults supply missing fields.
 - At startup, the application loads each component's TOML configuration and secrets from the directories in s0008 and validates them before any component start hook runs.
 - The application skips a configuration or secrets file when the component has no corresponding schema.
 - A missing secrets file for a declared schema produces a warning and validates an empty object.
