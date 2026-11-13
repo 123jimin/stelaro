@@ -169,8 +169,12 @@ export function createApplication<const TComponents extends readonly AnyComponen
     const logger = definition.logger ?? consoleLoggerFactory;
     const data = createDataAccess(data_dir);
     const lifecycle = createLifecycleMachine();
+
+    // Iteration order is the dependency order of the registry, which is preserved by Map.
     const instances = new Map<ComponentId, AnyComponentInstance>();
-    const started = new Set<AnyComponentInstance>();
+
+    // Just to track the started components for shutdown in reverse order.
+    const started_components: AnyComponentInstance[] = [];
 
     const dispatchCall: DispatchCall = async (reference, input, scope) => {
         const state = lifecycle.state;
@@ -183,17 +187,15 @@ export function createApplication<const TComponents extends readonly AnyComponen
         if(target == null) {
             throw new UnregisteredCallError(component_id, name);
         }
-        if(from_hook && !started.has(target)) {
+        if(from_hook && !target.is_started) {
             throw new LifecycleStateError(state, "call");
         }
         return target.invoke(reference, input, from_hook ? scope : null);
     };
 
-    for(const component of registry.start_order) {
-        const {id} = component.calls;
-        // The registry indexes every component in start order, including those with no calls.
-        const calls = registry.calls_by_component_id.get(id)!;
-        instances.set(id, createComponentInstance(component, calls, logger(id), createDataAccess(data.resolve(id)), dispatchCall));
+    // Preserve the registry's dependency order for startup.
+    for(const [id, {definition, calls}] of registry) {
+        instances.set(id, createComponentInstance(definition, calls, logger(id), createDataAccess(data.resolve(id)), dispatchCall));
     }
 
     async function loadAndInstallConfiguration(targets: Iterable<AnyComponentInstance>, secrets_dir: string | null): Promise<void> {
@@ -207,21 +209,26 @@ export function createApplication<const TComponents extends readonly AnyComponen
 
     async function runReloadHooks(): Promise<void> {
         const results = await Promise.allSettled(Array.from(instances.values(), (instance) => instance.runConfigReloadHook()));
-        const errors = results.flatMap((result) => result.status === "rejected" ? [result.reason] : []);
+        const errors: unknown[] = [];
+        for(const result of results) {
+            if(result.status === "rejected") {
+                errors.push(result.reason);
+            }
+        }
         if(errors.length > 0) {
             throw new AggregateError(errors, "One or more component configuration reload hooks failed.");
         }
         await definition.onConfigReload?.();
     }
 
-    async function reload(target: {component_id: ComponentId} | null): Promise<void> {
-        const operation = target === null ? "reloadConfig" : "reloadComponentConfig";
+    async function reload(component_id: ComponentId | null): Promise<void> {
+        const operation = component_id === null ? "reloadConfig" : "reloadComponentConfig";
         lifecycle.applyTransition(operation, ["active"], "reloading");
-        const instance = target === null ? null : instances.get(target.component_id) ?? null;
         let failure_state: "active" | "failed" = "active";
         try {
-            if(target !== null && instance === null) {
-                throw new UnregisteredComponentError(target.component_id);
+            const instance = component_id === null ? null : instances.get(component_id) ?? null;
+            if(component_id !== null && instance === null) {
+                throw new UnregisteredComponentError(component_id);
             }
             await loadAndInstallConfiguration(instance === null ? instances.values() : [instance], null);
             failure_state = "failed";
@@ -246,7 +253,7 @@ export function createApplication<const TComponents extends readonly AnyComponen
                 await loadAndInstallConfiguration(instances.values(), secrets_dir);
                 for(const instance of instances.values()) {
                     await instance.runHook("start");
-                    started.add(instance);
+                    started_components.push(instance);
                     instance.log.debug("Component started.");
                 }
             } catch (error) {
@@ -258,8 +265,7 @@ export function createApplication<const TComponents extends readonly AnyComponen
         async stop() {
             lifecycle.applyTransition("stop", ["active", "failed"], "stopping");
             const errors: unknown[] = [];
-            for(const instance of Array.from(started).reverse()) {
-                started.delete(instance);
+            for(let instance = started_components.pop(); instance != null; instance = started_components.pop()) {
                 try {
                     await instance.runHook("stop");
                     instance.log.debug("Component stopped.");
@@ -276,7 +282,7 @@ export function createApplication<const TComponents extends readonly AnyComponen
             return reload(null);
         },
         reloadComponentConfig(component_id) {
-            return reload({component_id});
+            return reload(component_id);
         },
         call(reference, input) {
             return dispatchCall(reference, input, null);

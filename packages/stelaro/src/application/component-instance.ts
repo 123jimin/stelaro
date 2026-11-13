@@ -1,4 +1,4 @@
-import type {AnyComponentCallReference, AnyComponentCalls, CallOutput, ComponentCallName} from "../component/calls.ts";
+import type {AnyComponentCallReference, AnyComponentCalls, CallOutput, ComponentCallName, ComponentId} from "../component/calls.ts";
 import type {AnyComponent, ComponentCallHandler, ComponentContext, ComponentHooks} from "../component/definition.ts";
 import type {Logger} from "../component/logger.ts";
 import {loadComponentConfig, loadComponentSecrets} from "../config/load.ts";
@@ -22,8 +22,29 @@ type ValidatedConfigValue = {readonly value: unknown} | null;
 
 type ComponentConfiguration = {
     readonly config: ValidatedConfigValue;
-    readonly secrets?: ValidatedConfigValue;
+    readonly secrets: ValidatedConfigValue;
 };
+
+function createComponentDependencyMap(definition: AnyComponent): Map<ComponentId, Map<ComponentCallName, AnyComponentCallReference>> {
+    const dependencies = new Map<ComponentId, Map<ComponentCallName, AnyComponentCallReference>>();
+    for(const surface of definition.uses) {
+        let references = dependencies.get(surface.id);
+        if(references == null) {
+            references = new Map();
+            dependencies.set(surface.id, references);
+        }
+        for(const reference of Object.values(surface.calls)) {
+            references.set(reference.name, reference);
+        }
+    }
+    return dependencies;
+}
+
+function checkComponentCallReference(id: ComponentId, dependencies: Map<ComponentId, Map<ComponentCallName, AnyComponentCallReference>>, reference: AnyComponentCallReference): void {
+    if(dependencies.get(reference.component_id)?.get(reference.name) !== reference) {
+        throw new UndeclaredCallError(id, reference.component_id, reference.name);
+    }
+}
 
 export function createComponentInstance(
     definition: AnyComponent,
@@ -34,6 +55,9 @@ export function createComponentInstance(
 ) {
     const {id} = definition.calls;
     const state = definition.state == null ? {} : {state: definition.state()};
+    const dependencies = createComponentDependencyMap(definition);
+
+    let is_started = false;
     let config: ValidatedConfigValue = null;
     let secrets: ValidatedConfigValue = null;
 
@@ -43,12 +67,7 @@ export function createComponentInstance(
             data,
             ...state,
             async call(reference, input) {
-                const declared = definition.uses.some(
-                    ({id, calls}) => id === reference.component_id && Object.values(calls).includes(reference),
-                );
-                if(!declared) {
-                    throw new UndeclaredCallError(id, reference.component_id, reference.name);
-                }
+                checkComponentCallReference(id, dependencies, reference);
                 return dispatchCall(reference, input, scope);
             },
         };
@@ -66,48 +85,28 @@ export function createComponentInstance(
     const context = createContext(null);
     return {
         log,
+        get is_started() { return is_started; },
         async loadConfiguration(config_dir: string, env: string | null, secrets_dir: string | null): Promise<ComponentConfiguration> {
-            const config_load = loadComponentConfig(definition, config_dir, env);
-            if(secrets_dir === null) {
-                return {config: await config_load};
-            }
-            const [config, secrets] = await Promise.allSettled([
-                config_load,
-                loadComponentSecrets(definition, secrets_dir, env, log),
+            const [loaded_config, loaded_secrets] = await Promise.all([
+                loadComponentConfig(definition, config_dir, env),
+                secrets_dir === null ? secrets : loadComponentSecrets(definition, secrets_dir, env, log),
             ]);
-            if(config.status === "rejected") {
-                throw config.reason;
-            }
-            if(secrets.status === "rejected") {
-                throw secrets.reason;
-            }
-            return {config: config.value, secrets: secrets.value};
+            return {config: loaded_config, secrets: loaded_secrets};
         },
         installConfiguration(values: ComponentConfiguration): void {
             config = values.config;
-            if("secrets" in values) {
-                secrets = values.secrets;
-                if(config !== null) {
-                    log.debug("Loaded configuration.");
-                }
-                if(secrets !== null) {
-                    log.debug("Loaded secrets.");
-                }
-            }
+            secrets = values.secrets;
+            log.debug("Configuration installed.");
         },
         async runConfigReloadHook(): Promise<void> {
             await hooks.onConfigReload?.(context);
-            if(config !== null) {
-                log.debug("Reloaded configuration.");
-            }
         },
         async runHook(operation: "start" | "stop"): Promise<void> {
+            is_started = false;
             const scope = {active: true};
             try {
-                const result = hooks[operation]?.(createContext(scope));
-                if(result != null) {
-                    await result;
-                }
+                await hooks[operation]?.(createContext(scope));
+                is_started = operation === "start";
             } finally {
                 // Saved call functions share this permission and lose it when the hook settles.
                 scope.active = false;

@@ -87,18 +87,18 @@ export type RegisteredCall = {
     readonly handler: AnyComponent["handlers"][ComponentCallName];
 };
 
-type ComponentRegistry<TComponent extends AnyComponent> = {
-    readonly components_by_id: ReadonlyMap<ComponentId, TComponent>;
-    readonly calls_by_component_id: ReadonlyMap<ComponentId, ReadonlyMap<ComponentCallName, RegisteredCall>>;
-    readonly start_order: readonly TComponent[];
+type RegisteredComponent<TComponent extends AnyComponent> = {
+    readonly definition: TComponent;
+    readonly calls: ReadonlyMap<ComponentCallName, RegisteredCall>;
 };
 
+/** Register components in dependency order, preserved by Map iteration. */
 export function createComponentRegistry<TComponent extends AnyComponent>(
     components: readonly TComponent[],
-): ComponentRegistry<TComponent> {
-    const components_by_id = indexComponents(components);
-    const calls_by_component_id = new Map<ComponentId, ReadonlyMap<ComponentCallName, RegisteredCall>>();
-    for(const [id, component] of components_by_id) {
+): ReadonlyMap<ComponentId, RegisteredComponent<TComponent>> {
+    const registry = new Map<ComponentId, RegisteredComponent<TComponent>>();
+    for(const component of sortComponentsByUses(components)) {
+        const {id} = component.calls;
         const calls = new Map<ComponentCallName, RegisteredCall>();
         const {handlers} = component;
         for(const reference of Object.values(component.calls.calls)) {
@@ -112,22 +112,22 @@ export function createComponentRegistry<TComponent extends AnyComponent>(
             }
             calls.set(name, {reference, handler});
         }
-        calls_by_component_id.set(id, calls);
+        registry.set(id, {definition: component, calls});
     }
 
-    for(const [id, component] of components_by_id) {
-        for(const dependency of component.uses) {
-            const calls = calls_by_component_id.get(dependency.id);
-            if(calls == null) {
+    for(const [id, {definition}] of registry) {
+        for(const dependency of definition.uses) {
+            const registered = registry.get(dependency.id);
+            if(registered == null) {
                 throw new MissingDependencyError(id, dependency.id);
             }
             for(const reference of Object.values(dependency.calls)) {
-                if(calls.get(reference.name)?.reference !== reference) {
+                if(registered.calls.get(reference.name)?.reference !== reference) {
                     throw new UnregisteredCallError(dependency.id, reference.name);
                 }
             }
         }
     }
 
-    return {components_by_id, calls_by_component_id, start_order: sortIndexedComponents(components_by_id)};
+    return registry;
 }

@@ -27,13 +27,14 @@ test("registration accepts subsets of a merged surface and indexes handlers in d
     const components = [service, worker, storage] as const;
     const registry = createComponentRegistry(components);
 
-    deepEqual(registry.start_order, [storage, worker, service]);
-    deepEqual(sortComponentsByUses(components), registry.start_order);
-    equal(registry.components_by_id.get("worker"), worker);
-    const storage_entries = registry.calls_by_component_id.get("storage");
+    const start_order = Array.from(registry.values(), ({definition}) => definition);
+    deepEqual(start_order, [storage, worker, service]);
+    deepEqual(sortComponentsByUses(components), start_order);
+    equal(registry.get("worker")?.definition, worker);
+    const storage_entries = registry.get("storage")?.calls;
     equal(storage_entries?.get("ready")?.reference, storage_calls.calls.ready);
     equal(storage_entries?.get("busy")?.handler, storage.handlers.busy);
-    equal(registry.calls_by_component_id.get("worker")?.get("ready")?.handler, worker.handlers.ready);
+    equal(registry.get("worker")?.calls.get("ready")?.handler, worker.handlers.ready);
     equal(components[0], service);
 });
 

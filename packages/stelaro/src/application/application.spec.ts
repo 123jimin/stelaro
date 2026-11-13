@@ -4,7 +4,7 @@ import {test} from "node:test";
 
 import {type} from "arktype";
 
-import type {LoggerFactory} from "../index.ts";
+import type {AnyComponentCalls, LoggerFactory} from "../index.ts";
 import {
     CallInputError, ConfigValidationError, consoleLoggerFactory, createApplication, defineApplication, defineComponent,
     defineComponentCalls, defineLocalInput, defineLocalOutput, DuplicateComponentIdError, EmptyInput, LifecycleStateError,
@@ -98,8 +98,7 @@ test("startup loads scoped config and secrets, and state persists within one run
     });
     deepEqual(read_first_context(), {name: "restarted", token: 3});
     await app.stop();
-    ok(logs.some((entry) => entry.startsWith("worker: Loaded configuration")));
-    ok(logs.some((entry) => entry.startsWith("worker: Loaded secrets")));
+    ok(logs.some((entry) => entry.startsWith("worker: Configuration installed")));
     ok(logs.some((entry) => entry.startsWith("worker: Component started")));
     ok(logs.some((entry) => entry.startsWith("peer: Component stopped")));
 });
@@ -107,7 +106,7 @@ test("startup loads scoped config and secrets, and state persists within one run
 test("invalid startup configuration or secrets prevent every hook from starting", async (t) => {
     const root = await createTemporaryDirectory(t);
     await root.join("config", "second.toml").write().text("value = 0");
-    await root.join("secrets", "second.toml").write().text("value = 0");
+    await root.join("secrets", "second.toml").write().text('value = "valid"');
     let starts = 0;
     const first = defineComponent({
         calls: defineComponentCalls("first", {}),
@@ -129,6 +128,7 @@ test("invalid startup configuration or secrets prevent every hook from starting"
     await rejects(app.start(), {name: LifecycleStateError.name, operation: "start", current_state: "failed"});
     await app.stop();
     await root.join("config", "second.toml").write().text('value = "valid"');
+    await root.join("secrets", "second.toml").write().text("value = 0");
     await rejects(app.start(), SecretsValidationError);
     equal(starts, 0);
     await app.stop();
@@ -136,6 +136,46 @@ test("invalid startup configuration or secrets prevent every hook from starting"
     await app.start();
     equal(starts, 1);
     await app.stop();
+});
+
+test("start and stop await hooks in dependency order with shared dependencies", async () => {
+    const events: string[] = [];
+    function trackedComponent(id: string, uses: readonly AnyComponentCalls[]) {
+        return defineComponent({
+            calls: defineComponentCalls(id, {}),
+            uses,
+            handlers: {},
+            async start() {
+                events.push(`start ${id}`);
+                await Promise.resolve();
+                events.push(`started ${id}`);
+            },
+            async stop() {
+                events.push(`stop ${id}`);
+                await Promise.resolve();
+                events.push(`stopped ${id}`);
+            },
+        });
+    }
+    const storage = trackedComponent("storage", []);
+    const worker = trackedComponent("worker", [storage.calls]);
+    const api = trackedComponent("api", [storage.calls]);
+    const service = trackedComponent("service", [worker.calls, api.calls]);
+    const components = [service, api, storage, worker];
+    const app = createApplication({components, logger: quietLogger});
+
+    await app.start();
+    await app.stop();
+
+    for(const {calls: {id}, uses} of components) {
+        for(const event of ["start", "started", "stop", "stopped"]) {
+            equal(events.filter((entry) => entry === `${event} ${id}`).length, 1);
+        }
+        for(const dependency of uses) {
+            ok(events.indexOf(`started ${dependency.id}`) < events.indexOf(`start ${id}`));
+            ok(events.indexOf(`stopped ${id}`) < events.indexOf(`stop ${dependency.id}`));
+        }
+    }
 });
 
 test("a failed start leaves completed components for reverse-order cleanup", async () => {
@@ -252,8 +292,10 @@ test("start and stop hooks can call started dependencies and withdraw local valu
     });
     const app = createApplication({components: [worker, bridge, storage], logger: quietLogger});
 
-    await app.start();
-    await app.stop();
+    for(let cycle = 0; cycle < 2; cycle++) {
+        await app.start();
+        await app.stop();
+    }
 });
 
 test("hook call permission stays in the running hook and expires when it settles", async () => {
@@ -306,6 +348,37 @@ test("hook call permission stays in the running hook and expires when it settles
         await start;
         await app.stop();
     }
+});
+
+test("dependency lookup combines repeated component surfaces and separates same-named calls", async () => {
+    const public_calls = defineComponentCalls("source", {read: ReadNumber});
+    const internal_calls = defineComponentCalls("source", {count: ReadNumber});
+    const source = defineComponent({
+        calls: mergeComponentCalls(public_calls, internal_calls),
+        uses: [],
+        handlers: {read: () => 1, count: () => 2},
+    });
+    const peer = defineComponent({
+        calls: defineComponentCalls("peer", {read: ReadNumber}),
+        uses: [],
+        handlers: {read: () => 3},
+    });
+    const client = defineComponent({
+        calls: defineComponentCalls("client", {read: {input: EmptyInput, output: type("number[]")}}),
+        uses: [public_calls, internal_calls, public_calls, peer.calls],
+        handlers: {
+            read: (context) => Promise.all([
+                context.call(public_calls.calls.read, {}),
+                context.call(internal_calls.calls.count, {}),
+                context.call(peer.calls.calls.read, {}),
+            ]),
+        },
+    });
+    const app = createApplication({components: [client, peer, source], logger: quietLogger});
+
+    await app.start();
+    deepEqual(await app.call(client.calls.calls.read, {}), [1, 2, 3]);
+    await app.stop();
 });
 
 test("dispatch validates input, preserves output errors, and checks reference identity", async () => {
