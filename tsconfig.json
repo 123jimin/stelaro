@@ -2,6 +2,7 @@
     "files": [],
     "references": [
         {"path": "./packages/stelaro"},
-        {"path": "./packages/stelaro-pino"}
+        {"path": "./packages/stelaro-pino"},
+        {"path": "./packages/stelaro-fastify"}
     ]
 }

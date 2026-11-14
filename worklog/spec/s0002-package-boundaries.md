@@ -12,7 +12,7 @@ paths = ["packages/**"]
 - `packages/stelaro` owns application lifecycle, component registration, typed component calls, configuration, and the logging contract.
 - `packages/stelaro-pino` adapts a caller-configured Pino logger to the core logging contract. See s0013 and s0014.
 - Gateway packages adapt external runtime entrypoints to Stelaro components by binding protocol triggers to typed component calls (s0016).
-- UNIMPLEMENTED `packages/stelaro-fastify` is a publishable gateway package separate from core (s0017).
+- `packages/stelaro-fastify` is a publishable gateway package separate from core (s0017).
 - Each gateway preserves its protocol's request and response concepts instead of conforming to a universal gateway model.
 - UNIMPLEMENTED `packages/stelaro-i18n` provides optional localization through structural reader and logger contracts (s0018).
 
