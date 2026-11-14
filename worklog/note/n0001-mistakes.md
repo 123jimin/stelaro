@@ -33,3 +33,4 @@ Exclude:
 | t0018, s0006 | `packages/stelaro/src/application/application.ts` | Simplify lifecycle tracking | I copied the started-component set into an array just to reverse shutdown order. Tracking completed starts as a stack allows shutdown to consume it directly. |
 | t0019, s0006 | `packages/stelaro/src/application/application.ts` | Avoid a reversed shutdown copy | I replaced set membership with `Array.includes`, turning every hook-call readiness check into a linear scan. Keep the shutdown stack, but check readiness directly on the target instance. |
 | t0014 | `.github/workflows/build-tests.yaml`, `.github/workflows/build-docs.yaml` | Use Node.js LTS in CI | I selected Node 24 after Node 26 had entered LTS. Use `lts/*` to follow the current LTS line. |
+| t0017 | `.github/workflows/build-docs.yaml` | Deploy the API reference | I selected `actions/deploy-pages@v4`, which declares Node 20 and triggered a runner warning. Version 5 declares Node 24. |

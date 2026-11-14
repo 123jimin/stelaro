@@ -1,7 +1,7 @@
 +++
 id = "t0014"
 title = "Set up GitHub CI"
-status = "active"
+status = "done"
 tags = ["tooling"]
 modifies = []
 +++
@@ -25,4 +25,4 @@ Follow the previous iteration's s0018 for skipping changes limited to generated 
 - Parsed all four YAML files and checked the reusable workflow references, triggers, runner matrix, permissions, and workspace commands.
 - Both reusable workflows select Node.js with `lts/*`. The current Node.js 26 LTS line is supported by pnpm 11.
 - Verified that `pnpm run --if-present build-docs` exits successfully before t0015 adds the script.
-- Successful GitHub Actions runs on Ubuntu and Windows are pending publication of the workflow files.
+- [CI run #6](https://github.com/123jimin/stelaro/actions/runs/43567622899) succeeded on Ubuntu and Windows.
