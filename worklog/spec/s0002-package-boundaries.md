@@ -7,7 +7,7 @@ paths = ["packages/stelaro/**", "packages/stelaro-pino/**"]
 
 # Package Boundaries
 
-## Package responsibilities (UNIMPLEMENTED)
+## Package responsibilities
 
 - `packages/stelaro` owns application lifecycle, component registration, typed component calls, configuration, and the logging contract.
 - `packages/stelaro-pino` adapts a caller-configured Pino logger to the core logging contract. See s0013 and s0014.

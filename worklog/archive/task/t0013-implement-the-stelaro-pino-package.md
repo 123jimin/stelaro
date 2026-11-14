@@ -1,7 +1,7 @@
 +++
 id = "t0013"
 title = "Implement the Stelaro Pino package"
-status = "pending"
+status = "done"
 tags = ["packages", "pino", "logging"]
 modifies = ["s0002", "s0014"]
 blocked_by = ["t0004"]

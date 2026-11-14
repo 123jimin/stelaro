@@ -1,6 +1,7 @@
 {
     "files": [],
     "references": [
-        {"path": "./packages/stelaro"}
+        {"path": "./packages/stelaro"},
+        {"path": "./packages/stelaro-pino"}
     ]
 }

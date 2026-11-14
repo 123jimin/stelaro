@@ -5,7 +5,7 @@ tags = ["logging", "pino"]
 paths = ["packages/stelaro-pino/**"]
 +++
 
-# Pino (UNIMPLEMENTED)
+# Pino
 
 ## Types
 
