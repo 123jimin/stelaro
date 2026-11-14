@@ -7,7 +7,7 @@ modifies = []
 blocked_by = ["t0011", "t0012", "t0015", "t0016"]
 +++
 
-# Verify and deploy the API reference to GitHub Pages (NEEDS APPROVAL)
+# Verify and deploy the API reference to GitHub Pages
 
 Verify the final public API reference and deploy the generated artifact to GitHub Pages under the previous iteration's s0018.
 Use the TypeDoc build from t0015 and the passing GitHub CI workflow with the smoke test from t0016.

@@ -2,7 +2,7 @@
 id = "s0004"
 title = "Public API Documentation"
 tags = ["documentation", "style"]
-paths = ["packages/stelaro/src/**", "packages/stelaro-pino/src/**"]
+paths = ["packages/*/src/**"]
 +++
 
 # Public API Documentation
@@ -46,3 +46,7 @@ paths = ["packages/stelaro/src/**", "packages/stelaro-pino/src/**"]
 - Fragment tags (`@param`, `@typeParam`, `@returns`) have no trailing period. Prose sections do.
 - Inline code references use backticks.
 - Documentation MUST describe public behavior without restating signatures or implementation details.
+
+## Anticipated changes
+
+- Gateway packages may add categories.

@@ -7,7 +7,7 @@ modifies = ["s0006", "s0009"]
 blocked_by = ["t0010"]
 +++
 
-# Implement configuration reload (NEEDS APPROVAL)
+# Implement configuration reload
 
 Implement `reloadConfig` and `reloadComponentConfig` under s0006 and s0009.
 Use the configuration loader and lifecycle controller through the application runtime.

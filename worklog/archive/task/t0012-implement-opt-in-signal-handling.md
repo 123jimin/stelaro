@@ -7,7 +7,7 @@ modifies = ["s0006"]
 blocked_by = ["t0010"]
 +++
 
-# Implement opt-in signal handling (NEEDS APPROVAL)
+# Implement opt-in signal handling
 
 Implement and document `attachSignalHandlers` under s0006.
 Keep signal handling opt-in and use the application shutdown and logging contracts.

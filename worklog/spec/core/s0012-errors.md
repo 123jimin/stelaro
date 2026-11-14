@@ -22,5 +22,11 @@ paths = ["packages/stelaro/src/error.ts", "packages/stelaro/src/component/error.
   - Lifecycle state check during call transport is expected to prevent those cases, so core never throws it.
   - Component handlers may throw it as part of defensive programming.
 - `UserFacingError.user_message` is safe to show to an end user.
+  - Each gateway decides its presentation.
   - Its constructor takes the user message and optional `ErrorOptions`.
   - Its optional `cause` may carry an internal failure and SHOULD stay private.
+
+## Anticipated changes
+
+- Gateways may define `StelaroError` subclasses.
+- Further lifecycle, configuration, and HMR behavior may add errors.

@@ -5,7 +5,7 @@ modifies = ["s0005", "s0006", "s0009"]
 status = "done"
 +++
 
-# Simplify application runtime internals (NEEDS APPROVAL)
+# Simplify application runtime internals
 
 Review the application directory and simplify machinery that adds no required behavior.
 Preserve typed call surfaces, dependency ordering, lifecycle guards, scoped contexts, and atomic config installation.

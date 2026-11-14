@@ -2,7 +2,7 @@
 id = "s0003"
 title = "Dependencies"
 tags = ["packages", "tooling"]
-paths = ["package.json", "packages/stelaro/package.json", "packages/stelaro-pino/package.json"]
+paths = ["package.json", "packages/*/package.json", "examples/*/package.json"]
 +++
 
 # Dependencies
@@ -20,3 +20,6 @@ paths = ["package.json", "packages/stelaro/package.json", "packages/stelaro-pino
 List only reviewed packages that fail the criteria above.
 
 If an equivalent package meets the criteria, replacing a listed dependency with it may be suggested.
+
+- `discord-strategy`
+- `passport-google-oauth20`

@@ -8,8 +8,16 @@ context,Component context
 data,Data access
 documentation,Project documentation
 errors,Error contracts
+examples,Example applications
+fastify,Fastify gateway
+formatjs,FormatJS integration
 fs,Filesystem behavior
+gateway,Gateway contracts
+hmr,Hot module replacement
+i18n,Internationalization
+infrastructure,Project infrastructure
 lifecycle,Runtime lifecycle
+localization,Localization behavior
 logging,Logging contracts
 packages,Package boundaries
 pino,Pino integration

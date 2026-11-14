@@ -7,7 +7,7 @@ modifies = ["s0005", "s0006", "s0007", "s0008", "s0009", "s0011", "s0013"]
 blocked_by = ["t0007", "t0008", "t0009"]
 +++
 
-# Implement the application runtime and call dispatch (NEEDS APPROVAL)
+# Implement the application runtime and call dispatch
 
 Implement `defineApplication` and `createApplication` under s0006.
 Integrate the registry, startup options, directory resolution, validated config and secrets, lifecycle controller, and component-scoped capabilities.

@@ -6,7 +6,7 @@ tags = ["tooling"]
 modifies = []
 +++
 
-# Set up GitHub CI (NEEDS APPROVAL)
+# Set up GitHub CI
 
 Add GitHub Actions checks for pull requests and pushes to `main`.
 Use the repository's declared pnpm version and verify a compatible Node version.

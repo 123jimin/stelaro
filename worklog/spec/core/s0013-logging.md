@@ -35,7 +35,7 @@ function consoleLoggerFactory(scope: string): Logger;
 - An application may supply a logger factory.
   - Core uses `consoleLoggerFactory` by default.
 - Application lifecycle events log through this contract.
-- Signal handling (UNIMPLEMENTED) logs through this contract.
+- Signal handling logs through this contract.
 - See s0006 for those events and s0014 for the Pino adapter.
 
 ## Constraints

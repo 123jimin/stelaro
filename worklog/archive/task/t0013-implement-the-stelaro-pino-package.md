@@ -7,7 +7,7 @@ modifies = ["s0002", "s0014"]
 blocked_by = ["t0004"]
 +++
 
-# Implement the Stelaro Pino package (NEEDS APPROVAL)
+# Implement the Stelaro Pino package
 
 Create the `@jiminp/stelaro-pino` workspace package with a TypeScript project, package exports, and a public entry point.
 Use the core logging contract and Pino's own `Logger` type under s0002, s0003, and s0014.

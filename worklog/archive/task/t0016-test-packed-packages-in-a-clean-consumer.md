@@ -7,7 +7,7 @@ modifies = []
 blocked_by = ["t0010", "t0013", "t0014"]
 +++
 
-# Test packed packages in a clean consumer (NEEDS APPROVAL)
+# Test packed packages in a clean consumer
 
 Add a package smoke test that packs core and the Pino adapter and installs both tarballs in a clean consumer fixture.
 Run the test in the GitHub CI workflow from t0014.

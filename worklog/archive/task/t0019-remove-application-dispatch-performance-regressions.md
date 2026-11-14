@@ -5,7 +5,7 @@ modifies = ["s0005", "s0006", "s0009"]
 status = "done"
 +++
 
-# Remove application dispatch performance regressions (NEEDS APPROVAL)
+# Remove application dispatch performance regressions
 
 Audit application runtime scans and allocations after the simplification work.
 Preserve the existing lifecycle, call authorization, reference validation, and reload contracts.

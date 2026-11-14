@@ -1,0 +1,23 @@
++++
+id = "s0015"
+title = "Hot Module Replacement"
+tags = ["hmr", "application", "component", "lifecycle", "gateway"]
++++
+
+# Hot Module Replacement
+
+## Behavior
+
+- UNIMPLEMENTED Stelaro supports development-time Hot Module Replacement without a full application restart.
+- UNIMPLEMENTED Stable component ids identify replacement targets.
+- UNIMPLEMENTED In-memory state may be preserved only when explicitly supported.
+
+## Constraints
+
+- HMR is development behavior and is not required in production.
+- HMR MUST NOT weaken component-id stability or silently ignore incompatible replacements.
+- State preservation MUST be explicit.
+
+## Anticipated changes
+
+- Component and gateway replacement lifecycles, state preservation, and state migration may be specified later.

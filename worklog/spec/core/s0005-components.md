@@ -158,7 +158,20 @@ function defineComponent(definition: Component): Component;
 - State persists across stop/start cycles of that runtime and has no persistent-storage semantics.
 - Core context exposes Stelaro capabilities and preserves the component ID for scoped capabilities.
 
+## Gateway integration
+
+- UNIMPLEMENTED Components may use gateway capabilities through typed component calls.
+- UNIMPLEMENTED Context allows behavior to call typed APIs exposed by gateway components.
+
+### Constraints
+
+- Components MAY depend on typed calls exposed by gateway components.
+- Gateway capabilities are accessible only through typed component calls.
+- Component behavior belongs to core and MUST NOT require raw gateway objects.
+- Core context exposes no raw gateway runtime objects.
+
 ## Anticipated changes
 
-- Further component ID rules, resources, templates, reloading, and state-concurrency helpers may be specified later.
+- Further component ID rules, resources, templates, reloading, HMR state migration, and state-concurrency helpers may be specified later.
+- Gateway or lifecycle packages may extend context.
 - Context capabilities may represent per-request and per-session state.

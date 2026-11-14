@@ -7,7 +7,7 @@ modifies = ["s0004"]
 blocked_by = ["t0010", "t0013"]
 +++
 
-# Write public documentation and configure TypeDoc (NEEDS APPROVAL)
+# Write public documentation and configure TypeDoc
 
 Update the README for `@jiminp/stelaro` and `@jiminp/stelaro-pino`.
 Provide a runnable core quick start and an example using a caller-configured Pino logger.

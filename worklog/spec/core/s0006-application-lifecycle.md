@@ -126,4 +126,5 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
 
 ## Anticipated changes
 
+- Gateway registration may be specified separately.
 - Custom signal sets and logger integration may be specified later.
