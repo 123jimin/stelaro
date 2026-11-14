@@ -34,3 +34,5 @@ export {createFluentPath} from "./fs/path.ts";
 export type {FileReader, OptionalFileReader} from "./fs/reader.ts";
 export type {FileWriter} from "./fs/writer.ts";
 export type {Schema} from "./schema.ts";
+export type {SignalHandlerOptions} from "./signal/handlers.ts";
+export {attachSignalHandlers} from "./signal/handlers.ts";

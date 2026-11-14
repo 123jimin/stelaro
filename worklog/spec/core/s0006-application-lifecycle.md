@@ -107,16 +107,17 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
 - Configuration and component lifecycle transitions are logged through the configured logger.
   - The default is the core console logger and verbosity follows the logger level (s0013).
 
-## Signals (UNIMPLEMENTED)
+## Signals
 
 - Signal handling is opt-in.
 - `attachSignalHandlers(application, options?)` listens for `SIGINT` and `SIGTERM` and returns a cleanup function.
+- `SignalHandlerOptions` accepts `timeout_ms?: number | null` and `logger?: Logger`.
 - The first signal logs shutdown and calls `app.stop()`.
   - Further signals are ignored while stopping.
 - Successful shutdown exits with code 0. A rejected `stop()`, including a `LifecycleStateError`, exits with code 1.
 - Shutdown exits with code 1 if `stop()` exceeds the configured timeout.
   - The default is 10 seconds. `null` disables it.
-- Cleanup removes only listeners installed by that attachment, after which Node's default signal behavior resumes.
+- Cleanup removes only listeners installed by that attachment. Node's default signal behavior resumes once no listeners remain for a signal.
 - Logging uses an option-provided logger when present.
   - Otherwise it uses the application factory with the `signal` scope and falls back to the default console logger with the same scope.
   - Signal receipt is `info` and timeout is `error`.

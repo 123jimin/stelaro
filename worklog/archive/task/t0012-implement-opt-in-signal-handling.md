@@ -1,7 +1,7 @@
 +++
 id = "t0012"
 title = "Implement opt-in signal handling"
-status = "pending"
+status = "done"
 tags = ["application", "lifecycle", "util"]
 modifies = ["s0006"]
 blocked_by = ["t0010"]
