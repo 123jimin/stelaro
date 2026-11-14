@@ -20,7 +20,6 @@
     "scripts": {
         "clean": "rimraf dist tsconfig.tsbuildinfo",
         "build": "tsc",
-        "build:watch": "tsc --watch",
         "lint": "eslint src/",
         "pretest": "pnpm build",
         "test": "node --test \"dist/**/*.spec.js\""

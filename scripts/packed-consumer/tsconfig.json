@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "module": "NodeNext",
+        "target": "ESNext",
+        "rootDir": ".",
+        "outDir": "dist",
+        "types": ["node"],
+        "strict": true,
+        "noEmitOnError": true
+    },
+    "include": ["*.ts"]
+}

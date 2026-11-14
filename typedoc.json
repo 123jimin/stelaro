@@ -1,0 +1,24 @@
+{
+    "name": "Stelaro",
+    "entryPoints": ["packages/stelaro", "packages/stelaro-pino"],
+    "entryPointStrategy": "packages",
+    "out": "docs",
+    "githubPages": true,
+    "useFirstParagraphOfCommentAsSummary": true,
+    "packageOptions": {
+        "exclude": ["**/*.spec.ts"],
+        "groupReferencesByType": true,
+        "categoryOrder": ["Application", "Component", "Configuration", "Data", "Errors", "Fluent FS", "Utility", "*"],
+        "validation": {
+            "notDocumented": true
+        }
+    },
+    "highlightLanguages": ["bash", "js", "json", "ts", "toml"],
+    "navigation": {
+        "includeFolders": false,
+        "includeCategories": true
+    },
+    "navigationLinks": {
+        "GitHub": "https://github.com/123jimin/stelaro"
+    }
+}
