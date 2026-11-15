@@ -9,8 +9,8 @@ paths = []
 
 ## Implementation status
 
-UNIMPLEMENTED: The adapter and mount-group behavior below is not delivered in this project.
-Its Fastify implementation is tracked by t0020, with component-owned example mounts tracked by t0025.
+The adapter and mount-group behavior below is implemented for Fastify (s0017).
+Component-owned example mounts are tracked by t0025.
 Typed outbound protocol capabilities remain deferred.
 
 ## Behavior

@@ -5,9 +5,9 @@ tags = ["gateway", "fastify"]
 paths = ["packages/stelaro-fastify/**"]
 +++
 
-# Fastify (UNIMPLEMENTED)
+# Fastify
 
-Route mounting and gateway lifecycle are tracked by t0020; HTTP call transport and the browser client are tracked by t0021.
+Route mounting and gateway lifecycle are implemented. HTTP call transport and the browser client are tracked by t0021.
 
 ## Types
 
@@ -86,6 +86,7 @@ class UnboundCallError extends StelaroError {
 }
 class UnboundConfigError extends StelaroError {}
 
+// UNIMPLEMENTED: call transport and client (t0021).
 type ExposeCallsFactoryOptions = {
     readonly callPath: (reference: CallEndpointReference) => string;
     readonly base: string;
@@ -136,7 +137,7 @@ class CallFailedError extends Error {
 - Start mounts the gateway's own routes and every mount through `mountFastifyRoutes` with the component's `call` and the current configuration as `getConfig`, then listens; stop closes the server. Both transitions log the address/close at `info` through the component logger.
 - Access logging belongs to Fastify. Applications may unify it with Stelaro by supplying a gateway-id-tagged child `loggerInstance` from the shared backend (see s0014 `childPinoLogger`).
 
-### Call transport
+### Call transport (UNIMPLEMENTED)
 
 - `createExposeCallsFactory` creates `exposeCalls`, which serves component calls over HTTP at the paths `callPath` returns. `exposeCalls` serves each call of a surface as a JSON `POST` and passes the request body, `null` included, to `call` unchanged, so the call's schema validates it once. It replies with the output in an `OutputBody`. If the call's own input fails, the route throws `RouteValidationError` for `body`. Every other failure, a nested call's input failure included, propagates unchanged.
 - `exposeCalls` throws `InvalidCallEndpointError` for a call name with characters other than ASCII letters, digits, `_`, and `-`, a path not under `${base}/`, or a local input or output schema (s0005). `not_found_routes` answers a `GET` of `base` or any path under it with `NotFoundError`. `config` is the Fastify route `config` of every route either creates.
