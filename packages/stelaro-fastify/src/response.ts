@@ -1,25 +1,25 @@
 import type {FastifyReply} from "fastify";
 
 /**
- * The media type of UTF-8 HTML responses.
+ * UTF-8 HTML `Content-Type` header value.
  *
  * @category Gateway
  */
 export const HTML_MEDIA_TYPE = "text/html; charset=utf-8";
 
 /**
- * The media type of UTF-8 JSON responses.
+ * UTF-8 JSON `Content-Type` header value.
  *
  * @category Gateway
  */
 export const JSON_MEDIA_TYPE = "application/json; charset=utf-8";
 
 /**
- * Send HTML content typed as {@link HTML_MEDIA_TYPE}.
+ * Send an HTML string with `Content-Type` set to {@link HTML_MEDIA_TYPE}.
  *
- * @param reply - Fastify reply to send
- * @param content - HTML content
- * @returns The sent reply
+ * @param reply - Fastify reply
+ * @param content - HTML markup
+ * @returns The Fastify reply
  *
  * @category Gateway
  */

@@ -2,29 +2,30 @@ import type {ComponentCallName, ComponentId} from "@jiminp/stelaro";
 import {StelaroError} from "@jiminp/stelaro";
 
 /**
- * A request part validated by a route schema.
+ * Part of an HTTP request validated by a route schema.
  *
  * @category Gateway
  */
 export type RouteRequestPart = "params" | "body" | "querystring";
 
 /**
- * An error raised when a request part fails its route schema.
+ * An error raised when `params`, `body`, or `querystring` fails validation.
  *
  * @remarks
- * Fastify's default error handler answers it with status 400.
+ * Fastify's default error handler responds with status 400.
+ * Custom error handlers can inspect `validationContext` for the failing part and `cause` for the schema error.
  *
  * @category Errors
  */
 export class RouteValidationError extends StelaroError {
-    /** The HTTP status code for Fastify's error handling. */
+    /** HTTP status code read by Fastify's error handler. */
     readonly statusCode = 400;
 
-    /** The request part that failed validation. */
+    /** Request part that failed validation. */
     readonly validationContext: RouteRequestPart;
 
     /**
-     * Create an error for a failed request part.
+     * Create a route validation error.
      *
      * @param validation_context - Request part that failed validation
      * @param cause - Error thrown by the schema
@@ -36,22 +37,22 @@ export class RouteValidationError extends StelaroError {
 }
 
 /**
- * An error raised by a handler when a requested resource does not exist.
+ * An error raised when a requested resource does not exist.
  *
  * @remarks
- * Fastify's default error handler answers it with status 404.
+ * Throw this from a route handler to trigger a 404 response through Fastify's error handler.
  *
  * @category Errors
  */
 export class NotFoundError extends StelaroError {
-    /** The HTTP status code for Fastify's error handling. */
+    /** HTTP status code read by Fastify's error handler. */
     readonly statusCode = 404;
 
     /**
-     * Create an error for a missing resource.
+     * Create a 404 error.
      *
-     * @param message - Description of the missing resource (default: `"Not Found"`)
-     * @param options - Standard error options, such as `cause`
+     * @param message - Error message (default: `"Not Found"`)
+     * @param options - Standard error options
      */
     constructor(message = "Not Found", options?: ErrorOptions) {
         super(message, options);
@@ -59,22 +60,22 @@ export class NotFoundError extends StelaroError {
 }
 
 /**
- * An error raised when a handler calls a component on routes mounted without a call function.
+ * An error raised when a route calls a component without a bound `call` function.
  *
  * @category Errors
  */
 export class UnboundCallError extends StelaroError {
-    /** The ID of the called component. */
+    /** Target component ID. */
     readonly component_id: ComponentId;
 
-    /** The name of the called call. */
+    /** Target call name. */
     readonly call_name: ComponentCallName;
 
     /**
-     * Create an error for an unbound component call.
+     * Create an unbound call error.
      *
-     * @param component_id - ID of the called component
-     * @param call_name - Name of the called call
+     * @param component_id - Target component ID
+     * @param call_name - Target call name
      */
     constructor(component_id: ComponentId, call_name: ComponentCallName) {
         super(`Cannot call ${JSON.stringify(`${component_id}.${call_name}`)} from routes mounted without a call function.`);
@@ -84,13 +85,13 @@ export class UnboundCallError extends StelaroError {
 }
 
 /**
- * An error raised when a handler reads configuration on routes mounted without a configuration getter.
+ * An error raised when a route calls `getConfig` without a bound configuration getter.
  *
  * @category Errors
  */
 export class UnboundConfigError extends StelaroError {
     /**
-     * Create an error for unbound configuration.
+     * Create an unbound configuration error.
      */
     constructor() {
         super("Cannot read configuration from routes mounted without a configuration getter.");
