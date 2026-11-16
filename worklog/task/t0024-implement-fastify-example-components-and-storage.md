@@ -7,7 +7,7 @@ modifies = ["s0003", "s0020", "s0021"]
 blocked_by = []
 +++
 
-# Implement Fastify example components and storage (NEEDS APPROVAL)
+# Implement Fastify example components and storage
 
 Create `examples/fastify-web-server` and implement the users, threads, and comments domain and storage described by s0021 through public Stelaro APIs.
 The routes, authentication, and runnable server are completed by t0025; this intermediate work must not be presented as a runnable server under s0020.

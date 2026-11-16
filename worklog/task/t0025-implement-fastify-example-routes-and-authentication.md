@@ -7,7 +7,7 @@ modifies = ["s0003", "s0016", "s0017", "s0020", "s0021"]
 blocked_by = ["t0020", "t0024"]
 +++
 
-# Implement Fastify example routes and authentication (NEEDS APPROVAL)
+# Implement Fastify example routes and authentication
 
 Complete the BBS example in s0021 using the gateway from t0020 and domain components from t0024.
 Use only public Stelaro APIs and the exact routes and authentication methods specified in s0021.

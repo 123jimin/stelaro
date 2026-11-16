@@ -7,7 +7,7 @@ modifies = ["s0002", "s0004", "s0017", "s0018", "s0019", "s0020", "s0021", "s002
 blocked_by = ["t0021", "t0023", "t0025"]
 +++
 
-# Integrate package documentation and verify delivery (NEEDS APPROVAL)
+# Integrate package documentation and verify delivery
 
 Integrate the completed Fastify and i18n packages and Fastify example into the public documentation and existing delivery checks.
 Follow s0004 and s0023; preserve the existing core and Pino documentation and CI coverage.
