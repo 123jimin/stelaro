@@ -1,4 +1,4 @@
-import {deepEqual, equal, match, ok, rejects} from "node:assert/strict";
+import {deepEqual, equal, match, ok, rejects, throws} from "node:assert/strict";
 import {test} from "node:test";
 
 import {assertEqualType} from "@jiminp/tooltool";
@@ -27,6 +27,7 @@ test("preserves descriptor literals and derives keys without using translator de
 });
 
 test("defaults to loading the source locale under i18n and treats absent catalogs as empty", async (t) => {
+    throws(() => createI18n({default_locale: "en_GB"}), RangeError);
     const i18n = createI18n({default_locale: "en-GB", messages: {"en-GB": {Welcome: "Welcome aboard"}}});
     assertEqualType<typeof i18n, I18n>();
     equal(i18n.t("en-GB", messages.welcome), "Welcome aboard");
@@ -73,6 +74,10 @@ test("overlays loaded IDs and keeps seed-only IDs and locales outside the load l
     equal(bound.t(messages.seed_only), "Amorce");
     equal(i18n.t("es", messages.welcome), "Bienvenida");
     equal(i18n.t("de", messages.greeting, {name: "Ada"}), "Hallo, Ada!");
+
+    await i18n.load(async (path) => path.endsWith("/fr.json") ? {Welcome: "Bienvenue à nouveau"} : null);
+    equal(bound.t(messages.welcome), "Bienvenue à nouveau");
+    equal(bound.t(messages.greeting, {name: "Ada"}), "Bonjour, Ada !");
 });
 
 test("a failed catalog load leaves prior translations available and can be retried", async () => {

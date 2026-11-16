@@ -153,17 +153,12 @@ export type BoundI18n<L extends Locale = Locale> = {
     ): string;
 };
 
-function isCatalog(value: unknown): value is Catalog {
-    return value != null && typeof value === "object"
-        && !Array.isArray(value)
-        && Object.values(value).every((entry) => typeof entry === "string");
-}
-
 /**
  * Create a localization holder with immediate access to its seed catalogs.
  *
  * @param options - Source locale, seed catalogs, and catalog loading options
  * @returns A holder that can translate immediately and load more messages later
+ * @throws {RangeError} The source locale is malformed.
  *
  * @example
  * ```typescript
@@ -195,12 +190,22 @@ export function createI18n({
     catalog_dir = "i18n",
     messages = {},
 }: I18nOptions): I18n {
+    // Validate the source locale now because formatters are created lazily.
+    Intl.getCanonicalLocales(default_locale);
+
     const cache = createIntlCache();
-    const formatters = new Map<Locale, ReturnType<typeof createFormatter>>();
+    const shapes = new Map<Locale, IntlShape>();
     const catalog_locales = [...new Set(locales)];
+    let catalogs = new Map<Locale, Catalog>();
     let logger: Logger | null = null;
 
-    function report(error: unknown): void {
+    for(const [locale, catalog] of Object.entries(messages)) {
+        if(catalog != null) {
+            catalogs.set(locale, {...catalog});
+        }
+    }
+
+    function handleError(error: unknown): void {
         try {
             (logger ?? console).error(error);
         } catch{
@@ -208,46 +213,42 @@ export function createI18n({
         }
     }
 
-    function createFormatter(locale: Locale, catalog: Catalog) {
-        return {catalog, intl: createIntl({locale, defaultLocale: default_locale, messages: catalog, onError: report}, cache)};
-    }
-
-    for(const [locale, catalog] of Object.entries(messages)) {
-        if(catalog != null) {
-            formatters.set(locale, createFormatter(locale, {...catalog}));
+    function shapeFor(locale: Locale): IntlShape {
+        let shape = shapes.get(locale);
+        if(shape == null) {
+            shape = createIntl({locale, defaultLocale: default_locale, onError: handleError}, cache);
+            shapes.set(locale, shape);
         }
+        return shape;
     }
-    let source = formatters.get(default_locale) ?? createFormatter(default_locale, {});
-    formatters.set(default_locale, source);
 
     async function load(read: CatalogReader, log?: Logger): Promise<void> {
         logger = log ?? null;
-        const catalogs = await Promise.all(catalog_locales.map(async (locale) => {
+        const loaded = await Promise.all(catalog_locales.map(async (locale) => {
             const path = `${catalog_dir}/${locale}.json`;
             const catalog = await read(path);
-            if(catalog != null && !isCatalog(catalog)) {
+            if(catalog == null) {
+                return {locale, catalog: null};
+            }
+            if(typeof catalog !== "object" || Array.isArray(catalog)
+                || Object.values(catalog).some((message) => typeof message !== "string")) {
                 throw new TypeError(`Expected a string catalog at "${path}".`);
             }
-            return {locale, catalog};
+            return {locale, catalog: catalog as Catalog};
         }));
-        const loaded = catalogs.flatMap(({locale, catalog}) => {
-            if(catalog == null) {
-                return [];
-            }
-            const previous = formatters.get(locale)?.catalog;
-            return [[locale, createFormatter(locale, {...previous, ...catalog})]] as const;
-        });
-        for(const [locale, formatter] of loaded) {
-            formatters.set(locale, formatter);
-            if(locale === default_locale) {
-                source = formatter;
+        const next = new Map(catalogs);
+        for(const {locale, catalog} of loaded) {
+            if(catalog != null) {
+                next.set(locale, {...next.get(locale), ...catalog});
             }
         }
+        catalogs = next;
     }
 
-    function format(intl: IntlShape, text: string, values: Record<string, unknown>): string | null {
+    function format(locale: Locale, text: string, values: Record<string, unknown>): string | null {
         try {
             // Format each candidate separately so a failed translation cannot become verbatim output.
+            const intl = shapeFor(locale);
             const formatter = intl.formatters.getMessageFormat(text, intl.locale, intl.formats, {
                 formatters: intl.formatters,
                 ignoreTag: true,
@@ -255,7 +256,7 @@ export function createI18n({
             const output = formatter.format<unknown>(values);
             return Array.isArray(output) ? output.join("") : String(output ?? "");
         } catch (error) {
-            report(error);
+            handleError(error);
             return null;
         }
     }
@@ -263,19 +264,11 @@ export function createI18n({
     function t(locale: Locale, message: MessageDescriptor, values?: unknown): string {
         const key = catalogKey(message);
         const interpolation: Record<string, unknown> = Object.assign(Object.create(null), values);
-        const entry = formatters.get(locale);
-        if(entry != null && Object.hasOwn(entry.catalog, key)) {
-            const translation = entry.catalog[key];
-            if(translation != null) {
-                const result = format(entry.intl, translation, interpolation);
-                if(result != null) {
-                    return result;
-                }
-            }
-        }
-        return message.defaultMessage
-            ? format(source.intl, message.defaultMessage, interpolation) ?? key
-            : key;
+        const catalog = catalogs.get(locale);
+        const translation = catalog != null && Object.hasOwn(catalog, key) ? catalog[key] : null;
+        return (translation == null ? null : format(locale, translation, interpolation))
+            ?? (message.defaultMessage ? format(default_locale, message.defaultMessage, interpolation) : null)
+            ?? key;
     }
 
     return {
