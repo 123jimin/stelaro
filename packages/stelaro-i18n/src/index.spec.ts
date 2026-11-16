@@ -3,7 +3,7 @@ import {test} from "node:test";
 
 import {assertEqualType} from "@jiminp/tooltool";
 
-import type {BoundI18n, I18n, Logger, MessageDescriptor, MessageValues, OptionalIfVoid} from "./index.ts";
+import type {BoundI18n, I18n, Logger, MessageDescriptor, MessageValues} from "./index.ts";
 import {catalogKey, createI18n, defineMessages} from "./index.ts";
 
 const messages = defineMessages({
@@ -80,6 +80,7 @@ test("a failed catalog load leaves prior translations available and can be retri
     await rejects(i18n.load(async (path) => path.endsWith("/fr.json")
         ? {Welcome: [{type: 0, value: "Bienvenue"}]}
         : {Welcome: "New translation"}), {name: "TypeError", message: /i18n\/fr\.json/});
+    await rejects(i18n.load(async () => ["Welcome"]), TypeError);
     equal(i18n.t("en", messages.welcome), "Welcome aboard");
     const failure = new Error("Read failed");
     await rejects(i18n.load(() => Promise.reject(failure)), failure);
@@ -171,12 +172,12 @@ test("bound and unbound translators infer the same required values", () => {
     assertEqualType<MessageValues<"'{' and '}' or ''">, void>();
     assertEqualType<MessageValues<"It's {name}">, GreetingValues>();
     assertEqualType<MessageValues<"{now, time, short} {price, number}">, {now: number | Date; price: number | bigint}>();
+    assertEqualType<MessageValues<"{price} {price, number}">, {price: number | bigint}>();
     assertEqualType<MessageValues<"{count, plural, other {{name}}} {title}">, Record<string, unknown>>();
     assertEqualType<MessageValues<"{kind, selectordinal, other {#}}">, Record<string, unknown>>();
     assertEqualType<MessageValues<"{kind, select, other {{name}}}">, Record<string, unknown>>();
     assertEqualType<MessageValues<"Hi {name}" | "Now {now, date}" | "Plain">, GreetingValues & {now: number | Date}>();
     assertEqualType<MessageValues<MessageDescriptor["defaultMessage"]>, Record<string, unknown>>();
-    assertEqualType<OptionalIfVoid<void>, [values?: void]>();
     assertEqualType<Parameters<typeof i18n.t<typeof messages.greeting>>, [locale: string, message: typeof messages.greeting, ...GreetingArgs]>();
     assertEqualType<Parameters<typeof bound.t<typeof messages.greeting>>, [message: typeof messages.greeting, ...GreetingArgs]>();
     assertEqualType<Parameters<typeof bound.t<typeof messages.welcome>>, [message: typeof messages.welcome, values?: void]>();

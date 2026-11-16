@@ -78,7 +78,6 @@ importers:
       '@formatjs/intl':
         specifier: ^6.1.5
         version: 6.1.5
-    devDependencies:
       '@jiminp/tooltool':
         specifier: ^0.3.3
         version: 0.3.3

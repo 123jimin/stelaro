@@ -33,29 +33,29 @@ type Unquoted<S extends string, Text extends string = ""> =
                 : Unquoted<Rest, `${Text}${Before}'`>
         : `${Text}${S}`;
 
-type LooseValues = Record<string, unknown>;
 type PlainValue = Exclude<MessageValue, undefined>;
+type Field = [name: string, format: string | null];
 
-type Placeholder<S extends string> =
+type PlaceholderField<S extends string> =
     S extends `${infer Name},${infer Format}`
-        ? Trim<Format extends `${infer Kind},${string}` ? Kind : Format> extends infer Kind
-            ? Kind extends "number" ? Record<Trim<Name>, number | bigint>
-                : Kind extends "date" | "time" ? Record<Trim<Name>, number | Date>
-                    : LooseValues
-            : never
-        : Record<Trim<S>, PlainValue>;
+        ? [Trim<Name>, Trim<Format extends `${infer Kind},${string}` ? Kind : Format>]
+        : [Trim<S>, null];
 
-type CollectValues<S extends string, Values = Record<never, never>> =
-    S extends `${string}{${infer Argument}}${infer Rest}`
-        ? Placeholder<Argument> extends infer Field
-            ? string extends keyof Field ? LooseValues : CollectValues<Rest, Values & Field>
-            : never
-        : Values;
+type PlaceholderFields<S extends string, Fields extends Field = never> =
+    string extends S ? Field
+        : S extends `${string}{${infer Inner}}${infer Rest}`
+            ? PlaceholderFields<Rest, Fields | PlaceholderField<Inner>>
+            : Fields;
 
-type ValuesFor<S extends string> = S extends unknown ? CollectValues<Unquoted<S>> : never;
-type IntersectValues<T> = (
-    T extends unknown ? (values: T) => void : never
-) extends (values: infer Values) => void ? Values : never;
+type ValuesFor<Fields extends Field> =
+    [Fields] extends [never] ? void
+        : Fields[1] extends "number" | "date" | "time" | null
+            ? {
+                    [Name in Fields[0]]:
+                    ([Name, "number"] extends Fields ? number | bigint : PlainValue)
+                    & (Extract<Fields, [Name, "date" | "time"]> extends never ? PlainValue : number | Date);
+                }
+            : Record<string, unknown>;
 
 /**
  * The interpolation values inferred from a source ICU message.
@@ -69,22 +69,7 @@ type IntersectValues<T> = (
  *
  * @category Localization
  */
-export type MessageValues<S extends string> =
-    string extends S ? LooseValues
-        : IntersectValues<ValuesFor<S>> extends infer Values
-            ? string extends keyof Values ? LooseValues
-                : keyof Values extends never ? void
-                    : {[K in keyof Values]: Values[K]}
-            : never;
-
-/**
- * An argument tuple that permits omission when the value type is void.
- *
- * @typeParam T - Value accepted by the argument
- *
- * @category Localization
- */
-export type OptionalIfVoid<T> = [T] extends [void] ? [values?: T] : [values: T];
+export type MessageValues<S extends string> = ValuesFor<PlaceholderFields<Unquoted<S>>>;
 
 /**
  * Declare source messages while preserving each literal descriptor for translation.

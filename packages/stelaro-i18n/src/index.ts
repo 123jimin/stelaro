@@ -1,11 +1,13 @@
 import type {IntlShape} from "@formatjs/intl";
 import {createIntl, createIntlCache} from "@formatjs/intl";
+import type {OptionalIfVoid} from "@jiminp/tooltool";
 
-import type {MessageDescriptor, MessageValues, OptionalIfVoid} from "./message.ts";
+import type {MessageDescriptor, MessageValues} from "./message.ts";
 import {catalogKey} from "./message.ts";
 
-export type {MessageDescriptor, MessageValues, OptionalIfVoid} from "./message.ts";
+export type {MessageDescriptor, MessageValues} from "./message.ts";
 export {catalogKey, defineMessages} from "./message.ts";
+export type {OptionalIfVoid} from "@jiminp/tooltool";
 
 /**
  * A BCP-47 language tag.
@@ -153,7 +155,7 @@ export type BoundI18n<L extends Locale = Locale> = {
 
 function isCatalog(value: unknown): value is Catalog {
     return value != null && typeof value === "object"
-        && Object.prototype.toString.call(value) === "[object Object]"
+        && !Array.isArray(value)
         && Object.values(value).every((entry) => typeof entry === "string");
 }
 

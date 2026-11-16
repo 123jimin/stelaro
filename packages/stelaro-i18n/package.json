@@ -35,9 +35,7 @@
     },
     "homepage": "https://github.com/123jimin/stelaro/tree/main/packages/stelaro-i18n",
     "dependencies": {
-        "@formatjs/intl": "^6.1.5"
-    },
-    "devDependencies": {
+        "@formatjs/intl": "^6.1.5",
         "@jiminp/tooltool": "^0.3.3"
     }
 }

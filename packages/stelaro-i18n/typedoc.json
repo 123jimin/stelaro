@@ -1,4 +1,4 @@
 {
     "name": "stelaro-i18n",
-    "intentionallyNotExported": ["LooseValues", "IntersectValues", "ValuesFor"]
+    "intentionallyNotExported": ["ValuesFor", "PlaceholderFields", "Unquoted"]
 }
