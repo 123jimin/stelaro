@@ -3,6 +3,7 @@
     "references": [
         {"path": "./packages/stelaro"},
         {"path": "./packages/stelaro-pino"},
-        {"path": "./packages/stelaro-fastify"}
+        {"path": "./packages/stelaro-fastify"},
+        {"path": "./packages/stelaro-i18n"}
     ]
 }

@@ -14,7 +14,7 @@ paths = ["packages/**"]
 - Gateway packages adapt external runtime entrypoints to Stelaro components by binding protocol triggers to typed component calls (s0016).
 - `packages/stelaro-fastify` is a publishable gateway package separate from core (s0017).
 - Each gateway preserves its protocol's request and response concepts instead of conforming to a universal gateway model.
-- UNIMPLEMENTED `packages/stelaro-i18n` provides optional localization through structural reader and logger contracts (s0018).
+- `packages/stelaro-i18n` provides optional localization through structural reader and logger contracts (s0018).
 
 ## Dependency boundaries
 

@@ -1,13 +1,13 @@
 +++
 id = "t0022"
 title = "Implement the Stelaro i18n package"
-status = "pending"
+status = "done"
 tags = ["packages", "i18n", "localization", "formatjs"]
 modifies = ["s0002", "s0003", "s0004", "s0018"]
 blocked_by = []
 +++
 
-# Implement the Stelaro i18n package (NEEDS APPROVAL)
+# Implement the Stelaro i18n package
 
 Create the browser-safe `@jiminp/stelaro-i18n` workspace package and implement s0018 with structural reader and logger contracts.
 Catalog extraction is an external workflow handled by t0023.
