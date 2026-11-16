@@ -11,8 +11,11 @@ import fastify from "fastify";
 
 import type {CallEndpointReference} from "./client.ts";
 import {CallFailedError, createComponentClientFactory, getCallPath, isErrorBody} from "./client.ts";
-import {createExposeCallsFactory, InvalidCallEndpointError, JSON_MEDIA_TYPE, mountFastifyRoutes, NotFoundError, RouteValidationError} from "./index.ts";
-import {createBaseDirectory} from "./test-util.ts";
+import type {FastifyRouteGroup} from "./index.ts";
+import {
+    createExposeCallsFactory, defineFastifyGateway, InvalidCallEndpointError, JSON_MEDIA_TYPE, mountFastifyRoutes, NotFoundError, RouteValidationError,
+} from "./index.ts";
+import {createBaseDirectory, writeConfig} from "./test-util.ts";
 
 const base = "/calls";
 const callPath = (reference: CallEndpointReference) => getCallPath(base, reference);
@@ -58,33 +61,37 @@ test("typed clients round-trip JSON inputs and outputs through component dispatc
         handlers: {read: (_context, value) => ({value}), check: () => true, nullable: (_context, input) => input},
     });
     const base_dir = await createBaseDirectory(t);
-    const app = createApplication({components: [component]}, {base_dir});
+    await writeConfig(base_dir, "web", 'port = 0\nhost = "127.0.0.1"\n');
     const server = fastify();
     const seen_configs: unknown[] = [];
     const seen_errors: unknown[] = [];
     const config = {label: "component calls"};
     const {exposeCalls, not_found_routes} = createExposeCallsFactory({base, callPath, config});
     const group = exposeCalls(calls);
+    assertEqualType<typeof group, FastifyRouteGroup<readonly [typeof calls]>>();
+    assertEqualType<typeof not_found_routes, FastifyRouteGroup<readonly []>>();
     equal(group.uses[0], calls);
+    const gateway = defineFastifyGateway({id: "web", server, uses: [], mounts: [group, not_found_routes]});
+    assertEqualType<typeof gateway.uses, readonly (typeof calls)[]>();
     server.addHook("onRoute", (route) => { seen_configs.push(route.config); });
     server.setErrorHandler<FastifyError>((error, _request, reply) => {
         seen_errors.push(error);
         return reply.code(error.statusCode ?? 500).send({error: error.message});
     });
-    mountFastifyRoutes(server, group, {call: app.call});
-    mountFastifyRoutes(server, not_found_routes);
-    ok(seen_configs.length >= 5);
-    deepEqual(seen_configs, seen_configs.map(() => config));
-
+    const app = createApplication({components: [component, gateway]}, {base_dir});
     await app.start();
     t.after(() => app.stop());
-    const origin = await server.listen({host: "127.0.0.1", port: 0});
-    t.after(() => server.close());
+    ok(seen_configs.length >= 5);
+    deepEqual(seen_configs, seen_configs.map(() => config));
+    const address = server.addresses()[0];
+    ok(address != null && typeof address !== "string");
+    const origin = `http://${address.address}:${address.port}`;
 
     const createClient = createComponentClientFactory({callPath: (reference) => `${origin}${callPath(reference)}`});
     const client = createClient<typeof calls>("example");
     const read = client("read");
     const nullable = client("nullable");
+    assertEqualType<Parameters<typeof client>, [name: "read" | "check" | "nullable"]>();
     assertEqualType<Parameters<typeof read>, [input: string]>();
     assertEqualType<ReturnType<typeof read>, Promise<{value: number}>>();
     assertEqualType<Parameters<typeof nullable>, [input: null]>();
@@ -93,6 +100,8 @@ test("typed clients round-trip JSON inputs and outputs through component dispatc
     client("missing");
     // @ts-expect-error The component ID must match the surface.
     createClient<typeof calls>("other");
+    // @ts-expect-error The caller must supply the component call surface type.
+    createClient("example");
 
     deepEqual(await read("42"), {value: 42});
     equal(validations, 1);
@@ -103,7 +112,10 @@ test("typed clients round-trip JSON inputs and outputs through component dispatc
     deepEqual(response.json(), {output: null});
 
     await rejects(read("not numeric"), {
-        name: "CallFailedError", status: 400, server_message: "Invalid request body.",
+        name: "CallFailedError",
+        message: 'Call "example.read" failed (HTTP 400). Invalid request body.',
+        status: 400,
+        server_message: "Invalid request body.",
     });
     const [error] = seen_errors;
     ok(error instanceof RouteValidationError);
@@ -177,10 +189,18 @@ test("the client reads successful output and handles non-OK response bodies", as
     server.post("/example/emptyBody", (_request, reply) => reply.code(503).send());
     const origin = await server.listen({host: "127.0.0.1", port: 0});
     const createClient = createComponentClientFactory({callPath: (reference) => getCallPath(origin, reference)});
-    const calls = defineComponentCalls("example", {success: {input: EmptyInput, output: type("string")}});
-    equal(await createClient<typeof calls>(calls.id)("success")(), 42);
+    const declaration = {input: EmptyInput, output: type("string")};
+    const calls = defineComponentCalls("example", {
+        success: declaration,
+        error: declaration,
+        emptyError: declaration,
+        otherShape: declaration,
+        invalidJson: declaration,
+        emptyBody: declaration,
+    });
+    const client = createClient<typeof calls>(calls.id);
+    equal(await client("success")(), 42);
 
-    const client = createClient("example");
     for(const [name, status, message] of [
         ["error", 422, "Rejected"], ["emptyError", 409, ""], ["otherShape", 403, null],
         ["invalidJson", 502, null], ["emptyBody", 503, null],
@@ -195,6 +215,29 @@ test("the client reads successful output and handles non-OK response bodies", as
     equal(getCallPath("/base", {component_id: "组件", name: "a b"}), "/base/组件/a b");
     ok(isErrorBody({error: "Rejected", extra: true}));
     equal(isErrorBody(null), false);
+});
+
+test("the client requires an output field in a successful JSON response", async (t) => {
+    const calls = defineComponentCalls("example", {read: {input: EmptyInput, output: type("unknown")}});
+    const read = createComponentClientFactory({callPath})<typeof calls>(calls.id)("read");
+    const fetch = t.mock.method(globalThis, "fetch");
+    for(const [body, status] of [
+        ["null", 200], ["true", 200], ['"output"', 200], ["[]", 200], ["{}", 200],
+        ['{"error":"Missing output"}', 200], ["{", 200], [null, 204],
+    ] as const) {
+        fetch.mock.mockImplementation(async () => new Response(body, {status}));
+        await rejects(read(), (error) => {
+            ok(error instanceof CallFailedError);
+            equal(error.message, `Call "example.read" failed (HTTP ${status}).`);
+            equal(error.status, status);
+            equal(error.server_message, null);
+            return true;
+        });
+    }
+    for(const output of [null, false, 0, ""]) {
+        fetch.mock.mockImplementation(async () => Response.json({output}));
+        equal(await read(), output);
+    }
 });
 
 test("the public client subpath loads without any runtime package dependencies", () => {

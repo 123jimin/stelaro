@@ -90,7 +90,7 @@ type ExposeCallsFactoryOptions = {
     readonly config?: FastifyContextConfig;
 };
 type ExposeCallsFactory = {
-    exposeCalls(calls: ComponentCalls): FastifyRouteGroup;
+    exposeCalls<TCalls extends AnyComponentCalls>(calls: TCalls): FastifyRouteGroup<readonly [TCalls]>;
     readonly not_found_routes: FastifyRouteGroup<readonly []>;
 };
 function createExposeCallsFactory(options: ExposeCallsFactoryOptions): ExposeCallsFactory;
@@ -108,14 +108,18 @@ function getCallPath(base: string, reference: CallEndpointReference): string;
 type OutputBody<T = unknown> = {readonly output: T};
 type ErrorBody = {readonly error: string};
 function isErrorBody(body: unknown): body is ErrorBody;
-type CallFunction = (input?: unknown) => Promise<unknown>;
-type ComponentClient = (name: ComponentCallName) => CallFunction;
-type ComponentClientFactory = (component_id: ComponentId) => ComponentClient;
+type CallFunction<TCall extends AnyComponentCallReference> = (
+    ...args: Record<never, never> extends CallInput<TCall> ? [input?: CallInput<TCall>] : [input: CallInput<TCall>]
+) => Promise<CallOutput<TCall>>;
+type ComponentClient<TCalls extends AnyComponentCalls> =
+    <TName extends keyof TCalls["calls"] & string>(name: TName) => CallFunction<TCalls["calls"][TName]>;
+type ComponentClientFactory = <TCalls extends AnyComponentCalls = never>(component_id: TCalls["id"]) => ComponentClient<TCalls>;
 type ComponentClientFactoryOptions = {
     readonly callPath: (reference: CallEndpointReference) => string;
 };
 function createComponentClientFactory(options: ComponentClientFactoryOptions): ComponentClientFactory;
 class CallFailedError extends Error {
+    constructor(reference: CallEndpointReference, status: number, server_message: string | null);
     readonly status: number;
     readonly server_message: string | null;
 }
@@ -139,7 +143,12 @@ class CallFailedError extends Error {
 - `createExposeCallsFactory` creates `exposeCalls`, which serves component calls over HTTP at the paths `callPath` returns. `exposeCalls` serves each call of a surface as a JSON `POST` and passes the request body, `null` included, to `call` unchanged, so the call's schema validates it once. It replies with the output in an `OutputBody`. If the call's own input fails, the route throws `RouteValidationError` for `body`. Every other failure, a nested call's input failure included, propagates unchanged.
 - `exposeCalls` throws `InvalidCallEndpointError` for a call name with characters other than ASCII letters, digits, `_`, and `-`, a path not under `${base}/`, or a local input or output schema (s0005). `not_found_routes` answers a `GET` of `base` or any path under it with `NotFoundError`. `config` is the Fastify route `config` of every route either creates.
 - `getCallPath` returns `${base}/${component_id}/${name}`, escaping neither part, for use as `callPath` on both sides.
-- The `./client` entry loads neither Fastify nor stelaro at runtime. `createComponentClientFactory` returns a factory of typed clients that send a call's input as a JSON `POST` to `callPath`, which must match the server's. An omitted input is sent as `{}`, an explicit `null` as `null`. An OK response resolves to its `OutputBody`'s `output`, without output validation. Any other response rejects with `CallFailedError`, whose `server_message` is the `error` of a non-OK `ErrorBody` response, otherwise `null`. The server's error handler must send `ErrorBody`; the package sends none.
+- The `./client` entry loads neither Fastify nor stelaro at runtime.
+  `createComponentClientFactory` returns a factory of typed clients that send a call's input as a JSON `POST` to `callPath`, which must match the server's.
+  Supply the call surface type when creating a client.
+  An omitted input is sent as `{}`, an explicit `null` as `null`.
+  An OK response must contain a JSON object with an `output` field, and the client returns the field's value as received.
+  A non-OK response or an invalid output body rejects with `CallFailedError`.
 
 ## Constraints
 

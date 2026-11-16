@@ -1,10 +1,11 @@
-import type {AnyComponentCalls} from "@jiminp/stelaro";
+import type {AnyComponentCalls, CallFrom, CallInput} from "@jiminp/stelaro";
 import {CallInputError, isLocalSchema} from "@jiminp/stelaro";
 import type {FastifyContextConfig} from "fastify";
 
 import type {CallEndpointReference, OutputBody} from "./call-endpoint.ts";
 import {InvalidCallEndpointError, NotFoundError, RouteValidationError} from "./error.ts";
-import type {FastifyRouteGroup, GatewayRoute} from "./route.ts";
+import type {FastifyRouteGroup} from "./route.ts";
+import {defineFastifyRoute} from "./route.ts";
 
 /**
  * Path and route configuration for exposing component calls over HTTP.
@@ -29,11 +30,12 @@ export type ExposeCallsFactory = {
     /**
      * Create a JSON POST route for each call on a surface.
      *
+     * @typeParam TCalls - Component call surface used by the generated routes
      * @param calls - Component call surface to expose
      * @returns Route group that uses the supplied component call surface
      * @throws {InvalidCallEndpointError} A call has an invalid name, a path outside the base, or a local schema.
      */
-    exposeCalls(calls: AnyComponentCalls): FastifyRouteGroup;
+    exposeCalls<TCalls extends AnyComponentCalls>(calls: TCalls): FastifyRouteGroup<readonly [TCalls]>;
     /** Routes that throw {@link NotFoundError} for GET requests at or under the base path. */
     readonly not_found_routes: FastifyRouteGroup<readonly []>;
 };
@@ -64,7 +66,7 @@ export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): Ex
     const route_options = config == null ? {} : {config};
     const not_found_routes: FastifyRouteGroup<readonly []> = {
         uses: [],
-        routes: [base, `${base}/*`].map((path) => ({
+        routes: [base, `${base}/*`].map((path) => defineFastifyRoute<readonly []>({
             ...route_options,
             method: "GET",
             path,
@@ -75,8 +77,9 @@ export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): Ex
     };
 
     return {
-        exposeCalls(calls) {
-            const routes = Object.values(calls.calls).map((reference): GatewayRoute => {
+        exposeCalls<TCalls extends AnyComponentCalls>(calls: TCalls) {
+            const references = Object.values(calls.calls) as CallFrom<TCalls>[];
+            const routes = references.map((reference) => {
                 const {component_id, name, input, output} = reference;
                 if(name.length === 0 || /[^A-Za-z0-9_-]/u.test(name)) {
                     throw new InvalidCallEndpointError(component_id, name, "Call names must use ASCII letters, digits, underscores, or hyphens.");
@@ -89,13 +92,14 @@ export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): Ex
                     throw new InvalidCallEndpointError(component_id, name, `The endpoint path must be under ${JSON.stringify(base)}.`);
                 }
 
-                return {
+                return defineFastifyRoute<readonly [TCalls]>({
                     ...route_options,
                     method: "POST",
                     path,
                     async handle({call, request}): Promise<OutputBody> {
                         try {
-                            return {output: await call(reference, request.body)};
+                            // Component dispatch validates the raw input.
+                            return {output: await call(reference, request.body as CallInput<typeof reference>)};
                         } catch (error) {
                             if(error instanceof CallInputError && error.component_id === component_id && error.call_name === name) {
                                 throw new RouteValidationError("body", error.cause);
@@ -103,7 +107,7 @@ export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): Ex
                             throw error;
                         }
                     },
-                };
+                });
             });
             return {uses: [calls], routes};
         },
