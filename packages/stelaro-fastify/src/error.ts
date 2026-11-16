@@ -97,3 +97,29 @@ export class UnboundConfigError extends StelaroError {
         super("Cannot read configuration from routes mounted without a configuration getter.");
     }
 }
+
+/**
+ * An error raised when a component call cannot be exposed over HTTP.
+ *
+ * @category Errors
+ */
+export class InvalidCallEndpointError extends StelaroError {
+    /** ID of the component that declares the call. */
+    readonly component_id: ComponentId;
+
+    /** Name of the call that could not be exposed. */
+    readonly call_name: ComponentCallName;
+
+    /**
+     * Create an error for an invalid call endpoint.
+     *
+     * @param component_id - ID of the component that declares the call
+     * @param call_name - Name of the call that could not be exposed
+     * @param reason - Description of the endpoint constraint that failed
+     */
+    constructor(component_id: ComponentId, call_name: ComponentCallName, reason: string) {
+        super(`Cannot expose ${JSON.stringify(`${component_id}.${call_name}`)} over HTTP. ${reason}`);
+        this.component_id = component_id;
+        this.call_name = call_name;
+    }
+}

@@ -1,3 +1,4 @@
 {
-    "name": "stelaro-fastify"
+    "name": "stelaro-fastify",
+    "entryPoints": ["src/index.ts", "src/client.ts"]
 }

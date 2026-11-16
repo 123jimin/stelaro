@@ -1,13 +1,13 @@
 +++
 id = "t0021"
 title = "Implement Fastify call transport and browser client"
-status = "pending"
+status = "done"
 tags = ["packages", "gateway", "fastify"]
 modifies = ["s0002", "s0003", "s0004", "s0017"]
 blocked_by = ["t0020"]
 +++
 
-# Implement Fastify call transport and browser client (NEEDS APPROVAL)
+# Implement Fastify call transport and browser client
 
 Implement s0017's HTTP call transport and `@jiminp/stelaro-fastify/client` entry point on the route mounting provided by t0020.
 This exposes existing component calls over HTTP; the UNIMPLEMENTED outbound gateway capabilities in s0016 are outside this task.
