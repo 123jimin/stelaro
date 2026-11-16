@@ -3,7 +3,7 @@ import {test} from "node:test";
 
 import {assertEqualType} from "@jiminp/tooltool";
 
-import type {BoundI18n, I18n, Logger, MessageDescriptor, MessageValues} from "./index.ts";
+import type {BoundI18n, I18n, Logger, MessageDescriptor, MessageValues, PrimitiveValue} from "./index.ts";
 import {catalogKey, createI18n, defineMessages} from "./index.ts";
 
 const messages = defineMessages({
@@ -165,19 +165,21 @@ test("reports ICU failures and continues through the source and key fallbacks", 
 test("bound and unbound translators infer the same required values", () => {
     const i18n = createI18n({default_locale: "en"});
     const bound = i18n.bind("en");
-    type GreetingValues = {name: string | number | bigint | boolean | null | Date};
+    type GreetingValues = {name: PrimitiveValue};
     type GreetingArgs = [values: GreetingValues];
+    type LooseValues = Record<string, PrimitiveValue>;
+    assertEqualType<PrimitiveValue, string | number | boolean | Date>();
     assertEqualType<MessageValues<"Hello, {name}!">, GreetingValues>();
+    assertEqualType<MessageValues<"Hello, {first} {last}!">, {first: PrimitiveValue; last: PrimitiveValue}>();
     assertEqualType<MessageValues<"{ name } '{literal}' {name}">, GreetingValues>();
     assertEqualType<MessageValues<"'{' and '}' or ''">, void>();
     assertEqualType<MessageValues<"It's {name}">, GreetingValues>();
-    assertEqualType<MessageValues<"{now, time, short} {price, number}">, {now: number | Date; price: number | bigint}>();
-    assertEqualType<MessageValues<"{price} {price, number}">, {price: number | bigint}>();
-    assertEqualType<MessageValues<"{count, plural, other {{name}}} {title}">, Record<string, unknown>>();
-    assertEqualType<MessageValues<"{kind, selectordinal, other {#}}">, Record<string, unknown>>();
-    assertEqualType<MessageValues<"{kind, select, other {{name}}}">, Record<string, unknown>>();
-    assertEqualType<MessageValues<"Hi {name}" | "Now {now, date}" | "Plain">, GreetingValues & {now: number | Date}>();
-    assertEqualType<MessageValues<MessageDescriptor["defaultMessage"]>, Record<string, unknown>>();
+    assertEqualType<MessageValues<"{now, time, short} {price, number}">, LooseValues>();
+    assertEqualType<MessageValues<"{count, plural, other {{name}}} {title}">, LooseValues>();
+    assertEqualType<MessageValues<"{kind, selectordinal, other {#}}">, LooseValues>();
+    assertEqualType<MessageValues<"{kind, select, other {{name}}}">, LooseValues>();
+    assertEqualType<MessageValues<"Hi {name}" | "Bye {person}">, GreetingValues | {person: PrimitiveValue}>();
+    assertEqualType<MessageValues<MessageDescriptor["defaultMessage"]>, LooseValues>();
     assertEqualType<Parameters<typeof i18n.t<typeof messages.greeting>>, [locale: string, message: typeof messages.greeting, ...GreetingArgs]>();
     assertEqualType<Parameters<typeof bound.t<typeof messages.greeting>>, [message: typeof messages.greeting, ...GreetingArgs]>();
     assertEqualType<Parameters<typeof bound.t<typeof messages.welcome>>, [message: typeof messages.welcome, values?: void]>();
@@ -189,8 +191,8 @@ test("bound and unbound translators infer the same required values", () => {
         bound.t(messages.greeting);
         // @ts-expect-error The extra key is absent from the source message.
         bound.t(messages.greeting, {name: "Ada", extra: true});
-        // @ts-expect-error An ICU number argument requires a numeric value.
-        bound.t({defaultMessage: "{amount, number}"}, {amount: "123"});
+        // @ts-expect-error Formatted placeholders still require a values record.
+        bound.t({defaultMessage: "{amount, number}"});
         // @ts-expect-error A literal without placeholders has no values argument.
         bound.t(messages.welcome, {});
     }

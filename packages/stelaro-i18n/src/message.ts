@@ -1,5 +1,3 @@
-import type {MessageValue} from "@formatjs/intl";
-
 /**
  * A source message and its optional translation metadata.
  *
@@ -33,29 +31,19 @@ type Unquoted<S extends string, Text extends string = ""> =
                 : Unquoted<Rest, `${Text}${Before}'`>
         : `${Text}${S}`;
 
-type PlainValue = Exclude<MessageValue, undefined>;
-type Field = [name: string, format: string | null];
+/**
+ * A value accepted by the typed message interpolation API.
+ *
+ * @category Localization
+ */
+export type PrimitiveValue = string | number | boolean | Date;
 
-type PlaceholderField<S extends string> =
-    S extends `${infer Name},${infer Format}`
-        ? [Trim<Name>, Trim<Format extends `${infer Kind},${string}` ? Kind : Format>]
-        : [Trim<S>, null];
-
-type PlaceholderFields<S extends string, Fields extends Field = never> =
-    string extends S ? Field
-        : S extends `${string}{${infer Inner}}${infer Rest}`
-            ? PlaceholderFields<Rest, Fields | PlaceholderField<Inner>>
-            : Fields;
-
-type ValuesFor<Fields extends Field> =
-    [Fields] extends [never] ? void
-        : Fields[1] extends "number" | "date" | "time" | null
-            ? {
-                    [Name in Fields[0]]:
-                    ([Name, "number"] extends Fields ? number | bigint : PlainValue)
-                    & (Extract<Fields, [Name, "date" | "time"]> extends never ? PlainValue : number | Date);
-                }
-            : Record<string, unknown>;
+type PlaceholderValues<S extends string, Names extends string> =
+    S extends `${string}{${infer Inner}}${infer Rest}`
+        ? Inner extends `${string},${string}`
+            ? Record<string, PrimitiveValue>
+            : PlaceholderValues<Rest, Names | Trim<Inner>>
+        : [Names] extends [never] ? void : {[K in Names]: PrimitiveValue};
 
 /**
  * The interpolation values inferred from a source ICU message.
@@ -64,12 +52,12 @@ type ValuesFor<Fields extends Field> =
  *
  * @remarks
  * Plain placeholders infer required names.
- * Number, date, and time placeholders also constrain the value type.
- * Plural and select messages and strings of unknown content accept a loose record.
+ * Formatted placeholders and strings of unknown content use a loose record.
  *
  * @category Localization
  */
-export type MessageValues<S extends string> = ValuesFor<PlaceholderFields<Unquoted<S>>>;
+export type MessageValues<S extends string> =
+    string extends S ? Record<string, PrimitiveValue> : PlaceholderValues<Unquoted<S>, never>;
 
 /**
  * Declare source messages while preserving each literal descriptor for translation.

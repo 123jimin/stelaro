@@ -5,7 +5,7 @@ import type {OptionalIfVoid} from "@jiminp/tooltool";
 import type {MessageDescriptor, MessageValues} from "./message.ts";
 import {catalogKey} from "./message.ts";
 
-export type {MessageDescriptor, MessageValues} from "./message.ts";
+export type {MessageDescriptor, MessageValues, PrimitiveValue} from "./message.ts";
 export {catalogKey, defineMessages} from "./message.ts";
 export type {OptionalIfVoid} from "@jiminp/tooltool";
 
