@@ -7,7 +7,7 @@ paths = ["examples/fastify-web-server/**"]
 
 # Fastify Web Server Example (UNIMPLEMENTED)
 
-Domain components and storage are tracked by t0024; routes, authentication, and the runnable server are tracked by t0025.
+Domain components and JSONL storage (`users`, `threads`, and `comments`) are implemented in `examples/fastify-web-server`; routes, authentication, and the runnable server remain tracked by t0025.
 
 ## Behavior
 

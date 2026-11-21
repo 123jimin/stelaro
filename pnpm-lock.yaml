@@ -39,6 +39,15 @@ importers:
         specifier: 8.72.2
         version: 8.72.2(eslint@10.14.0)(typescript@6.0.3)
 
+  examples/fastify-web-server:
+    dependencies:
+      '@jiminp/stelaro':
+        specifier: workspace:*
+        version: link:../../packages/stelaro
+      arktype:
+        specifier: ^2.2.3
+        version: 2.2.9
+
   packages/stelaro:
     dependencies:
       '@jiminp/tooltool':

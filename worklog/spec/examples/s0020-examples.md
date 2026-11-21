@@ -9,8 +9,9 @@ paths = ["examples/**"]
 
 ## Implementation status
 
-UNIMPLEMENTED: No example projects are delivered yet.
-The Fastify example is tracked by t0024 and t0025; the stock-market example in s0022 remains deferred.
+UNIMPLEMENTED: No runnable example projects are delivered yet.
+The Fastify example's domain components and JSONL storage are implemented under `examples/fastify-web-server`; routes, authentication, and the runnable server remain tracked by t0025.
+The stock-market example in s0022 remains deferred.
 
 ## Behavior
 
