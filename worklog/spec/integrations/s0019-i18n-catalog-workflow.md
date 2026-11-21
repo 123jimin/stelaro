@@ -4,9 +4,9 @@ title = "i18n Catalog Workflow"
 tags = ["i18n", "localization", "formatjs", "tooling"]
 +++
 
-# i18n Catalog Workflow (UNIMPLEMENTED)
+# i18n Catalog Workflow
 
-Public workflow documentation and verification against the i18n package are tracked by t0023.
+The [i18n package guide](../../../packages/stelaro-i18n/README.md) provides a runnable consumer workflow.
 
 ## Behavior
 

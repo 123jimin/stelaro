@@ -85,6 +85,7 @@ await app.stop();
 ## Documentation
 
 See the [API reference](https://123jimin.github.io/stelaro/).
+The [i18n catalog guide](./packages/stelaro-i18n/README.md) shows how to extract, translate, and load ICU messages.
 
 ## Development
 

@@ -44,3 +44,5 @@ Exclude:
 | t0022 | `packages/stelaro-i18n/src/message.ts` | Simplify placeholder inference | My first simplification kept formatter-specific inference and merged union requirements after the user suggested a recursive scan for placeholder names. |
 | t0022 | `packages/stelaro-i18n/src/index.ts` | Simplify the localization holder | I coupled formatters to catalog snapshots, so each load rebuilt formatters and had to track the source formatter separately. |
 | t0022 | `packages/stelaro-i18n/src/index.ts` | Simplify loaded catalog validation | I kept a separate validator for a check used only inside `load`. |
+| t0023 | `packages/stelaro-i18n/README.md` | Document how applications declare and extract messages | I put the examples in a dedicated `messages.ts` module, making centralized message storage look like the usual pattern. |
+| t0023 | `packages/stelaro-i18n/README.md` | Document the i18n catalog workflow | I included task verification noise (pinned `tsx`, tarball install notes, a `verify.ts` assertion harness) and contrived non-JSX wrappers instead of real-world TypeScript/TSX usage. |
