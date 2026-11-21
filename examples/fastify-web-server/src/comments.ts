@@ -1,12 +1,14 @@
 import {randomUUID} from "node:crypto";
 
 import {defineComponent, defineComponentCalls, UserFacingError} from "@jiminp/stelaro";
+import {defineFastifyRoute, defineFastifyRoutes, NotFoundError} from "@jiminp/stelaro-fastify";
 import {type} from "arktype";
 
+import {requireAuthenticated} from "./auth.ts";
 import {
     appendJsonlRecord, createWriteQueue, IsoTimestamp, NonBlankString, NonEmptyString, readJsonlRecords,
 } from "./storage.ts";
-import {thread_calls} from "./threads.ts";
+import {thread_calls} from "./threads/calls.ts";
 import {user_calls} from "./users.ts";
 
 const COMMENTS_FILE = "comments.jsonl";
@@ -76,4 +78,37 @@ export const comments_component = defineComponent({
                 .sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at));
         },
     },
+});
+
+const ThreadIdParams = type({thread_id: NonEmptyString});
+const CreateCommentBody = type({body: NonBlankString});
+
+export const comment_routes = defineFastifyRoutes({
+    uses: [comment_calls, thread_calls],
+    routes: [
+        defineFastifyRoute({
+            method: "POST",
+            path: "/threads/:thread_id/comments",
+            preValidation: requireAuthenticated,
+            params: ThreadIdParams,
+            body: CreateCommentBody,
+            async handle(context) {
+                const user = context.request.user ?? null;
+                if(user == null) {
+                    context.reply.code(401).send("Authentication required.");
+                    return;
+                }
+                const thread = await context.call(thread_calls.calls.getThread, {thread_id: context.params.thread_id});
+                if(thread == null) {
+                    throw new NotFoundError("Thread not found.");
+                }
+                await context.call(comment_calls.calls.createComment, {
+                    thread_id: thread.thread_id,
+                    author_user_id: user.user_id,
+                    body: context.body.body,
+                });
+                context.redirect(`/threads/${encodeURIComponent(thread.thread_id)}`);
+            },
+        }),
+    ],
 });

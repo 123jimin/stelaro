@@ -9,8 +9,7 @@ paths = []
 
 ## Implementation status
 
-The adapter and mount-group behavior below is implemented for Fastify (s0017).
-Component-owned example mounts are tracked by t0025.
+The adapter, mount-group behavior, and component-owned example mounts (`examples/fastify-web-server`) are implemented for Fastify (s0017, s0021).
 Typed outbound protocol capabilities remain deferred.
 
 ## Behavior

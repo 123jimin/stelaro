@@ -5,9 +5,9 @@ tags = ["examples"]
 paths = ["examples/fastify-web-server/**"]
 +++
 
-# Fastify Web Server Example (UNIMPLEMENTED)
+# Fastify Web Server Example
 
-Domain components and JSONL storage (`users`, `threads`, and `comments`) are implemented in `examples/fastify-web-server`; routes, authentication, and the runnable server remain tracked by t0025.
+Implemented in `examples/fastify-web-server`.
 
 ## Behavior
 

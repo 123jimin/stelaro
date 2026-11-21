@@ -9,10 +9,21 @@
         "build": "tsc --build",
         "lint": "eslint src/",
         "pretest": "pnpm build",
-        "test": "node --test \"dist/**/*.spec.js\""
+        "test": "node --test \"dist/**/*.spec.js\"",
+        "start": "node dist/main.js"
     },
     "dependencies": {
+        "@fastify/cookie": "^11.1.5",
+        "@fastify/formbody": "^9.0.2",
+        "@fastify/passport": "^4.0.4",
+        "@fastify/session": "^11.2.1",
         "@jiminp/stelaro": "workspace:*",
-        "arktype": "^2.2.3"
+        "@jiminp/stelaro-fastify": "workspace:*",
+        "@jiminp/stelaro-pino": "workspace:*",
+        "arktype": "^2.2.3",
+        "discord-strategy": "^2.5.0",
+        "fastify": "^5.12.8",
+        "passport-google-oauth20": "^2.0.0",
+        "pino": "^10.4.0"
     }
 }

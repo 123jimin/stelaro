@@ -5,9 +5,9 @@ import {test} from "node:test";
 
 import {CallInputError, UserFacingError} from "@jiminp/stelaro";
 
-import {createTemporaryDirectory, readRawJsonlLines, startDomainApplication} from "./test-util.ts";
-import {thread_calls} from "./threads.ts";
-import {user_calls} from "./users.ts";
+import {createTemporaryDirectory, readRawJsonlLines, startDomainApplication} from "../test-util.ts";
+import {user_calls} from "../users.ts";
+import {thread_calls} from "./index.ts";
 
 test("threads creates immutable threads, lists newest-first without pagination, and persists across restarts", async (t) => {
     const data_dir = await createTemporaryDirectory(t);

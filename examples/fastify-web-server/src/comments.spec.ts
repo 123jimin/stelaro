@@ -7,7 +7,7 @@ import {UserFacingError} from "@jiminp/stelaro";
 
 import {comment_calls} from "./comments.ts";
 import {createTemporaryDirectory, readRawJsonlLines, startDomainApplication} from "./test-util.ts";
-import {thread_calls} from "./threads.ts";
+import {thread_calls} from "./threads/index.ts";
 import {user_calls} from "./users.ts";
 
 test("comments creates immutable creation-ordered comments per thread and persists across restarts", async (t) => {
