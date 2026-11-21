@@ -41,7 +41,7 @@
     "homepage": "https://github.com/123jimin/stelaro/tree/main/packages/stelaro-fastify",
     "dependencies": {
         "@jiminp/stelaro": "workspace:*",
-        "@jiminp/tooltool": "^0.3.3",
+        "@jiminp/tooltool": "^0.4.0",
         "arktype": "^2.2.3"
     },
     "devDependencies": {
