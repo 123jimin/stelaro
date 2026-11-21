@@ -42,7 +42,7 @@
     "dependencies": {
         "@jiminp/stelaro": "workspace:*",
         "@jiminp/tooltool": "^0.3.3",
-        "arktype": "^2.2.3"
+        "arktype": "^2.2.10"
     },
     "devDependencies": {
         "@jiminp/stelaro-pino": "workspace:*",
