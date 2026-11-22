@@ -62,6 +62,8 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
 ## Application registration and dispatch
 
 - `createApplication` uses the component registry and initializes runtime state.
+- `createApplication` rejects `validate_call_input: false` (the default) when any registered component call has a morphing input schema, and rejects `validate_call_output: false` (the default) when any registered component call has a morphing output schema.
+  - Rejection throws `MorphValidationDisabledError` with `component_id`, `call_name`, and `role` (`"input"` or `"output"`).
 - `app.call` is valid only while `active` or `reloading`.
 - `context.call` follows the same guard during ordinary component work.
   - A running start or stop hook may call a declared dependency whose start hook completed or was absent and whose shutdown has yet to begin.
@@ -69,9 +71,10 @@ function createApplication(definition: ApplicationDefinition, options?: Applicat
   - The hook's call permission expires when it settles.
 - The application definition determines the registered call surfaces.
 - Dispatch to an unregistered call throws `UnregisteredCallError`.
-- A call input schema failure throws `CallInputError` before the handler runs.
-  - Its `cause` is the original schema failure.
-  - Call output failures propagate the ArkType error unchanged.
+- In-process call validation is opt-in via `ApplicationOptions.validate_call_input` and `ApplicationOptions.validate_call_output` (both defaulting to `false`).
+  - When `validate_call_input` is `true`, a call input schema failure throws `CallInputError` (carrying the original schema failure as `cause`) before the handler runs.
+  - When `validate_call_output` is `true`, call output failures propagate the ArkType error unchanged.
+  - When disabled, dispatch passes inputs and outputs through without calling schema `assert`.
 
 ## Lifecycle machine
 

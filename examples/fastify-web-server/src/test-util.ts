@@ -30,7 +30,7 @@ export async function createTemporaryDirectory(t: TestContext): Promise<string> 
 
 /** Start a fresh domain-only application instance rooted at `data_dir` and stop it on test teardown. */
 export async function startDomainApplication(t: TestContext, data_dir: string) {
-    const app = createApplication(domain_app, {data_dir});
+    const app = createApplication(domain_app, {data_dir, validate_call_input: true});
     await app.start();
     let stopped = false;
     t.after(async () => {

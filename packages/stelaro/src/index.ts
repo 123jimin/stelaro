@@ -1,9 +1,10 @@
 export type {Application, ApplicationDefinition, ApplicationOptions} from "./application/application.ts";
 export {createApplication, defineApplication} from "./application/application.ts";
 export {componentFilePath, DEFAULT_APPLICATION_DIRS, InvalidComponentFileNameError} from "./application/directories.ts";
+export type {CallSchemaRole} from "./application/error.ts";
 export {
-    CallInputError, CircularDependencyError, DuplicateComponentIdError, MissingDependencyError, MissingHandlerError, UndeclaredCallError,
-    UnregisteredCallError, UnregisteredComponentError,
+    CallInputError, CircularDependencyError, DuplicateComponentIdError, MissingDependencyError, MissingHandlerError,
+    MorphValidationDisabledError, UndeclaredCallError, UnregisteredCallError, UnregisteredComponentError,
 } from "./application/error.ts";
 export type {LifecycleState} from "./application/lifecycle.ts";
 export {LifecycleStateError} from "./application/lifecycle.ts";
@@ -23,7 +24,7 @@ export {
 export type {Logger, LoggerFactory} from "./component/logger.ts";
 export {consoleLoggerFactory} from "./component/logger.ts";
 export type {ComponentCallSchema, LocalSchema} from "./component/schema.ts";
-export {defineLocalInput, defineLocalOutput, EmptyInput, isLocalSchema} from "./component/schema.ts";
+export {defineLocalInput, defineLocalOutput, EmptyInput, hasSchemaMorph, isLocalSchema} from "./component/schema.ts";
 export {ConfigFileError, ConfigValidationError, SecretsFileError, SecretsValidationError} from "./config/error.ts";
 export type {DataAccess} from "./data/access.ts";
 export {createDataAccess} from "./data/access.ts";

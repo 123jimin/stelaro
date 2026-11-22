@@ -62,6 +62,7 @@ interface LocalSchema<T> extends ComponentCallSchema {
 function defineLocalInput<T>(): LocalSchema<T>;
 function defineLocalOutput<T>(): LocalSchema<T>;
 function isLocalSchema(call_schema: ComponentCallSchema): boolean;
+function hasSchemaMorph(call_schema: ComponentCallSchema): boolean;
 
 type StateFactory<TState> = () => TState;
 type ComponentCallHandler<TContext, TInput, TOutput> =
@@ -132,6 +133,7 @@ function defineComponent(definition: Component): Component;
 - `defineLocalInput<T>()` and `defineLocalOutput<T>()` create schemas for values that stay in the process.
   - The schemas' `assert` methods return the supplied value unchanged.
   - `isLocalSchema` detects schemas from either factory.
+  - `hasSchemaMorph` detects whether a non-local call schema contains a morph that transforms values during validation.
 
 ## Call handling
 

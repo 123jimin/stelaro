@@ -1,5 +1,5 @@
 import type {AnyComponentCalls, CallFrom, CallInput} from "@jiminp/stelaro";
-import {CallInputError, isLocalSchema} from "@jiminp/stelaro";
+import {hasSchemaMorph, isLocalSchema, MorphValidationDisabledError} from "@jiminp/stelaro";
 import type {FastifyContextConfig} from "fastify";
 
 import type {CallEndpointReference, OutputBody} from "./call-endpoint.ts";
@@ -19,6 +19,8 @@ export type ExposeCallsFactoryOptions = {
     readonly base: string;
     /** Fastify route configuration applied to every generated route. */
     readonly config?: FastifyContextConfig;
+    /** Whether to validate call outputs at the HTTP boundary, defaulting to `false`. */
+    readonly validate_call_output?: boolean;
 };
 
 /**
@@ -62,7 +64,7 @@ export type ExposeCallsFactory = {
  * @category Call Transport
  */
 export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): ExposeCallsFactory {
-    const {base, callPath, config} = options;
+    const {base, callPath, config, validate_call_output = false} = options;
     const route_options = config == null ? {} : {config};
     const not_found_routes: FastifyRouteGroup<readonly []> = {
         uses: [],
@@ -87,25 +89,29 @@ export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): Ex
                 if(isLocalSchema(input) || isLocalSchema(output)) {
                     throw new InvalidCallEndpointError(component_id, name, "Call input and output schemas must support transport.");
                 }
+                if(!validate_call_output && hasSchemaMorph(output)) {
+                    throw new MorphValidationDisabledError(component_id, name, "output");
+                }
                 const path = callPath(reference);
                 if(!path.startsWith(`${base}/`)) {
                     throw new InvalidCallEndpointError(component_id, name, `The endpoint path must be under ${JSON.stringify(base)}.`);
                 }
 
+                const input_has_morph = hasSchemaMorph(input);
                 return defineFastifyRoute<readonly [TCalls]>({
                     ...route_options,
                     method: "POST",
                     path,
                     async handle({call, request}): Promise<OutputBody> {
+                        let validated_input: unknown;
                         try {
-                            // Component dispatch validates the raw input.
-                            return {output: await call(reference, request.body as CallInput<typeof reference>)};
-                        } catch (error) {
-                            if(error instanceof CallInputError && error.component_id === component_id && error.call_name === name) {
-                                throw new RouteValidationError("body", error.cause);
-                            }
-                            throw error;
+                            validated_input = input.assert(request.body);
+                        } catch (cause) {
+                            throw new RouteValidationError("body", cause);
                         }
+                        const dispatch_input = input_has_morph ? request.body : validated_input;
+                        const result = await call(reference, dispatch_input as CallInput<typeof reference>);
+                        return {output: validate_call_output ? output.assert(result) : result};
                     },
                 });
             });

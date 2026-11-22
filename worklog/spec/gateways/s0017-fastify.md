@@ -88,6 +88,7 @@ type ExposeCallsFactoryOptions = {
     readonly callPath: (reference: CallEndpointReference) => string;
     readonly base: string;
     readonly config?: FastifyContextConfig;
+    readonly validate_call_output?: boolean;
 };
 type ExposeCallsFactory = {
     exposeCalls<TCalls extends AnyComponentCalls>(calls: TCalls): FastifyRouteGroup<readonly [TCalls]>;
@@ -140,7 +141,8 @@ class CallFailedError extends Error {
 
 ### Call transport
 
-- `createExposeCallsFactory` creates `exposeCalls`, which serves component calls over HTTP at the paths `callPath` returns. `exposeCalls` serves each call of a surface as a JSON `POST` and passes the request body, `null` included, to `call` unchanged, so the call's schema validates it once. It replies with the output in an `OutputBody`. If the call's own input fails, the route throws `RouteValidationError` for `body`. Every other failure, a nested call's input failure included, propagates unchanged.
+- `createExposeCallsFactory` creates `exposeCalls`, which serves component calls over HTTP at the paths `callPath` returns. `exposeCalls` serves each call of a surface as a JSON `POST` and unconditionally validates `request.body` with `reference.input.assert` before dispatching `call`, throwing `RouteValidationError` for `body` on failure. Every other failure, including a nested or recursive call's `CallInputError`, propagates unchanged. For morphing input schemas, `exposeCalls` forwards the pre-morph `request.body` to `call` so an application with `validate_call_input: true` does not re-validate an already-morphed value.
+- `validate_call_output` defaults to `false`. When `false`, `exposeCalls` rejects any call with a morphing output schema with `MorphValidationDisabledError` and returns the call's output in an `OutputBody` without validating it. When `true`, `exposeCalls` validates the returned output with `reference.output.assert` (if the application also enables `validate_call_output`, output validation runs in both places).
 - `exposeCalls` throws `InvalidCallEndpointError` for a call name with characters other than ASCII letters, digits, `_`, and `-`, a path not under `${base}/`, or a local input or output schema (s0005). `not_found_routes` answers a `GET` of `base` or any path under it with `NotFoundError`. `config` is the Fastify route `config` of every route either creates.
 - `getCallPath` returns `${base}/${component_id}/${name}`, escaping neither part, for use as `callPath` on both sides.
 - The `./client` entry loads neither Fastify nor stelaro at runtime.

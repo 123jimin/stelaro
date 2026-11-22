@@ -3,7 +3,7 @@ id = "t0027"
 title = "Make call validation configurable and enforce boundary validation"
 tags = ["application", "component", "fastify", "gateway", "errors"]
 modifies = ["s0005", "s0006", "s0007", "s0017"]
-status = "pending"
+status = "done"
 +++
 
 # Make call validation configurable and enforce boundary validation

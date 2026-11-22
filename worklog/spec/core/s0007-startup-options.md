@@ -16,6 +16,8 @@ type ApplicationOptions<TEnv extends string = string> = {
     readonly secrets_dir?: string | null;
     readonly data_dir?: string | null;
     readonly env?: TEnv | null;
+    readonly validate_call_input?: boolean;
+    readonly validate_call_output?: boolean;
 };
 
 type ParsedArgs<TEnv extends string = string> = {
@@ -53,6 +55,7 @@ function parseArgs(argv?: string[]): ParsedArgs<string>;
 - An entry point can pass the parser result as options with `createApplication(definition, parseArgs())`.
 - `createApplication` neither parses nor exposes CLI arguments.
 - The selected environment controls configuration and secrets overlays (s0009).
+- `validate_call_input` and `validate_call_output` control runtime call validation in `createApplication` (s0006); both default to `false` and have no CLI flags.
 
 ## Constraints
 

@@ -8,7 +8,7 @@ import type {AnyComponentCalls, LoggerFactory} from "../index.ts";
 import {
     CallInputError, ConfigValidationError, consoleLoggerFactory, createApplication, defineApplication, defineComponent,
     defineComponentCalls, defineLocalInput, defineLocalOutput, DuplicateComponentIdError, EmptyInput, LifecycleStateError,
-    mergeComponentCalls, parseArgs, SecretsValidationError, UndeclaredCallError, UnregisteredCallError,
+    mergeComponentCalls, MorphValidationDisabledError, parseArgs, SecretsValidationError, UndeclaredCallError, UnregisteredCallError,
 } from "../index.ts";
 import {createTemporaryDirectory} from "../test-util.ts";
 
@@ -431,7 +431,10 @@ test("dispatch validates input, preserves output errors, and checks reference id
             undeclared: (context) => context.call(extra_calls.calls.extra, {}),
         },
     });
-    const app = createApplication(defineApplication({components: [client, worker], logger: quietLogger}));
+    const app = createApplication(
+        defineApplication({components: [client, worker], logger: quietLogger}),
+        {validate_call_input: true, validate_call_output: true},
+    );
     await rejects(app.call(public_calls.calls.count, "hey"), {name: LifecycleStateError.name, operation: "call", current_state: "idle"});
     await app.start();
     const count: string = await app.call(local_calls.calls.forward, "hi");
@@ -458,4 +461,65 @@ test("dispatch validates input, preserves output errors, and checks reference id
     const value = {callback: () => 1};
     equal(await app.call(local_calls.calls.local, value), value);
     await app.stop();
+});
+
+test("call validation defaults to false and skips input and output assert for non-morphing schemas", async () => {
+    let input_asserts = 0;
+    let output_asserts = 0;
+    const Input = type("string").narrow(() => {
+        input_asserts++;
+        return true;
+    });
+    const Output = type("number").narrow(() => {
+        output_asserts++;
+        return true;
+    });
+    const calls = defineComponentCalls("worker", {echo: {input: Input, output: Output}});
+    const worker = defineComponent({
+        calls,
+        uses: [],
+        handlers: {echo: (_context, input) => input.length},
+    });
+    const app = createApplication(defineApplication({components: [worker], logger: quietLogger}));
+    await app.start();
+    equal(await app.call(calls.calls.echo, "hello"), 5);
+    equal(input_asserts, 0);
+    equal(output_asserts, 0);
+    await app.stop();
+});
+
+test("morphing call schemas are rejected when the corresponding validation flag is disabled", async () => {
+    const morph_in_calls = defineComponentCalls("morph-in", {
+        trim: {input: type("string.trim"), output: type("string")},
+    });
+    const morph_in_component = defineComponent({
+        calls: morph_in_calls,
+        uses: [],
+        handlers: {trim: (_context, input) => input},
+    });
+    throws(
+        () => createApplication({components: [morph_in_component], logger: quietLogger}),
+        {name: MorphValidationDisabledError.name, component_id: "morph-in", call_name: "trim", role: "input"},
+    );
+    const app_in = createApplication({components: [morph_in_component], logger: quietLogger}, {validate_call_input: true});
+    await app_in.start();
+    equal(await app_in.call(morph_in_calls.calls.trim, "  hi  "), "hi");
+    await app_in.stop();
+
+    const morph_out_calls = defineComponentCalls("morph-out", {
+        format: {input: type("number"), output: type("number").pipe((n) => String(n))},
+    });
+    const morph_out_component = defineComponent({
+        calls: morph_out_calls,
+        uses: [],
+        handlers: {format: (_context, input) => input},
+    });
+    throws(
+        () => createApplication({components: [morph_out_component], logger: quietLogger}),
+        {name: MorphValidationDisabledError.name, component_id: "morph-out", call_name: "format", role: "output"},
+    );
+    const app_out = createApplication({components: [morph_out_component], logger: quietLogger}, {validate_call_output: true});
+    await app_out.start();
+    equal(await app_out.call(morph_out_calls.calls.format, 42), "42");
+    await app_out.stop();
 });

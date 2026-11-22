@@ -102,3 +102,20 @@ export function defineLocalOutput<T>(): LocalSchema<T> {
 export function isLocalSchema(call_schema: ComponentCallSchema): boolean {
     return Object.hasOwn(call_schema, LOCAL_SCHEMA);
 }
+
+/**
+ * Check whether a call schema contains a morph that transforms values during validation.
+ *
+ * @param call_schema - Schema to check
+ * @returns Whether the schema contains a morph
+ *
+ * @category Component
+ */
+export function hasSchemaMorph(call_schema: ComponentCallSchema): boolean {
+    if(isLocalSchema(call_schema)) {
+        return false;
+    }
+    const candidate = call_schema as {readonly "in"?: unknown; readonly "out"?: unknown};
+    return (candidate.in != null && candidate.in !== call_schema)
+        || (candidate.out != null && candidate.out !== call_schema);
+}

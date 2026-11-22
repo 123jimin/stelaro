@@ -45,7 +45,7 @@ export function createBbsApplication(options: BbsApplicationOptions = {}) {
             components: [users_component, threads_component, comments_component, web_gateway],
             logger,
         }),
-        options.application_options,
+        {validate_call_input: true, ...options.application_options},
     );
     dispatchUserCall = app.call;
 

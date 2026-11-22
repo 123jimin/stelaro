@@ -46,12 +46,18 @@ function checkComponentCallReference(id: ComponentId, dependencies: Map<Componen
     }
 }
 
+export type CallValidationOptions = {
+    readonly validate_call_input: boolean;
+    readonly validate_call_output: boolean;
+};
+
 export function createComponentInstance(
     definition: AnyComponent,
     calls: ReadonlyMap<ComponentCallName, RegisteredCall>,
     log: Logger,
     data: DataAccess,
     dispatchCall: DispatchCall,
+    validation: CallValidationOptions,
 ) {
     const {id} = definition.calls;
     const state = definition.state == null ? {} : {state: definition.state()};
@@ -120,12 +126,14 @@ export function createComponentInstance(
             if(entry?.reference !== reference) {
                 throw new UnregisteredCallError(id, reference.name);
             }
-            let validated_input: unknown;
-            try {
-                // Local schemas implement assert as identity.
-                validated_input = reference.input.assert(input);
-            } catch (cause) {
-                throw new CallInputError(id, reference.name, cause);
+            let validated_input: unknown = input;
+            if(validation.validate_call_input) {
+                try {
+                    // Local schemas implement assert as identity.
+                    validated_input = reference.input.assert(input);
+                } catch (cause) {
+                    throw new CallInputError(id, reference.name, cause);
+                }
             }
 
             // Registration paired this handler with the schema, and this instance supplies its context.
@@ -134,6 +142,9 @@ export function createComponentInstance(
             const output = await (typeof handler === "function"
                 ? handler(call_context, validated_input)
                 : handler.handle(call_context, validated_input));
+            if(!validation.validate_call_output) {
+                return output as CallOutput<TCall>;
+            }
             const output_schema: TCall["output"] = reference.output;
             return output_schema.assert(output);
         },

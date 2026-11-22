@@ -3,7 +3,10 @@ import {execFileSync} from "node:child_process";
 import {execPath} from "node:process";
 import {test} from "node:test";
 
-import {CallInputError, createApplication, defineComponent, defineComponentCalls, defineLocalInput, defineLocalOutput, EmptyInput} from "@jiminp/stelaro";
+import {
+    CallInputError, createApplication, defineComponent, defineComponentCalls, defineLocalInput, defineLocalOutput, EmptyInput,
+    MorphValidationDisabledError,
+} from "@jiminp/stelaro";
 import {assertEqualType} from "@jiminp/tooltool";
 import {TraversalError, type} from "arktype";
 import type {FastifyError} from "fastify";
@@ -46,11 +49,11 @@ test("typed clients round-trip JSON inputs and outputs through component dispatc
     let validations = 0;
     const calls = defineComponentCalls("example", {
         read: {
-            input: type("string.numeric").pipe((value) => {
+            input: type("string.numeric").narrow(() => {
                 validations++;
-                return Number(value);
+                return true;
             }),
-            output: type({value: "number"}),
+            output: type({value: "string"}),
         },
         check: {input: EmptyInput, output: type("boolean")},
         nullable: {input: type("null"), output: type("null")},
@@ -93,7 +96,7 @@ test("typed clients round-trip JSON inputs and outputs through component dispatc
     const nullable = client("nullable");
     assertEqualType<Parameters<typeof client>, [name: "read" | "check" | "nullable"]>();
     assertEqualType<Parameters<typeof read>, [input: string]>();
-    assertEqualType<ReturnType<typeof read>, Promise<{value: number}>>();
+    assertEqualType<ReturnType<typeof read>, Promise<{value: string}>>();
     assertEqualType<Parameters<typeof nullable>, [input: null]>();
     assertEqualType<ReturnType<typeof nullable>, Promise<null>>();
     // @ts-expect-error The surface declares no call with this name.
@@ -103,7 +106,7 @@ test("typed clients round-trip JSON inputs and outputs through component dispatc
     // @ts-expect-error The caller must supply the component call surface type.
     createClient("example");
 
-    deepEqual(await read("42"), {value: 42});
+    deepEqual(await read("42"), {value: "42"});
     equal(validations, 1);
     equal(await client("check")(), true);
     equal(await nullable(null), null);
@@ -156,7 +159,7 @@ test("nested call input and other failures reach Fastify unchanged", async (t) =
         },
     });
     const base_dir = await createBaseDirectory(t);
-    const app = createApplication({components: [outer, nested]}, {base_dir});
+    const app = createApplication({components: [outer, nested]}, {base_dir, validate_call_input: true, validate_call_output: true});
     const server = fastify();
     t.after(() => server.close());
     const errors: unknown[] = [];
@@ -258,4 +261,80 @@ test("the public client subpath loads without any runtime package dependencies",
             throw new Error("Missing client exports");
         }
     `], {cwd: import.meta.dirname});
+});
+
+test("exposeCalls classifies only its own input failure as 400, even on recursive CallInputError", async () => {
+    const calls = defineComponentCalls("recursive", {
+        run: {input: type("string"), output: type("string")},
+    });
+    const {exposeCalls} = createExposeCallsFactory({base, callPath});
+    const server = fastify();
+    const seen_errors: unknown[] = [];
+    server.setErrorHandler<FastifyError>((error, _request, reply) => {
+        seen_errors.push(error);
+        return reply.code(error.statusCode ?? 500).send({error: error.message});
+    });
+    mountFastifyRoutes(server, exposeCalls(calls), {
+        call() {
+            // Simulate a nested recursive call to the same (component_id, call_name) failing input validation.
+            return Promise.reject(new CallInputError("recursive", "run", new Error("nested invalid")));
+        },
+    });
+    const response = await server.inject({
+        method: "POST",
+        url: callPath(calls.calls.run),
+        headers: {"content-type": JSON_MEDIA_TYPE},
+        payload: JSON.stringify("valid"),
+    });
+    equal(response.statusCode, 500);
+    ok(seen_errors[0] instanceof CallInputError);
+});
+
+test("exposeCalls respects validate_call_output and rejects morphing outputs when disabled", async () => {
+    const morph_calls = defineComponentCalls("morph", {
+        format: {input: EmptyInput, output: type("number").pipe((n) => String(n))},
+    });
+    const default_factory = createExposeCallsFactory({base, callPath});
+    throws(
+        () => default_factory.exposeCalls(morph_calls),
+        {name: MorphValidationDisabledError.name, component_id: "morph", call_name: "format", role: "output"},
+    );
+
+    let output_asserts = 0;
+    const plain_calls = defineComponentCalls("plain", {
+        read: {
+            input: EmptyInput,
+            output: type("number").narrow(() => {
+                output_asserts++;
+                return true;
+            }),
+        },
+    });
+    const server_default = fastify();
+    mountFastifyRoutes(server_default, default_factory.exposeCalls(plain_calls), {
+        call: async () => 7 as never,
+    });
+    const default_res = await server_default.inject({
+        method: "POST",
+        url: callPath(plain_calls.calls.read),
+        headers: {"content-type": JSON_MEDIA_TYPE},
+        payload: "{}",
+    });
+    equal(default_res.statusCode, 200);
+    deepEqual(default_res.json(), {output: 7});
+    equal(output_asserts, 0);
+
+    const validating_factory = createExposeCallsFactory({base, callPath, validate_call_output: true});
+    const server_validating = fastify();
+    mountFastifyRoutes(server_validating, validating_factory.exposeCalls(morph_calls), {
+        call: async () => 42 as never,
+    });
+    const morph_res = await server_validating.inject({
+        method: "POST",
+        url: callPath(morph_calls.calls.format),
+        headers: {"content-type": JSON_MEDIA_TYPE},
+        payload: "{}",
+    });
+    equal(morph_res.statusCode, 200);
+    deepEqual(morph_res.json(), {output: "42"});
 });

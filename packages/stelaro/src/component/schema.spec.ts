@@ -4,7 +4,7 @@ import {test} from "node:test";
 import {assertEqualType, identity} from "@jiminp/tooltool";
 import {type} from "arktype";
 
-import {defineLocalInput, defineLocalOutput, EmptyInput, isLocalSchema} from "../index.ts";
+import {defineLocalInput, defineLocalOutput, EmptyInput, hasSchemaMorph, isLocalSchema} from "../index.ts";
 
 test("EmptyInput accepts only empty plain objects", () => {
     const empty = {};
@@ -42,4 +42,33 @@ test("local input and output schemas retain their types and pass through values 
     const inherited = {inferIn: null, infer: null, assert: identity};
     Object.setPrototypeOf(inherited, input);
     equal(isLocalSchema(inherited), false);
+});
+
+test("hasSchemaMorph detects morphing ArkType schemas and ignores non-morphing and local schemas", () => {
+    const non_morphing = [
+        EmptyInput,
+        defineLocalInput<() => void>(),
+        defineLocalOutput<object>(),
+        type("string"),
+        type({a: "string", b: "number?"}),
+        type("string | number"),
+        type("string").narrow((value) => value.length > 0),
+        {inferIn: null, infer: null, assert: identity},
+    ];
+    for(const schema of non_morphing) {
+        equal(hasSchemaMorph(schema), false);
+    }
+
+    const morphing = [
+        type("string.trim"),
+        type("string").pipe((value) => value.length),
+        type({name: "string.trim"}),
+        type("string.trim").array(),
+        type({name: "string = 'default'"}),
+        type({"+": "delete", "name": "string"}),
+        type("string.trim").or("number"),
+    ];
+    for(const schema of morphing) {
+        equal(hasSchemaMorph(schema), true);
+    }
 });

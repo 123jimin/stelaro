@@ -181,3 +181,40 @@ export class CircularDependencyError extends StelaroError {
         this.cycle = [...cycle];
     }
 }
+
+/**
+ * The side of a component call schema.
+ *
+ * @category Errors
+ */
+export type CallSchemaRole = "input" | "output";
+
+/**
+ * An error raised when call validation is disabled for a call with a morphing schema.
+ *
+ * @category Errors
+ */
+export class MorphValidationDisabledError extends StelaroError {
+    /** The ID of the component declaring the call. */
+    readonly component_id: ComponentId;
+    /** The name of the call with the morphing schema. */
+    readonly call_name: ComponentCallName;
+    /** Whether the morphing schema is on the input or output side. */
+    readonly role: CallSchemaRole;
+
+    /**
+     * Create an error for a morphing call schema when validation is disabled.
+     *
+     * @param component_id - ID of the component declaring the call
+     * @param call_name - Name of the call
+     * @param role - Whether the morph is on the input or output schema
+     */
+    constructor(component_id: ComponentId, call_name: ComponentCallName, role: CallSchemaRole) {
+        super(
+            `Call ${quote(call_name)} on component ${quote(component_id)} has a morphing ${role} schema, which requires call ${role} validation.`,
+        );
+        this.component_id = component_id;
+        this.call_name = call_name;
+        this.role = role;
+    }
+}

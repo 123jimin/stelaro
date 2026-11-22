@@ -4,12 +4,13 @@ import type {ComponentCallFn, ComponentId} from "../component/calls.ts";
 import type {AnyComponent} from "../component/definition.ts";
 import type {LoggerFactory} from "../component/logger.ts";
 import {consoleLoggerFactory} from "../component/logger.ts";
+import {hasSchemaMorph} from "../component/schema.ts";
 import type {DataAccess} from "../data/access.ts";
 import {createDataAccess} from "../data/access.ts";
 import type {AnyComponentInstance, DispatchCall} from "./component-instance.ts";
 import {createComponentInstance} from "./component-instance.ts";
 import {resolveApplicationDirectories} from "./directories.ts";
-import {UnregisteredCallError, UnregisteredComponentError} from "./error.ts";
+import {MorphValidationDisabledError, UnregisteredCallError, UnregisteredComponentError} from "./error.ts";
 import {createLifecycleMachine, LifecycleStateError} from "./lifecycle.ts";
 import {createComponentRegistry} from "./registry.ts";
 
@@ -31,6 +32,10 @@ export type ApplicationOptions<TEnv extends string = string> = {
     readonly data_dir?: string | null;
     /** The environment that selects configuration and secrets overlays. */
     readonly env?: TEnv | null;
+    /** Whether to validate component call inputs at runtime, defaulting to `false`. */
+    readonly validate_call_input?: boolean;
+    /** Whether to validate component call outputs at runtime, defaulting to `false`. */
+    readonly validate_call_output?: boolean;
 };
 
 /**
@@ -147,6 +152,7 @@ export function defineApplication<const TComponents extends readonly AnyComponen
  * @throws {MissingDependencyError} A component depends on an unregistered component.
  * @throws {UnregisteredCallError} A dependency refers to a call outside the registered surface.
  * @throws {CircularDependencyError} Component dependencies form a cycle.
+ * @throws {MorphValidationDisabledError} Call validation is disabled while a registered call schema contains a morph.
  *
  * @example
  * ```typescript
@@ -164,6 +170,20 @@ export function createApplication<const TComponents extends readonly AnyComponen
     options: ApplicationOptions = {},
 ): Application<TComponents> {
     const registry = createComponentRegistry(definition.components);
+    const validate_call_input = options.validate_call_input ?? false;
+    const validate_call_output = options.validate_call_output ?? false;
+    if(!validate_call_input || !validate_call_output) {
+        for(const [id, {calls}] of registry) {
+            for(const [call_name, {reference}] of calls) {
+                if(!validate_call_input && hasSchemaMorph(reference.input)) {
+                    throw new MorphValidationDisabledError(id, call_name, "input");
+                }
+                if(!validate_call_output && hasSchemaMorph(reference.output)) {
+                    throw new MorphValidationDisabledError(id, call_name, "output");
+                }
+            }
+        }
+    }
     const {config_dir, secrets_dir, data_dir} = resolveApplicationDirectories(options);
     const env = options.env ?? null;
     const logger = definition.logger ?? consoleLoggerFactory;
@@ -194,8 +214,9 @@ export function createApplication<const TComponents extends readonly AnyComponen
     };
 
     // Preserve the registry's dependency order for startup.
+    const validation = {validate_call_input, validate_call_output};
     for(const [id, {definition, calls}] of registry) {
-        instances.set(id, createComponentInstance(definition, calls, logger(id), createDataAccess(data.resolve(id)), dispatchCall));
+        instances.set(id, createComponentInstance(definition, calls, logger(id), createDataAccess(data.resolve(id)), dispatchCall, validation));
     }
 
     async function loadAndInstallConfiguration(targets: Iterable<AnyComponentInstance>, secrets_dir: string | null): Promise<void> {
