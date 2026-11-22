@@ -97,17 +97,14 @@ export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): Ex
                     throw new InvalidCallEndpointError(component_id, name, `The endpoint path must be under ${JSON.stringify(base)}.`);
                 }
 
-                const input_has_morph = hasSchemaMorph(input);
                 return defineFastifyRoute<readonly [TCalls], unknown, null, typeof input>({
                     ...route_options,
                     method: "POST",
                     path,
                     body: input,
-                    async handle({call, body, request}): Promise<OutputBody> {
-                        // `body: input` already validated the request body; forward raw `request.body`
-                        // when the input schema morphs so app-side validation does not double-morph.
-                        const call_input = input_has_morph ? request.body : body;
-                        const result = await call(reference, call_input as CallInput<typeof reference>);
+                    async handle({call, request}): Promise<OutputBody> {
+                        // `body: input` validated `request.body`; pass `request.body` because `call` expects pre-morph `CallInput`.
+                        const result = await call(reference, request.body as CallInput<typeof reference>);
                         return {output: validate_call_output ? output.assert(result) : result};
                     },
                 });

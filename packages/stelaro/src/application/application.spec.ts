@@ -523,3 +523,30 @@ test("morphing call schemas are rejected when the corresponding validation flag 
     equal(await app_out.call(morph_out_calls.calls.format, 42), "42");
     await app_out.stop();
 });
+
+test("morphing input schema transforms arguments exactly once via app.call and context.call", async () => {
+    const math_calls = defineComponentCalls("math", {
+        doubleValue: {input: type("number").pipe((x) => x * 2), output: type("number")},
+    });
+    const caller_calls = defineComponentCalls("caller", {
+        forward: {input: type("number"), output: type("number")},
+    });
+    const math = defineComponent({
+        calls: math_calls,
+        uses: [],
+        handlers: {doubleValue: (_context, input) => input},
+    });
+    const caller = defineComponent({
+        calls: caller_calls,
+        uses: [math_calls],
+        handlers: {forward: (context, input) => context.call(math_calls.calls.doubleValue, input)},
+    });
+    const app = createApplication(
+        defineApplication({components: [math, caller], logger: quietLogger}),
+        {validate_call_input: true},
+    );
+    await app.start();
+    equal(await app.call(math_calls.calls.doubleValue, 5), 10);
+    equal(await app.call(caller_calls.calls.forward, 5), 10);
+    await app.stop();
+});

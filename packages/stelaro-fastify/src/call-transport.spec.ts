@@ -338,3 +338,231 @@ test("exposeCalls respects validate_call_output and rejects morphing outputs whe
     equal(morph_res.statusCode, 200);
     deepEqual(morph_res.json(), {output: "42"});
 });
+
+test("exposeCalls blocks accidental and malicious inputs on non-morphing calls even with app validation disabled", async (t) => {
+    let handler_calls = 0;
+    const calls = defineComponentCalls("strict", {
+        create: {
+            input: type({"+": "reject", "name": "string > 0"}),
+            output: type({name: "string"}),
+        },
+        ping: {input: EmptyInput, output: type("boolean")},
+    });
+    const component = defineComponent({
+        calls,
+        uses: [],
+        handlers: {
+            create(_context, input) {
+                handler_calls++;
+                return {name: input.name};
+            },
+            ping() {
+                handler_calls++;
+                return true;
+            },
+        },
+    });
+    const base_dir = await createBaseDirectory(t);
+    const app = createApplication({components: [component]}, {base_dir});
+    const server = fastify();
+    t.after(() => server.close());
+    const seen_errors: unknown[] = [];
+    server.setErrorHandler<FastifyError>((error, _request, reply) => {
+        seen_errors.push(error);
+        return reply.code(error.statusCode ?? 500).send({error: error.message});
+    });
+    const {exposeCalls} = createExposeCallsFactory({base, callPath});
+    mountFastifyRoutes(server, exposeCalls(calls), {call: app.call});
+    await app.start();
+    t.after(() => app.stop());
+
+    const invalid_create_payloads = [
+        "{}",
+        '{"name":""}',
+        '{"name":123}',
+        '{"name":"alice","admin":true}',
+        '{"name":"alice","__proto__":{"admin":true}}',
+        "null",
+        "[]",
+    ];
+    for(const payload of invalid_create_payloads) {
+        const reply = await server.inject({
+            method: "POST",
+            url: callPath(calls.calls.create),
+            headers: {"content-type": JSON_MEDIA_TYPE},
+            payload,
+        });
+        equal(reply.statusCode, 400);
+    }
+    for(const payload of ['{"extra":1}', "null", "[]", '"str"']) {
+        const reply = await server.inject({
+            method: "POST",
+            url: callPath(calls.calls.ping),
+            headers: {"content-type": JSON_MEDIA_TYPE},
+            payload,
+        });
+        equal(reply.statusCode, 400);
+    }
+    equal(handler_calls, 0);
+    ok(seen_errors.length > 0);
+
+    const ok_reply = await server.inject({
+        method: "POST",
+        url: callPath(calls.calls.create),
+        headers: {"content-type": JSON_MEDIA_TYPE},
+        payload: '{"name":"alice"}',
+    });
+    equal(ok_reply.statusCode, 200);
+    deepEqual(ok_reply.json(), {output: {name: "alice"}});
+    equal(handler_calls, 1);
+});
+
+test("exposeCalls validates morphing inputs at the boundary and delivers morphed values to handlers", async (t) => {
+    let handler_calls = 0;
+    const calls = defineComponentCalls("morphed", {
+        parse: {
+            input: type("string.numeric").pipe(Number),
+            output: type({parsed: "number"}),
+        },
+        trim: {
+            input: type("string.trim").to("string > 0"),
+            output: type({trimmed: "string"}),
+        },
+        strip: {
+            input: type({"+": "delete", "name": "string > 0"}),
+            output: type({keys: "string[]", name: "string"}),
+        },
+    });
+    const component = defineComponent({
+        calls,
+        uses: [],
+        handlers: {
+            parse(_context, input) {
+                handler_calls++;
+                return {parsed: input};
+            },
+            trim(_context, input) {
+                handler_calls++;
+                return {trimmed: input};
+            },
+            strip(_context, input) {
+                handler_calls++;
+                return {keys: Object.keys(input), name: input.name};
+            },
+        },
+    });
+    const base_dir = await createBaseDirectory(t);
+    const app = createApplication({components: [component]}, {base_dir, validate_call_input: true});
+    const server = fastify();
+    t.after(() => server.close());
+    const seen_errors: unknown[] = [];
+    server.setErrorHandler<FastifyError>((error, _request, reply) => {
+        seen_errors.push(error);
+        return reply.code(error.statusCode ?? 500).send({error: error.message});
+    });
+    const {exposeCalls} = createExposeCallsFactory({base, callPath});
+    mountFastifyRoutes(server, exposeCalls(calls), {call: app.call});
+    await app.start();
+    t.after(() => app.stop());
+
+    // Invalid pre-morph and post-morph payloads fail at the HTTP boundary as 400 without invoking handlers.
+    for(const [reference, payload] of [
+        [calls.calls.parse, '"not-a-number"'],
+        [calls.calls.parse, "42"],
+        [calls.calls.trim, '"   "'],
+        [calls.calls.trim, "123"],
+        [calls.calls.strip, '{"role":"admin"}'],
+        [calls.calls.strip, '{"name":"","role":"admin"}'],
+    ] as const) {
+        const reply = await server.inject({
+            method: "POST",
+            url: callPath(reference),
+            headers: {"content-type": JSON_MEDIA_TYPE},
+            payload,
+        });
+        equal(reply.statusCode, 400);
+    }
+    equal(handler_calls, 0);
+    equal(seen_errors.length, 6);
+    for(const error of seen_errors) {
+        ok(error instanceof RouteValidationError);
+        equal(error.validationContext, "body");
+    }
+
+    const parse_reply = await server.inject({
+        method: "POST",
+        url: callPath(calls.calls.parse),
+        headers: {"content-type": JSON_MEDIA_TYPE},
+        payload: '"42"',
+    });
+    equal(parse_reply.statusCode, 200);
+    deepEqual(parse_reply.json(), {output: {parsed: 42}});
+
+    const trim_reply = await server.inject({
+        method: "POST",
+        url: callPath(calls.calls.trim),
+        headers: {"content-type": JSON_MEDIA_TYPE},
+        payload: '"  alice  "',
+    });
+    equal(trim_reply.statusCode, 200);
+    deepEqual(trim_reply.json(), {output: {trimmed: "alice"}});
+
+    const strip_reply = await server.inject({
+        method: "POST",
+        url: callPath(calls.calls.strip),
+        headers: {"content-type": JSON_MEDIA_TYPE},
+        payload: '{"name":"alice","role":"admin"}',
+    });
+    equal(strip_reply.statusCode, 200);
+    deepEqual(strip_reply.json(), {output: {keys: ["name"], name: "alice"}});
+    equal(handler_calls, 3);
+});
+
+test("exposeCalls does not double-morph same-type input pipes across HTTP, ctx.call, and app.call", async (t) => {
+    const math_calls = defineComponentCalls("math", {
+        doubleValue: {input: type("number").pipe((x) => x * 2), output: type("number")},
+    });
+    const caller_calls = defineComponentCalls("caller", {
+        forward: {input: type("number"), output: type("number")},
+    });
+    const math = defineComponent({
+        calls: math_calls,
+        uses: [],
+        handlers: {doubleValue: (_context, input) => input},
+    });
+    const caller = defineComponent({
+        calls: caller_calls,
+        uses: [math_calls],
+        handlers: {forward: (context, input) => context.call(math_calls.calls.doubleValue, input)},
+    });
+    const base_dir = await createBaseDirectory(t);
+    const app = createApplication({components: [math, caller]}, {base_dir, validate_call_input: true});
+    const server = fastify();
+    t.after(() => server.close());
+    const {exposeCalls} = createExposeCallsFactory({base, callPath});
+    mountFastifyRoutes(server, exposeCalls(math_calls), {call: app.call});
+    mountFastifyRoutes(server, exposeCalls(caller_calls), {call: app.call});
+    await app.start();
+    t.after(() => app.stop());
+
+    equal(await app.call(math_calls.calls.doubleValue, 5), 10);
+    equal(await app.call(caller_calls.calls.forward, 5), 10);
+
+    const direct_http = await server.inject({
+        method: "POST",
+        url: callPath(math_calls.calls.doubleValue),
+        headers: {"content-type": JSON_MEDIA_TYPE},
+        payload: "5",
+    });
+    equal(direct_http.statusCode, 200);
+    deepEqual(direct_http.json(), {output: 10});
+
+    const forwarded_http = await server.inject({
+        method: "POST",
+        url: callPath(caller_calls.calls.forward),
+        headers: {"content-type": JSON_MEDIA_TYPE},
+        payload: "5",
+    });
+    equal(forwarded_http.statusCode, 200);
+    deepEqual(forwarded_http.json(), {output: 10});
+});
