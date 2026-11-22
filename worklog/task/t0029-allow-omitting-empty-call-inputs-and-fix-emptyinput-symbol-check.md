@@ -6,7 +6,7 @@ modifies = ["s0005", "s0006"]
 status = "pending"
 +++
 
-# Allow omitting empty call inputs and fix EmptyInput symbol check (NEEDS APPROVAL)
+# Allow omitting empty call inputs and fix EmptyInput symbol check
 
 Align core `ComponentCallFn` with the browser client's `CallFunction` by making the input argument optional when `{}` is accepted, and fix `EmptyInput` to reject own symbol properties as declared by its type.
 

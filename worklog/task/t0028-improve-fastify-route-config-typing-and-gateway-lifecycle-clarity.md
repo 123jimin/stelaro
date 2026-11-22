@@ -6,7 +6,7 @@ modifies = ["s0017", "s0021"]
 status = "pending"
 +++
 
-# Improve Fastify route config typing and gateway lifecycle clarity (NEEDS APPROVAL)
+# Improve Fastify route config typing and gateway lifecycle clarity
 
 Remove repetitive manual `GatewayHandlerContext<...>` annotations in Fastify route definitions and resolve the single-use `FastifyInstance` restart hazard in `defineFastifyGateway`.
 

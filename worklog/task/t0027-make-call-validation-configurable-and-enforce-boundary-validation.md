@@ -6,7 +6,7 @@ modifies = ["s0005", "s0006", "s0007", "s0017"]
 status = "pending"
 +++
 
-# Make call validation configurable and enforce boundary validation (NEEDS APPROVAL)
+# Make call validation configurable and enforce boundary validation
 
 Make in-process component call validation opt-in through `ApplicationOptions` while keeping HTTP call-transport inputs unconditionally validated at the Fastify boundary.
 Reject disabling validation when a relevant call schema contains a morph, so handlers never receive unmorphed inputs or callers unmorphed outputs silently.

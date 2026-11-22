@@ -7,7 +7,7 @@ status = "pending"
 blocked_by = ["t0027", "t0029"]
 +++
 
-# Optimize core dispatch and fluent filesystem write path (NEEDS APPROVAL)
+# Optimize core dispatch and fluent filesystem write path
 
 Eliminate avoidable per-call, per-request, and per-write allocations and syscalls across core dispatch, Fluent FS writes, and Fastify route handling without changing public behavior.
 

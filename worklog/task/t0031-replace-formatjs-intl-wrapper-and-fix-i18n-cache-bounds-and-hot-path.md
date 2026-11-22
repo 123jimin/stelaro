@@ -6,7 +6,7 @@ modifies = ["s0003", "s0018"]
 status = "pending"
 +++
 
-# Replace FormatJS intl wrapper and fix i18n cache bounds and hot path (NEEDS APPROVAL)
+# Replace FormatJS intl wrapper and fix i18n cache bounds and hot path
 
 Fix unbounded locale/formatter caching and per-call overhead in `@jiminp/stelaro-i18n`, and drop the heavy `@formatjs/intl` wrapper in favor of `intl-messageformat` directly.
 
