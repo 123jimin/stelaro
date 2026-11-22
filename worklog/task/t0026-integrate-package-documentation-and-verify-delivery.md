@@ -4,7 +4,7 @@ title = "Integrate package documentation and verify delivery"
 status = "pending"
 tags = ["documentation", "packages", "tooling", "infrastructure"]
 modifies = ["s0002", "s0004", "s0017", "s0018", "s0019", "s0020", "s0021", "s0023"]
-blocked_by = ["t0021", "t0023", "t0025"]
+blocked_by = ["t0021", "t0023", "t0025", "t0027", "t0028", "t0029", "t0030", "t0031"]
 +++
 
 # Integrate package documentation and verify delivery
