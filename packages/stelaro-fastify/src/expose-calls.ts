@@ -3,7 +3,7 @@ import {hasSchemaMorph, isLocalSchema, MorphValidationDisabledError} from "@jimi
 import type {FastifyContextConfig} from "fastify";
 
 import type {CallEndpointReference, OutputBody} from "./call-endpoint.ts";
-import {InvalidCallEndpointError, NotFoundError, RouteValidationError} from "./error.ts";
+import {InvalidCallEndpointError, NotFoundError} from "./error.ts";
 import type {FastifyRouteGroup} from "./route.ts";
 import {defineFastifyRoute} from "./route.ts";
 
@@ -98,19 +98,16 @@ export function createExposeCallsFactory(options: ExposeCallsFactoryOptions): Ex
                 }
 
                 const input_has_morph = hasSchemaMorph(input);
-                return defineFastifyRoute<readonly [TCalls]>({
+                return defineFastifyRoute<readonly [TCalls], unknown, null, typeof input>({
                     ...route_options,
                     method: "POST",
                     path,
-                    async handle({call, request}): Promise<OutputBody> {
-                        let validated_input: unknown;
-                        try {
-                            validated_input = input.assert(request.body);
-                        } catch (cause) {
-                            throw new RouteValidationError("body", cause);
-                        }
-                        const dispatch_input = input_has_morph ? request.body : validated_input;
-                        const result = await call(reference, dispatch_input as CallInput<typeof reference>);
+                    body: input,
+                    async handle({call, body, request}): Promise<OutputBody> {
+                        // `body: input` already validated the request body; forward raw `request.body`
+                        // when the input schema morphs so app-side validation does not double-morph.
+                        const call_input = input_has_morph ? request.body : body;
+                        const result = await call(reference, call_input as CallInput<typeof reference>);
                         return {output: validate_call_output ? output.assert(result) : result};
                     },
                 });

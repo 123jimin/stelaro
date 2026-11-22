@@ -1,7 +1,12 @@
 import type {AnyComponentCallReference, ComponentCallName, ComponentId} from "../component/calls.ts";
 import type {AnyComponent} from "../component/definition.ts";
 import {DuplicateCallError} from "../component/error.ts";
-import {CircularDependencyError, DuplicateComponentIdError, MissingDependencyError, MissingHandlerError, UnregisteredCallError} from "./error.ts";
+import {hasSchemaMorph} from "../component/schema.ts";
+import type {CallValidationOptions} from "./component-instance.ts";
+import {
+    CircularDependencyError, DuplicateComponentIdError, MissingDependencyError, MissingHandlerError,
+    MorphValidationDisabledError, UnregisteredCallError,
+} from "./error.ts";
 
 function indexComponents<TComponent extends AnyComponent>(components: readonly TComponent[]): Map<ComponentId, TComponent> {
     const components_by_id = new Map<ComponentId, TComponent>();
@@ -92,9 +97,19 @@ type RegisteredComponent<TComponent extends AnyComponent> = {
     readonly calls: ReadonlyMap<ComponentCallName, RegisteredCall>;
 };
 
+function assertNoDisabledMorph(id: ComponentId, reference: AnyComponentCallReference, validation: CallValidationOptions): void {
+    if(!validation.validate_call_input && hasSchemaMorph(reference.input)) {
+        throw new MorphValidationDisabledError(id, reference.name, "input");
+    }
+    if(!validation.validate_call_output && hasSchemaMorph(reference.output)) {
+        throw new MorphValidationDisabledError(id, reference.name, "output");
+    }
+}
+
 /** Register components in dependency order, preserved by Map iteration. */
 export function createComponentRegistry<TComponent extends AnyComponent>(
     components: readonly TComponent[],
+    validation?: CallValidationOptions,
 ): ReadonlyMap<ComponentId, RegisteredComponent<TComponent>> {
     const registry = new Map<ComponentId, RegisteredComponent<TComponent>>();
     for(const component of sortComponentsByUses(components)) {
@@ -109,6 +124,9 @@ export function createComponentRegistry<TComponent extends AnyComponent>(
             const handler = handlers[name];
             if(!Object.hasOwn(handlers, name) || (typeof handler !== "function" && typeof handler?.handle !== "function")) {
                 throw new MissingHandlerError(id, name);
+            }
+            if(validation != null) {
+                assertNoDisabledMorph(id, reference, validation);
             }
             calls.set(name, {reference, handler});
         }

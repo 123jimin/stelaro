@@ -4,13 +4,12 @@ import type {ComponentCallFn, ComponentId} from "../component/calls.ts";
 import type {AnyComponent} from "../component/definition.ts";
 import type {LoggerFactory} from "../component/logger.ts";
 import {consoleLoggerFactory} from "../component/logger.ts";
-import {hasSchemaMorph} from "../component/schema.ts";
 import type {DataAccess} from "../data/access.ts";
 import {createDataAccess} from "../data/access.ts";
 import type {AnyComponentInstance, DispatchCall} from "./component-instance.ts";
 import {createComponentInstance} from "./component-instance.ts";
 import {resolveApplicationDirectories} from "./directories.ts";
-import {MorphValidationDisabledError, UnregisteredCallError, UnregisteredComponentError} from "./error.ts";
+import {UnregisteredCallError, UnregisteredComponentError} from "./error.ts";
 import {createLifecycleMachine, LifecycleStateError} from "./lifecycle.ts";
 import {createComponentRegistry} from "./registry.ts";
 
@@ -169,21 +168,11 @@ export function createApplication<const TComponents extends readonly AnyComponen
     definition: ApplicationDefinition<TComponents>,
     options: ApplicationOptions = {},
 ): Application<TComponents> {
-    const registry = createComponentRegistry(definition.components);
-    const validate_call_input = options.validate_call_input ?? false;
-    const validate_call_output = options.validate_call_output ?? false;
-    if(!validate_call_input || !validate_call_output) {
-        for(const [id, {calls}] of registry) {
-            for(const [call_name, {reference}] of calls) {
-                if(!validate_call_input && hasSchemaMorph(reference.input)) {
-                    throw new MorphValidationDisabledError(id, call_name, "input");
-                }
-                if(!validate_call_output && hasSchemaMorph(reference.output)) {
-                    throw new MorphValidationDisabledError(id, call_name, "output");
-                }
-            }
-        }
-    }
+    const validation = {
+        validate_call_input: options.validate_call_input ?? false,
+        validate_call_output: options.validate_call_output ?? false,
+    };
+    const registry = createComponentRegistry(definition.components, validation);
     const {config_dir, secrets_dir, data_dir} = resolveApplicationDirectories(options);
     const env = options.env ?? null;
     const logger = definition.logger ?? consoleLoggerFactory;
@@ -214,7 +203,6 @@ export function createApplication<const TComponents extends readonly AnyComponen
     };
 
     // Preserve the registry's dependency order for startup.
-    const validation = {validate_call_input, validate_call_output};
     for(const [id, {definition, calls}] of registry) {
         instances.set(id, createComponentInstance(definition, calls, logger(id), createDataAccess(data.resolve(id)), dispatchCall, validation));
     }
